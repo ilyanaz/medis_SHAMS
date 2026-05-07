@@ -1,0 +1,14 @@
+<?php
+declare(strict_types=1);?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Delete Doctor</title>
+</head>
+<body>
+<h1>Delete Doctor</h1>
+<p>Placeholder for deleting doctor records.</p>
+</body>
+</html>
