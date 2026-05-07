@@ -47,10 +47,10 @@ class PanelController extends Controller
             'panel_user_role' => (string) $user->role,
             'panel_user_username' => (string) $user->username,
             'panel_user_original_role' => (string) $user->role,
-            'panel_mode' => $this->isAdmin($user) ? 'admin' : 'clinic',
+            'panel_mode' => $this->canUseAdminMode($user) ? 'admin' : 'clinic',
         ]);
 
-        if (! $this->isAdmin($user)) {
+        if (! $this->canUseAdminMode($user)) {
             $defaultClinicId = $this->firstClinicId();
             if ($defaultClinicId !== null) {
                 $request->session()->put('active_clinic_id', $defaultClinicId);
