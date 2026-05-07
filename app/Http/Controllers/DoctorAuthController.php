@@ -12,8 +12,8 @@ class DoctorAuthController extends Controller
 {
     public function showLogin(Request $request): View|RedirectResponse
     {
-        if ($request->session()->has('doctor_user_id')) {
-            return redirect()->route('doctor.dashboard');
+        if ($request->session()->has('panel_user_id') || $request->session()->has('doctor_user_id')) {
+            return $this->redirectToPanelHome($request);
         }
 
         return view('doctor.docLogin');
@@ -42,21 +42,25 @@ class DoctorAuthController extends Controller
             'doctor_user_id' => $user->getKey(),
             'doctor_user_email' => $user->email,
             'doctor_user_role' => $user->role,
+            'panel_user_id' => $user->getKey(),
+            'panel_user_email' => $user->email,
+            'panel_user_role' => (string) $user->role,
+            'panel_user_username' => (string) $user->username,
+            'panel_user_original_role' => (string) $user->role,
+            'panel_mode' => 'admin',
         ]);
+        $request->session()->forget('active_clinic_id');
 
-        return redirect()->route('doctor.dashboard');
+        return redirect()->route('admin.dashboard');
     }
 
     public function dashboard(Request $request): View|RedirectResponse
     {
-        if (! $request->session()->has('doctor_user_id')) {
+        if (! $request->session()->has('doctor_user_id') && ! $request->session()->has('panel_user_id')) {
             return redirect()->route('doctor.login');
         }
 
-        return view('doctor.dashboard', [
-            'doctorEmail' => (string) $request->session()->get('doctor_user_email', ''),
-            'doctorRole' => (string) $request->session()->get('doctor_user_role', ''),
-        ]);
+        return $this->redirectToPanelHome($request);
     }
 
     public function logout(Request $request): RedirectResponse
@@ -65,10 +69,31 @@ class DoctorAuthController extends Controller
             'doctor_user_id',
             'doctor_user_email',
             'doctor_user_role',
+            'panel_user_id',
+            'panel_user_email',
+            'panel_user_role',
+            'panel_user_username',
+            'panel_user_original_role',
+            'panel_mode',
+            'active_clinic_id',
         ]);
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
         return redirect()->route('doctor.login');
+    }
+
+    protected function redirectToPanelHome(Request $request): RedirectResponse
+    {
+        $role = strtolower((string) ($request->session()->get('panel_user_original_role')
+            ?? $request->session()->get('doctor_user_role')
+            ?? ''));
+        $hasClinic = (int) $request->session()->get('active_clinic_id', 0) > 0;
+
+        if ($role === 'doctor' && ! $hasClinic) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        return redirect()->route('panel.dashboard');
     }
 }

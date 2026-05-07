@@ -37,7 +37,6 @@
         .brand {
             display: flex;
             align-items: center;
-            gap: 10px;
             margin-bottom: 20px;
         }
 
@@ -59,12 +58,6 @@
             justify-content: center;
             align-items: center;
             font-weight: 700;
-        }
-
-        .brand span {
-            font-size: 1.2rem;
-            font-weight: 700;
-            color: var(--brand);
         }
 
         h1 { margin: 0 0 8px; font-size: 1.9rem; }
@@ -102,22 +95,14 @@
 </head>
 <body>
 <?php
-    $defaultLogoUrl = function_exists('asset') ? (string) asset('uploads/medis logo.png') : '/uploads/medis logo.png';
+    $defaultLogoUrl = function_exists('asset')
+        ? (string) asset('images/logos/medis-logo-left-right.png')
+        : '/images/logos/medis-logo-left-right.png';
     $clinicLogoUrl = isset($clinicLogoUrl) && $clinicLogoUrl !== '' ? $clinicLogoUrl : $defaultLogoUrl;
-    $clinicName = isset($clinicName) && $clinicName !== '' ? $clinicName : 'Clinic System';
     $username = isset($username) && $username !== '' ? $username : 'User';
     $esc = static fn ($value) => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 ?>
 <div class="card">
-    <div class="brand">
-        <?php if ($clinicLogoUrl): ?>
-            <img src="<?php echo $esc($clinicLogoUrl); ?>" alt="Clinic Logo">
-        <?php else: ?>
-            <span class="dot">C</span>
-        <?php endif; ?>
-        <span><?php echo $esc($clinicName); ?></span>
-    </div>
-
     <h1>Logout</h1>
     <p>Hi <?php echo $esc($username); ?>, are you sure you want to logout from your account?</p>
 
@@ -131,4 +116,3 @@
 </div>
 </body>
 </html>
-

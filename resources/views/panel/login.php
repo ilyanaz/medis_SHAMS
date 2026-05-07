@@ -1,253 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
-    <style>
-        :root {
-            --brand: #389B5B;
-            --brand-dark: #319755;
-            --bg: #edf7f1;
-            --text: #1a2438;
-            --muted: #72819a;
-            --input-border: #d4dceb;
-            --panel: #ffffff;
-        }
-
-        * { box-sizing: border-box; }
-
-        body {
-            margin: 0;
-            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-            background: radial-gradient(circle at 20% 20%, #f7fcf9 0%, #eef8f2 50%, #e5f2ea 100%);
-            min-height: 100vh;
-            display: grid;
-            place-items: center;
-            color: var(--text);
-            padding: 20px;
-        }
-
-        .wrapper {
-            width: min(1120px, 100%);
-            min-height: 720px;
-            border-radius: 16px;
-            overflow: hidden;
-            background: var(--panel);
-            box-shadow: 0 18px 48px rgba(12, 28, 77, 0.16);
-            display: grid;
-            grid-template-columns: 46% 54%;
-        }
-
-        .left {
-            position: relative;
-            background: #319755;
-            display: grid;
-            grid-template-rows: 58% 42%;
-        }
-
-        .left-top {
-            background-image: url('https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&w=1200&q=80');
-            background-size: cover;
-            background-position: center;
-        }
-
-        .left-bottom {
-            background: linear-gradient(180deg, #389B5B 0%, #319755 100%);
-            color: #fff;
-            padding: 44px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            gap: 22px;
-        }
-
-        .welcome-box {
-            border-left: 3px solid rgba(255, 255, 255, 0.85);
-            padding: 14px 0 14px 22px;
-            background: rgba(20, 94, 50, 0.25);
-        }
-
-        .welcome-box h2 {
-            margin: 0 0 10px;
-            font-size: clamp(1.6rem, 1.9vw, 2rem);
-            line-height: 1.3;
-            font-weight: 700;
-        }
-
-        .welcome-box p {
-            margin: 0;
-            color: rgba(255, 255, 255, 0.9);
-            font-size: 1.02rem;
-            line-height: 1.5;
-        }
-
-        .right {
-            padding: clamp(34px, 5vw, 62px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #fff;
-        }
-
-        .form-shell {
-            width: min(460px, 100%);
-        }
-
-        .brand {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 22px;
-        }
-
-        .brand img {
-            width: 38px;
-            height: 38px;
-            border-radius: 8px;
-            object-fit: cover;
-            border: 1px solid #d8e0f0;
-            background: #fff;
-        }
-
-        .brand-fallback {
-            width: 38px;
-            height: 38px;
-            border-radius: 999px;
-            background: var(--brand);
-            color: #fff;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1rem;
-            font-weight: 700;
-        }
-
-        .brand span {
-            font-size: 1.9rem;
-            font-weight: 700;
-            letter-spacing: -0.02em;
-            color: var(--brand);
-        }
-
-        h1 {
-            margin: 0;
-            font-size: 2.15rem;
-            letter-spacing: -0.02em;
-        }
-
-        .subtitle {
-            margin: 10px 0 30px;
-            color: var(--muted);
-            font-size: 1rem;
-        }
-
-        label {
-            display: block;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-
-        .input {
-            width: 100%;
-            border: 1px solid var(--input-border);
-            border-radius: 10px;
-            padding: 13px 14px;
-            font-size: 1rem;
-            outline: none;
-            transition: border-color .2s, box-shadow .2s;
-        }
-
-        .input:focus {
-            border-color: #8bcfa4;
-            box-shadow: 0 0 0 3px rgba(56, 155, 91, 0.18);
-        }
-
-        .field { margin-bottom: 18px; }
-
-        .password-wrap {
-            position: relative;
-        }
-
-        .toggle {
-            position: absolute;
-            right: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            border: none;
-            background: transparent;
-            color: #8090ac;
-            font-size: 0.9rem;
-            cursor: pointer;
-            padding: 4px;
-        }
-
-        .extra {
-            display: flex;
-            justify-content: flex-end;
-            margin: 6px 0 22px;
-        }
-
-        .extra a,
-        .signup a {
-            color: var(--brand-dark);
-            text-decoration: none;
-            font-weight: 600;
-        }
-
-        .extra a:hover,
-        .signup a:hover { text-decoration: underline; }
-
-        .btn {
-            width: 100%;
-            border: none;
-            border-radius: 10px;
-            background: linear-gradient(90deg, #389B5B 0%, #319755 100%);
-            color: #fff;
-            font-size: 1.06rem;
-            font-weight: 700;
-            padding: 13px 16px;
-            cursor: pointer;
-            box-shadow: 0 7px 20px rgba(49, 151, 85, 0.35);
-            transition: transform .15s ease;
-        }
-
-        .btn:hover { transform: translateY(-1px); }
-
-        .signup {
-            margin-top: 24px;
-            text-align: center;
-            color: #5d6c87;
-        }
-
-        .error {
-            background: #ffe8e8;
-            border: 1px solid #f7bcbc;
-            color: #a31a1a;
-            border-radius: 10px;
-            padding: 12px 14px;
-            margin-bottom: 18px;
-            font-size: 0.95rem;
-        }
-
-        @media (max-width: 940px) {
-            .wrapper {
-                grid-template-columns: 1fr;
-                min-height: auto;
-            }
-
-            .left {
-                grid-template-rows: 240px 1fr;
-            }
-
-            .right {
-                padding: 30px 24px 34px;
-            }
-        }
-    </style>
-</head>
-<body>
-<?php
+﻿<?php
     $defaultLogoUrl = function_exists('asset') ? (string) asset('uploads/medis logo.png') : '/uploads/medis logo.png';
     $clinicLogoUrl = isset($clinicLogoUrl) && $clinicLogoUrl !== '' ? $clinicLogoUrl : $defaultLogoUrl;
     $clinicName = isset($clinicName) && $clinicName !== '' ? $clinicName : 'Clinic System';
@@ -257,7 +8,6 @@
     $oldInput = static function (string $key, string $default = '') {
         return function_exists('old') ? (string) old($key, $default) : $default;
     };
-
     $routeUrl = static function (string $name, string $fallback = '#') {
         return function_exists('route') ? (string) route($name) : $fallback;
     };
@@ -266,80 +16,266 @@
     $hasErrors = isset($errors) && method_exists($errors, 'any') && $errors->any();
     $firstError = $hasErrors ? (string) $errors->first() : '';
 ?>
-<div class="wrapper">
-    <section class="left">
-        <div class="left-top"></div>
-        <div class="left-bottom">
-            <div class="brand" style="margin:0;">
-                <?php if ($clinicLogoUrl): ?>
-                    <img src="<?php echo $esc($clinicLogoUrl); ?>" alt="Clinic Logo">
-                <?php else: ?>
-                    <span class="brand-fallback">C</span>
-                <?php endif; ?>
-                <span style="color:#fff;font-size:2rem;"><?php echo $esc($clinicName); ?></span>
-            </div>
-            <div class="welcome-box">
-                <h2>Welcome to <?php echo $esc($clinicName); ?> Management System</h2>
-                <p>Cloud-based streamline healthcare management with a centralized, user-friendly platform.</p>
-            </div>
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-white">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title><?php echo $esc($clinicName); ?> Login</title>
+
+    <link rel="preconnect" href="https://fonts.bunny.net">
+    <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700&display=swap" rel="stylesheet" />
+
+    <style>
+        *,
+        ::before,
+        ::after {
+            box-sizing: border-box;
+            border-width: 0;
+            border-style: solid;
+            border-color: #e5e7eb;
+            --tw-border-spacing-x: 0;
+            --tw-border-spacing-y: 0;
+            --tw-translate-x: 0;
+            --tw-translate-y: 0;
+            --tw-rotate: 0;
+            --tw-skew-x: 0;
+            --tw-skew-y: 0;
+            --tw-scale-x: 1;
+            --tw-scale-y: 1;
+            --tw-ring-inset: ;
+            --tw-ring-offset-width: 0px;
+            --tw-ring-offset-color: #fff;
+            --tw-ring-color: rgb(59 130 246 / .5);
+            --tw-ring-offset-shadow: 0 0 #0000;
+            --tw-ring-shadow: 0 0 #0000;
+            --tw-shadow: 0 0 #0000;
+            --tw-shadow-colored: 0 0 #0000;
+        }
+
+        ::before,
+        ::after {
+            --tw-content: "";
+        }
+
+        ::backdrop {
+            --tw-border-spacing-x: 0;
+            --tw-border-spacing-y: 0;
+            --tw-translate-x: 0;
+            --tw-translate-y: 0;
+            --tw-rotate: 0;
+            --tw-skew-x: 0;
+            --tw-skew-y: 0;
+            --tw-scale-x: 1;
+            --tw-scale-y: 1;
+            --tw-ring-inset: ;
+            --tw-ring-offset-width: 0px;
+            --tw-ring-offset-color: #fff;
+            --tw-ring-color: rgb(59 130 246 / .5);
+            --tw-ring-offset-shadow: 0 0 #0000;
+            --tw-ring-shadow: 0 0 #0000;
+            --tw-shadow: 0 0 #0000;
+            --tw-shadow-colored: 0 0 #0000;
+        }
+
+        html {
+            line-height: 1.5;
+            -webkit-text-size-adjust: 100%;
+            -moz-tab-size: 4;
+            -o-tab-size: 4;
+            tab-size: 4;
+            font-family: Figtree, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+            font-feature-settings: normal;
+            font-variation-settings: normal;
+            -webkit-tap-highlight-color: transparent;
+            height: 100%;
+            background-color: rgb(255 255 255 / 1);
+        }
+
+        body {
+            margin: 0;
+            line-height: inherit;
+            min-height: 100%;
+            font-family: Figtree, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            color: rgb(17 24 39 / 1);
+            background: rgb(243 244 246 / 1);
+        }
+
+        input,
+        button {
+            font: inherit;
+        }
+
+        .page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .brand-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 24px;
+            text-decoration: none;
+        }
+
+        .brand-logo {
+            height: 96px;
+            width: auto;
+            display: block;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 448px;
+            margin-top: 4px;
+            padding: 24px;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .login-title {
+            display: block;
+            margin: 0 0 18px;
+            color: rgb(17, 24, 39);
+            text-align: center;
+            font-size: 1rem;
+            font-weight: 500;
+            line-height: 1.5rem;
+        }
+
+        .error-message {
+            margin: 0 0 12px;
+            color: rgb(185 28 28 / 1);
+            font-size: 0.95rem;
+            text-align: center;
+        }
+
+        .field + .field {
+            margin-top: 16px;
+        }
+
+        .field label {
+            display: block;
+            color: rgb(17, 24, 39);
+            font-size: 1rem;
+            font-weight: 500;
+            line-height: 1.5rem;
+            margin-bottom: 4px;
+        }
+
+        .field input {
+            display: block;
+            width: 100%;
+            margin-top: 4px;
+            border-radius: 0.375rem;
+            padding: 0.375rem 0.75rem;
+            color: rgb(17, 24, 39);
+            background: rgb(255, 255, 255);
+            box-shadow: inset 0 0 0 1px rgb(209 213 219 / 1);
+            min-height: 42px;
+            outline: none;
+        }
+
+        .field input:focus {
+            box-shadow: inset 0 0 0 2px rgb(3 105 161 / 1);
+        }
+
+        .actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            margin-top: 16px;
+        }
+
+        .login-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0.375rem;
+            background: rgb(21 128 61 / 1);
+            padding: 0.5rem 0.75rem;
+            color: #ffffff;
+            font-size: 1rem;
+            font-weight: 600;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.3s ease;
+        }
+
+        .login-button:hover {
+            background: rgb(22 163 74 / 1);
+        }
+
+        .login-button:active {
+            transform: translateY(1px);
+        }
+
+        @media (max-width: 640px) {
+            .page {
+                padding: 20px 16px;
+            }
+
+            .brand-logo {
+                height: 78px;
+            }
+
+            .login-card {
+                max-width: 100%;
+                padding: 20px;
+            }
+
+            .actions {
+                justify-content: stretch;
+            }
+
+            .login-button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div>
+            <a class="brand-link" href="/">
+                <img src="/images/logos/medis-logo-left-right.png" class="brand-logo" alt="Medis SHAMS logo">
+            </a>
         </div>
-    </section>
 
-    <section class="right">
-        <div class="form-shell">
-            <div class="brand">
-                <?php if ($clinicLogoUrl): ?>
-                    <img src="<?php echo $esc($clinicLogoUrl); ?>" alt="Clinic Logo">
-                <?php else: ?>
-                    <span class="brand-fallback">C</span>
-                <?php endif; ?>
-                <span><?php echo $esc($clinicName); ?></span>
-            </div>
-
-            <h1>Login</h1>
-            <p class="subtitle">Enter your credentials to login to your account</p>
+        <div class="login-card">
+            <label class="login-title" for="username"><?php echo $esc($clinicName); ?> Login</label>
 
             <?php if ($hasErrors): ?>
-                <div class="error"><?php echo $esc($firstError); ?></div>
+                <p class="error-message"><?php echo $esc($firstError); ?></p>
             <?php endif; ?>
 
             <form method="POST" action="<?php echo $esc($routeUrl('login.store')); ?>">
                 <input type="hidden" name="_token" value="<?php echo $esc($csrf); ?>">
+
                 <div class="field">
                     <label for="username">Username</label>
-                    <input id="username" name="username" class="input" type="text" value="<?php echo $esc($oldInput('username')); ?>" placeholder="Enter your username" required autofocus>
+                    <input id="username" type="text" name="username" value="<?php echo $esc($oldInput('username')); ?>" required autocomplete="username" autofocus>
                 </div>
 
                 <div class="field">
                     <label for="password">Password</label>
-                    <div class="password-wrap">
-                        <input id="password" name="password" class="input" type="password" placeholder="Enter your password" required>
-                        <button type="button" class="toggle" id="togglePassword">Show</button>
-                    </div>
+                    <input id="password" type="password" name="password" required autocomplete="current-password">
                 </div>
 
-                <div class="extra">
-                    <a href="<?php echo $esc($routeUrl('password.request')); ?>">Forgot Password?</a>
+                <div class="actions">
+                    <button type="submit" class="login-button">Log in</button>
                 </div>
-
-                <button class="btn" type="submit">Sign In</button>
-
-                <p class="signup">Don't have an account? <a href="#">Sign Up</a></p>
             </form>
         </div>
-    </section>
-</div>
-
-<script>
-    const toggleBtn = document.getElementById('togglePassword');
-    const passwordInput = document.getElementById('password');
-
-    toggleBtn.addEventListener('click', function () {
-        const isPassword = passwordInput.getAttribute('type') === 'password';
-        passwordInput.setAttribute('type', isPassword ? 'text' : 'password');
-        toggleBtn.textContent = isPassword ? 'Hide' : 'Show';
-    });
-</script>
+    </div>
 </body>
 </html>
-

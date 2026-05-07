@@ -8,13 +8,27 @@
 <body>
 <?php
 require dirname(__DIR__) . '/panel/navigation.php';
+$adminRole = strtolower((string) ($panelUser->role ?? ''));
+$useAdminNavigation = $adminRole === 'admin';
+if ($useAdminNavigation) {
+    require dirname(__DIR__) . '/admin/admin_navigation.php';
+}
 $esc = static fn ($value) => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
-medis_render_navigation_start([
-    'clinicName' => $clinicName ?? 'Medis SHAMS',
-    'clinicLogoUrl' => $clinicLogoUrl ?? null,
-    'username' => $username ?? 'User',
-    'active' => 'settings',
-]);
+if ($useAdminNavigation) {
+    medis_render_admin_navigation_start([
+        'clinicName' => $clinicName ?? 'Admin',
+        'clinicLogoUrl' => $clinicLogoUrl ?? null,
+        'username' => $username ?? 'User',
+        'active' => 'settings',
+    ]);
+} else {
+    medis_render_navigation_start([
+        'clinicName' => $clinicName ?? 'Medis SHAMS',
+        'clinicLogoUrl' => $clinicLogoUrl ?? null,
+        'username' => $username ?? 'User',
+        'active' => 'settings',
+    ]);
+}
 $settings = $settingsData ?? (object) [];
 $profilePhotoUrl = ! empty($settings->profile_photo_path) ? asset($settings->profile_photo_path) : null;
 $statusMessage = session('status');
