@@ -88,9 +88,8 @@ class DoctorAuthController extends Controller
         $role = strtolower((string) ($request->session()->get('panel_user_original_role')
             ?? $request->session()->get('doctor_user_role')
             ?? ''));
-        $hasClinic = (int) $request->session()->get('active_clinic_id', 0) > 0;
 
-        if ($role === 'doctor' && ! $hasClinic) {
+        if ($role === 'doctor') {
             return redirect()->route('admin.dashboard');
         }
 
