@@ -86,6 +86,8 @@ if (! function_exists('medis_render_navigation_start')) {
         $active = $config['active'] ?? 'dashboard';
         $bodyClass = trim((string) ($config['bodyClass'] ?? ''));
         $brandText = trim((string) ($config['brandText'] ?? ''));
+        $showThemeControls = (bool) ($config['showThemeControls'] ?? false);
+        $showLanguageControls = (bool) ($config['showLanguageControls'] ?? false);
         $esc = static fn ($value) => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
         $dashboardUrl = medis_named_route(['panel.dashboard', 'dashboard']);
         $surveillanceUrl = medis_named_route(['surveillance.company']);
@@ -511,7 +513,9 @@ if (! function_exists('medis_render_navigation_start')) {
             </div>
         <?php endif; ?>
 
+        <?php if ($showThemeControls || $showLanguageControls): ?>
         <div class="app-sidebar-tools">
+            <?php if ($showThemeControls): ?>
             <div class="switch-card">
                 <h4 data-i18n="theme">Theme</h4>
                 <div class="switch-row">
@@ -525,6 +529,8 @@ if (! function_exists('medis_render_navigation_start')) {
                     </button>
                 </div>
             </div>
+            <?php endif; ?>
+            <?php if ($showLanguageControls): ?>
             <div class="switch-card">
                 <h4 data-i18n="language">Language</h4>
                 <div class="switch-row">
@@ -532,7 +538,9 @@ if (! function_exists('medis_render_navigation_start')) {
                     <button class="switch-btn" id="langEnBtn" type="button"><span>EN</span></button>
                 </div>
             </div>
+            <?php endif; ?>
         </div>
+        <?php endif; ?>
 
         <div class="app-user-panel" id="appUserPanel">
             <button class="app-user-card" id="appUserToggle" type="button" aria-expanded="false">
