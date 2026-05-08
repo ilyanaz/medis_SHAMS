@@ -170,7 +170,6 @@ $legacyPostRoutes = [
     'surveillance.record.destroy',
     'surveillance.declaration.save',
     'surveillance.examination.save',
-    'surveillance.report.fitness.save',
     'surveillance.report.removal.save',
     'surveillance.chemical-option.store',
     'audiometry.examination.save',
