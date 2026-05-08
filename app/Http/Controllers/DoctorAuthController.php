@@ -49,7 +49,6 @@ class DoctorAuthController extends Controller
             'panel_user_original_role' => (string) $user->role,
             'panel_mode' => 'admin',
         ]);
-        $request->session()->forget('active_clinic_id');
 
         return redirect()->route('admin.dashboard');
     }

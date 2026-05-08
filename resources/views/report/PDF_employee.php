@@ -6,8 +6,18 @@ $employee = $employeeData ?? (object) [];
 $workerName = trim((string) (($employee->employee_firstName ?? '') . ' ' . ($employee->employee_lastName ?? '')));
 $identityNo = trim((string) (($employee->employee_NRIC ?? '') !== '' ? ($employee->employee_NRIC ?? '') : ($employee->employee_passportNo ?? '')));
 $sourceUrl = function_exists('route')
-    ? route('surveillance.report.usechh1', ['employee_id' => $employee->employee_id ?? request()->query('employee_id')])
-    : 'surveillance_usechh1Report.php?employee_id=' . urlencode((string) ($employee->employee_id ?? request()->query('employee_id')));
+    ? route('surveillance.report.usechh1', array_filter([
+        'employee_id' => $employee->employee_id ?? request()->query('employee_id'),
+        'company_id' => request()->query('company_id'),
+        'declaration_id' => request()->query('declaration_id'),
+        'surveillance_id' => request()->query('surveillance_id'),
+    ]))
+    : 'surveillance_usechh1Report.php?' . http_build_query(array_filter([
+        'employee_id' => $employee->employee_id ?? request()->query('employee_id'),
+        'company_id' => request()->query('company_id'),
+        'declaration_id' => request()->query('declaration_id'),
+        'surveillance_id' => request()->query('surveillance_id'),
+    ]));
 $backUrl = function_exists('route') ? route('general.report') : 'general_report.php';
 
 medis_render_navigation_start([

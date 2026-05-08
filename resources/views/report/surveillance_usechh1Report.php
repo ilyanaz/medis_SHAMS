@@ -43,6 +43,9 @@ medis_render_navigation_start([
 <style>
 .report-page{width:100%;max-width:none;margin:0;color:#0f172a;font-family:"Poppins","Segoe UI",Tahoma,Geneva,Verdana,sans-serif}
 .sheet{padding:16px 18px;background:#fff}
+.clinic-report-header{margin-bottom:14px;text-align:center}
+.clinic-report-header img{max-width:100%;max-height:140px;object-fit:contain}
+.clinic-report-header__fallback{padding:16px;border:1px solid #c9d8ea;border-radius:12px;font-size:18px;font-weight:700;letter-spacing:.04em}
 .report-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px}
 .report-btn{display:inline-flex;align-items:center;gap:8px;text-decoration:none;border:1px solid #d1d5db;border-radius:10px;padding:8px 14px;background:#fff;color:#374151;font-size:14px;font-weight:500;cursor:pointer}
 .report-btn.primary{background:#389B5B;border-color:#389B5B;color:#fff}
@@ -77,6 +80,7 @@ medis_render_navigation_start([
 </style>
 <div class="report-page toolbar-hide">
     <section class="sheet">
+        <?php require __DIR__ . '/partials/clinic_header.php'; ?>
         <div class="sheet-top">
             <span class="center-title">Occupational Safety and Health Act 1994 (Act 514)</span>
             <span class="right-code">USECHH 1</span>

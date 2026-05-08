@@ -2,7 +2,9 @@
 require dirname(__DIR__) . '/panel/navigation.php';
 
 $esc = static fn($v) => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
-$sourceUrl = function_exists('route') ? route('surveillance.company') : 'surveillance_company.php';
+$sourceUrl = function_exists('route')
+    ? route('surveillance.company', request()->only(['company_id']))
+    : 'surveillance_company.php?' . http_build_query(request()->only(['company_id']));
 $backUrl = function_exists('route') ? route('general.report') : 'general_report.php';
 
 medis_render_navigation_start([

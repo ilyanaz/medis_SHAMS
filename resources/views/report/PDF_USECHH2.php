@@ -29,13 +29,35 @@ medis_render_navigation_start([
 <body>
 <style>
 .pdf-page{display:grid;gap:12px;color:#0f172a;font-family:"Poppins","Segoe UI",Tahoma,Geneva,Verdana,sans-serif}
+.pdf-toolbar{display:flex;justify-content:flex-end;align-items:center;gap:12px}
+.print-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 18px;border:1px solid #1f7a45;border-radius:999px;background:#2f9e44;color:#fff;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 10px 24px rgba(47,158,68,.18)}
+.print-btn:hover{background:#24853a}
+.print-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8}
 .preview-iframe{display:block;width:100%;height:980px;border:0;background:#fff}
 .pdf-footer{padding-top:8px;border-top:1px solid #e5e7eb;text-align:right;font-size:11px;color:#64748b}
 </style>
 <div class="pdf-page">
+    <div class="pdf-toolbar">
+        <button class="print-btn" type="button" onclick="printPdfPreview()">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8V3h10v5"></path><rect x="5" y="13" width="14" height="8" rx="2"></rect><path d="M7 17h10"></path><path d="M6 9h12a3 3 0 0 1 3 3v3h-4"></path><path d="M3 15v-3a3 3 0 0 1 3-3"></path></svg>
+            Print Report
+        </button>
+    </div>
     <iframe class="preview-iframe" name="pdfPreviewFrame" src="<?php echo $esc($sourceUrl); ?>" title="PDF USECHH 2 preview"></iframe>
     <div class="pdf-footer"><?php echo $esc($generatedFooter); ?></div>
 </div>
+<script>
+function printPdfPreview() {
+    var frame = window.frames.pdfPreviewFrame;
+    if (!frame) {
+        window.print();
+        return;
+    }
+
+    frame.focus();
+    frame.print();
+}
+</script>
 <?php medis_render_navigation_end(); ?>
 </body>
 </html>

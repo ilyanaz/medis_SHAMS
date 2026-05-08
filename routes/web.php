@@ -49,6 +49,9 @@ Route::post('/panel/admin-mode', [PanelController::class, 'switchAdmin'])->name(
 Route::get('/panel/settings', [PanelController::class, 'adminSettings'])->name('panel.settings');
 Route::view('/panel/account-settings', 'panel.account_settings')->name('panel.account_settings');
 Route::view('/panel/forgot-password', 'panel.forgot_password')->name('panel.forgot_password');
+Route::post('/surveillance/company', [PanelController::class, 'storeSurveillanceCompany'])->name('surveillance.company.store');
+Route::post('/surveillance/employee', [PanelController::class, 'storeSurveillanceEmployee'])->name('surveillance.employee.store');
+Route::post('/surveillance/report/fitness', [PanelController::class, 'saveSurveillanceFitnessReport'])->name('surveillance.report.fitness.save');
 
 Route::get('/admin/dashboard', [PanelController::class, 'adminDashboard'])->name('admin.dashboard');
 Route::get('/admin/doctors', [PanelController::class, 'doctorList'])->name('admin.doctor_list');
@@ -140,6 +143,8 @@ $legacyViewRoutes = [
     'admin.employee' => 'employee.surveillance_employee',
     'admin.clinic' => 'panel.dashboard',
     'pdf.questionnaire' => 'report.PDF_questionnaire',
+    'pdf.company' => 'report.PDF_company',
+    'pdf.declaration' => 'report.PDF_declaration',
     'pdf.audio-report' => 'report.PDF_audioReport',
     'pdf.employee' => 'report.PDF_employee',
     'pdf.usechh1' => 'report.PDF_USECHH1',
@@ -157,10 +162,8 @@ foreach ($legacyViewRoutes as $name => $view) {
 }
 
 $legacyPostRoutes = [
-    'surveillance.company.store',
     'surveillance.company.update',
     'surveillance.company.destroy',
-    'surveillance.employee.store',
     'surveillance.employee.update',
     'surveillance.employee.destroy',
     'surveillance.record.update',

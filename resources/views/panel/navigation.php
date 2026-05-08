@@ -123,6 +123,13 @@ if (! function_exists('medis_render_navigation_start')) {
             ?? $sessionStore?->get('panel_user_role')
             ?? ''
         ));
+        $panelResolvedRole = strtolower((string) (
+            $sessionStore?->get('panel_user_role')
+            ?? ($panelUser->role ?? '')
+            ?? ''
+        ));
+        $canAccessAdminPanel = in_array($panelOriginalRole, ['admin', 'doctor'], true)
+            || in_array($panelResolvedRole, ['admin', 'doctor'], true);
         $panelMode = strtolower((string) (
             $sessionStore?->get('panel_mode')
             ?? ($panelOriginalRole === 'admin' ? 'admin' : 'clinic')
@@ -179,8 +186,12 @@ if (! function_exists('medis_render_navigation_start')) {
             $clinicName = $activeClinic['name'];
         }
 
-        $clinicSwitcherLabel = $inAdminMode || $activeClinic === null ? 'Admin Panel' : $clinicName;
-        $clinicSwitcherMeta = $inAdminMode ? 'Choose a clinic to enter daily navigation' : 'Current clinic navigation';
+        $clinicSwitcherLabel = $inAdminMode
+            ? 'Admin Panel'
+            : ($activeClinic !== null ? $clinicName : 'Select Clinic');
+        $clinicSwitcherMeta = $inAdminMode
+            ? 'Choose a clinic to enter daily navigation'
+            : ($activeClinic !== null ? 'Current clinic navigation' : 'Pick a clinic to continue');
         $clinicSwitcherInitials = medis_initials($clinicSwitcherLabel);
 
         $userEmail = strtolower(str_replace(' ', '.', $rawUsername !== '' ? $rawUsername : $displayName)) . '@' . strtolower(preg_replace('/\s+/', '', $clinicName)) . '.com';
@@ -407,10 +418,10 @@ if (! function_exists('medis_render_navigation_start')) {
                 <span class="app-clinic-chevron">▾</span>
             </button>
             <div class="app-clinic-menu" id="appClinicMenuSidebar">
-                <?php if (in_array($panelOriginalRole, ['admin', 'doctor'], true)): ?>
+                <?php if ($canAccessAdminPanel): ?>
                     <div class="app-clinic-menu-section">
                         <div class="app-clinic-menu-title" data-i18n="clinic_navigation_mode">Navigation Mode</div>
-                        <?php if ($panelOriginalRole === 'admin'): ?>
+                        <?php if ($panelResolvedRole === 'admin' || $panelOriginalRole === 'admin'): ?>
                             <form class="app-clinic-option-form" method="POST" action="<?php echo $esc($clinicSwitcherAdminUrl); ?>">
                                 <input type="hidden" name="_token" value="<?php echo $esc($clinicSwitcherToken); ?>">
                                 <button class="app-clinic-option<?php echo $inAdminMode ? ' is-active' : ''; ?>" type="submit">
@@ -459,7 +470,7 @@ if (! function_exists('medis_render_navigation_start')) {
                     <?php endif; ?>
                 </div>
 
-                <?php if ($panelOriginalRole === 'admin'): ?>
+                <?php if ($panelResolvedRole === 'admin' || $panelOriginalRole === 'admin'): ?>
                     <div class="app-clinic-menu-section">
                         <a class="app-clinic-link" href="<?php echo $esc($clinicSwitcherManageUrl); ?>">
                             <span class="app-clinic-option-icon">+</span>
@@ -587,10 +598,10 @@ if (! function_exists('medis_render_navigation_start')) {
                         <span class="app-clinic-chevron">▾</span>
                     </button>
                     <div class="app-clinic-menu" id="appClinicMenu">
-                        <?php if (in_array($panelOriginalRole, ['admin', 'doctor'], true)): ?>
+                        <?php if ($canAccessAdminPanel): ?>
                             <div class="app-clinic-menu-section">
                                 <div class="app-clinic-menu-title" data-i18n="clinic_navigation_mode">Navigation Mode</div>
-                                <?php if ($panelOriginalRole === 'admin'): ?>
+                                <?php if ($panelResolvedRole === 'admin' || $panelOriginalRole === 'admin'): ?>
                                     <form class="app-clinic-option-form" method="POST" action="<?php echo $esc($clinicSwitcherAdminUrl); ?>">
                                         <input type="hidden" name="_token" value="<?php echo $esc($clinicSwitcherToken); ?>">
                                         <button class="app-clinic-option<?php echo $inAdminMode ? ' is-active' : ''; ?>" type="submit">
@@ -639,7 +650,7 @@ if (! function_exists('medis_render_navigation_start')) {
                             <?php endif; ?>
                         </div>
 
-                        <?php if ($panelOriginalRole === 'admin'): ?>
+                        <?php if ($panelResolvedRole === 'admin' || $panelOriginalRole === 'admin'): ?>
                             <div class="app-clinic-menu-section">
                                 <a class="app-clinic-link" href="<?php echo $esc($clinicSwitcherManageUrl); ?>">
                                     <span class="app-clinic-option-icon">+</span>

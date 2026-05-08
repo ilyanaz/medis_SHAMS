@@ -33,32 +33,23 @@ $pickCompany = static function (int $index) use ($companyNames): string {
     return $companyNames[$index % count($companyNames)];
 };
 
-$audioRows = [
-    [
-        'module' => 'audiometry',
-        'filter' => 'questionnaire',
-        'employee_name' => 'Zul Hilmi',
-        'company' => $pickCompany(0),
-        'chemical_name' => 'Noise exposure',
-        'status' => 'Completed',
-        'status_key' => 'completed',
-        'date_examined' => '2026-03-09',
-        'href' => function_exists('route') ? route('audiometry.questionnaire') : '#',
-        'pdf_href' => function_exists('route') ? route('pdf.questionnaire') : '#',
-    ],
-    [
-        'module' => 'audiometry',
-        'filter' => 'report',
-        'employee_name' => 'Farah Nadia',
-        'company' => $pickCompany(1),
-        'chemical_name' => 'Noise exposure',
-        'status' => 'Incomplete',
-        'status_key' => 'incomplete',
-        'date_examined' => '2026-03-12',
-        'href' => function_exists('route') ? route('audiometry.report') : '#',
-        'pdf_href' => function_exists('route') ? route('pdf.audio-report') : '#',
-    ],
-];
+$audioRows = $audiometryReportRows ?? [];
+if (empty($audioRows)) {
+    $audioRows = [
+        [
+            'module' => 'audiometry',
+            'filter' => 'questionnaire',
+            'employee_name' => 'No audiometry record yet',
+            'company' => $pickCompany(0),
+            'chemical_name' => 'Noise exposure',
+            'status' => 'Pending',
+            'status_key' => 'pending',
+            'date_examined' => '',
+            'href' => function_exists('route') ? route('audiometry.questionnaire') : '#',
+            'pdf_href' => function_exists('route') ? route('pdf.questionnaire') : '#',
+        ],
+    ];
+}
 
 $defaultSurveillanceRows = [
     [

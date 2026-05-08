@@ -29,7 +29,11 @@ textarea{min-height:90px;resize:vertical}.full{grid-column:1/-1}.phone-group{dis
 <?php
 require_once __DIR__ . '/view_bootstrap.php';
 $esc = static fn ($value) => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
-$backUrl = function_exists('route') ? route('surveillance.employee') : '#';
+$selectedCompany = $selectedCompany ?? null;
+$selectedCompanyId = $selectedCompany->company_id ?? request()->query('company_id') ?? '';
+$selectedCompanyName = $selectedCompany->company_name ?? old('current_company_name', '');
+$hasSelectedCompany = $selectedCompanyId !== '' && $selectedCompanyId !== null;
+$backUrl = function_exists('route') ? route('surveillance.employee', array_filter(['company_id' => $selectedCompanyId])) : '#';
 $occupationalRows = old('occup_company_name', null);
 $occupationalRows = is_array($occupationalRows) ? count($occupationalRows) : 1;
 $occupationalRows = max(1, (int) $occupationalRows);
@@ -37,6 +41,7 @@ $occupationalRows = max(1, (int) $occupationalRows);
 <div class="overlay">
 <form class="modal" method="post" action="<?php echo $esc(route('surveillance.employee.store')); ?>" id="newEmployeeForm" novalidate>
 <input type="hidden" name="_token" value="<?php echo $esc(csrf_token()); ?>">
+<input type="hidden" name="company_id" value="<?php echo $esc($selectedCompanyId); ?>">
 <h1>New Employee</h1>
 <p class="muted">All fields required, with conditional rules for NRIC/Passport and marital status.</p>
 <?php if (isset($errors) && $errors->any()): ?>
@@ -97,7 +102,7 @@ $occupationalRows = max(1, (int) $occupationalRows);
 </div>
 <div class="grid">
 <label class="field">Job Title <span class="req">*</span><input type="text" name="current_job_title" value="<?php echo $esc(old('current_job_title')); ?>" placeholder="Enter current job title" required></label>
-<label class="field">Company Name <span class="req">*</span><input type="text" name="current_company_name" value="<?php echo $esc(old('current_company_name')); ?>" placeholder="Enter current company name" required></label>
+<label class="field">Company Name <span class="req">*</span><input type="text" name="current_company_name" value="<?php echo $esc($selectedCompanyName); ?>" placeholder="Enter current company name" <?php echo $hasSelectedCompany ? 'readonly' : ''; ?> required></label>
 <label class="field">Employment Duration <span class="req">*</span><input type="text" name="current_employment_duration" value="<?php echo $esc(old('current_employment_duration')); ?>" placeholder="Enter employment duration"></label>
 <label class="field">Chemical Exposure Duration <span class="req">*</span><input type="text" name="current_chemical_exposure_duration" value="<?php echo $esc(old('current_chemical_exposure_duration')); ?>" placeholder="Enter exposure duration"></label>
 <label class="field full">Chemical Exposure Incidents <span class="req">*</span><textarea name="current_chemical_exposure_incidents" placeholder="Insert chemical exposure incidents" required><?php echo $esc(old('current_chemical_exposure_incidents')); ?></textarea></label>

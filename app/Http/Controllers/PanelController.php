@@ -55,8 +55,6 @@ class PanelController extends Controller
             if ($defaultClinicId !== null) {
                 $request->session()->put('active_clinic_id', $defaultClinicId);
             }
-        } else {
-            $request->session()->forget('active_clinic_id');
         }
 
         return $this->redirectToHome($request);
@@ -942,6 +940,319 @@ class PanelController extends Controller
         return redirect()
             ->route('admin.settings')
             ->with('status', 'Password updated successfully.');
+    }
+
+    public function storeSurveillanceCompany(Request $request): RedirectResponse
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        $clinicId = (int) $request->session()->get('active_clinic_id', 0);
+        if ($clinicId <= 0) {
+            return redirect()->route('admin.dashboard')->withErrors([
+                'clinic' => 'Select a clinic first before adding a company.',
+            ]);
+        }
+
+        $validated = $request->validate([
+            'company_name' => ['required', 'string', 'max:150'],
+            'mykpp_registration_no' => ['required', 'string', 'max:100'],
+            'company_address' => ['required', 'string', 'max:255'],
+            'company_postcode' => ['required', 'string', 'max:10'],
+            'company_district' => ['required', 'string', 'max:100'],
+            'company_state' => ['required', 'string', 'max:100'],
+            'company_phone_code' => ['required', 'string', 'max:10'],
+            'company_telephone' => ['required', 'string', 'max:20'],
+            'company_email' => ['required', 'email', 'max:150'],
+            'company_fax' => ['required', 'string', 'max:30'],
+            'total_workers' => ['required', 'integer', 'min:0'],
+        ]);
+
+        $payload = [
+            'company_name' => trim((string) $validated['company_name']),
+            'mykpp_registration_no' => trim((string) $validated['mykpp_registration_no']),
+            'company_address' => trim((string) $validated['company_address']),
+            'company_postcode' => trim((string) $validated['company_postcode']),
+            'company_district' => trim((string) $validated['company_district']),
+            'company_state' => trim((string) $validated['company_state']),
+            'company_telephone' => $this->buildCountryCodeNumber($validated['company_phone_code'], $validated['company_telephone']),
+            'company_email' => trim((string) $validated['company_email']),
+            'company_fax' => trim((string) $validated['company_fax']),
+            'total_workers' => (int) $validated['total_workers'],
+        ];
+
+        if (Schema::hasColumn('company', 'clinic_id')) {
+            $payload['clinic_id'] = $clinicId;
+        }
+
+        DB::table('company')->insert($payload);
+
+        return redirect()
+            ->route('surveillance.company')
+            ->with('status', 'Company saved successfully for the active clinic.');
+    }
+
+    public function storeSurveillanceEmployee(Request $request): RedirectResponse
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        $clinicId = (int) $request->session()->get('active_clinic_id', 0);
+        if ($clinicId <= 0) {
+            return redirect()->route('admin.dashboard')->withErrors([
+                'clinic' => 'Select a clinic first before adding an employee.',
+            ]);
+        }
+
+        $validated = $request->validate([
+            'company_id' => ['nullable', 'integer'],
+            'employee_firstName' => ['required', 'string', 'max:100'],
+            'employee_lastName' => ['required', 'string', 'max:100'],
+            'employee_NRIC' => ['nullable', 'string', 'max:20', 'required_without:employee_passportNo'],
+            'employee_passportNo' => ['nullable', 'string', 'max:30', 'required_without:employee_NRIC'],
+            'employee_DOB' => ['required', 'date'],
+            'employee_gender' => ['required', 'in:Male,Female'],
+            'employee_address' => ['required', 'string', 'max:255'],
+            'employee_postcode' => ['required', 'string', 'max:10'],
+            'employee_district' => ['required', 'string', 'max:100'],
+            'employee_state' => ['required', 'string', 'max:100'],
+            'employee_phone_code' => ['required', 'string', 'max:10'],
+            'employee_telephone' => ['required', 'string', 'max:20'],
+            'employee_email' => ['required', 'email', 'max:150'],
+            'employee_ethnicity' => ['required', 'string', 'max:50'],
+            'employee_citizenship' => ['required', 'string', 'max:50'],
+            'employee_martialStatus' => ['required', 'string', 'max:50'],
+            'no_of_children' => ['nullable', 'integer', 'min:0'],
+            'years_married' => ['nullable', 'integer', 'min:0'],
+            'diagnosed_history' => ['required', 'string'],
+            'medication_history' => ['required', 'string'],
+            'admitted_history' => ['required', 'string'],
+            'family_history' => ['required', 'string'],
+            'others_history' => ['required', 'string'],
+            'current_job_title' => ['required', 'string', 'max:150'],
+            'current_company_name' => ['required', 'string', 'max:150'],
+            'current_employment_duration' => ['required', 'string', 'max:100'],
+            'current_chemical_exposure_duration' => ['required', 'string', 'max:100'],
+            'current_chemical_exposure_incidents' => ['required', 'string'],
+            'occup_job_title' => ['array'],
+            'occup_job_title.*' => ['nullable', 'string', 'max:150'],
+            'occup_company_name' => ['array'],
+            'occup_company_name.*' => ['nullable', 'string', 'max:150'],
+            'employment_duration' => ['array'],
+            'employment_duration.*' => ['nullable', 'string', 'max:100'],
+            'chemical_exposure_duration' => ['array'],
+            'chemical_exposure_duration.*' => ['nullable', 'string', 'max:100'],
+            'chemical_exposure_incidents' => ['array'],
+            'chemical_exposure_incidents.*' => ['nullable', 'string'],
+            'smoking_history' => ['required', 'string', 'max:50'],
+            'years_of_smoking' => ['nullable', 'integer', 'min:0'],
+            'no_of_cigarettes' => ['nullable', 'integer', 'min:0'],
+            'vaping_history' => ['required', 'string', 'max:10'],
+            'years_of_vaping' => ['nullable', 'integer', 'min:0'],
+            'hobby' => ['required', 'string'],
+            'handling_of_chemical' => ['required', 'string', 'max:10'],
+            'chemical_comments' => ['required', 'string'],
+            'sign_symptoms' => ['required', 'string', 'max:10'],
+            'sign_comments' => ['required', 'string'],
+            'chemical_poisoning' => ['required', 'string', 'max:10'],
+            'poisoning_comments' => ['required', 'string'],
+            'proper_PPE' => ['required', 'string', 'max:10'],
+            'proper_comments' => ['required', 'string'],
+            'PPE_usage' => ['required', 'string', 'max:10'],
+            'usage_comments' => ['required', 'string'],
+        ]);
+
+        $selectedCompany = null;
+        $selectedCompanyId = (int) ($validated['company_id'] ?? 0);
+
+        if ($selectedCompanyId > 0) {
+            $companyQuery = DB::table('company')->where('company_id', $selectedCompanyId);
+            if (Schema::hasColumn('company', 'clinic_id')) {
+                $companyQuery->where('clinic_id', $clinicId);
+            }
+            $selectedCompany = $companyQuery->first();
+
+            if (! $selectedCompany) {
+                return back()
+                    ->withErrors(['company_id' => 'The selected company does not belong to the active clinic.'])
+                    ->withInput();
+            }
+        }
+
+        $employeePayload = [
+            'employee_firstName' => trim((string) $validated['employee_firstName']),
+            'employee_lastName' => trim((string) $validated['employee_lastName']),
+            'employee_NRIC' => trim((string) ($validated['employee_NRIC'] ?? '')) ?: null,
+            'employee_passportNo' => trim((string) ($validated['employee_passportNo'] ?? '')) ?: null,
+            'employee_DOB' => $validated['employee_DOB'],
+            'employee_gender' => $validated['employee_gender'],
+            'employee_address' => trim((string) $validated['employee_address']),
+            'employee_postcode' => trim((string) $validated['employee_postcode']),
+            'employee_district' => trim((string) $validated['employee_district']),
+            'employee_state' => trim((string) $validated['employee_state']),
+            'employee_telephone' => $this->buildCountryCodeNumber($validated['employee_phone_code'], $validated['employee_telephone']),
+            'employee_email' => trim((string) $validated['employee_email']),
+            'employee_ethnicity' => $validated['employee_ethnicity'],
+            'employee_citizenship' => $validated['employee_citizenship'],
+            'employee_martialStatus' => $validated['employee_martialStatus'],
+            'no_of_children' => (int) ($validated['no_of_children'] ?? 0),
+            'years_married' => (int) ($validated['years_married'] ?? 0),
+        ];
+
+        if (Schema::hasColumn('employee', 'clinic_id')) {
+            $employeePayload['clinic_id'] = $clinicId;
+        }
+        if ($selectedCompany && Schema::hasColumn('employee', 'company_id')) {
+            $employeePayload['company_id'] = (int) $selectedCompany->company_id;
+        }
+
+        $employeeId = DB::table('employee')->insertGetId($employeePayload);
+
+        DB::table('medical_history')->insert([
+            'diagnosed_history' => trim((string) $validated['diagnosed_history']),
+            'medication_history' => trim((string) $validated['medication_history']),
+            'admitted_history' => trim((string) $validated['admitted_history']),
+            'family_history' => trim((string) $validated['family_history']),
+            'others_history' => trim((string) $validated['others_history']),
+            'employee_id' => $employeeId,
+            'surveillance_id' => null,
+        ]);
+
+        DB::table('occupational_history')->insert([
+            'job_title' => trim((string) $validated['current_job_title']),
+            'company_name' => trim((string) ($selectedCompany->company_name ?? $validated['current_company_name'])),
+            'employment_duration' => trim((string) $validated['current_employment_duration']),
+            'chemical_exposure_duration' => trim((string) $validated['current_chemical_exposure_duration']),
+            'chemical_exposure_incidents' => trim((string) $validated['current_chemical_exposure_incidents']),
+            'employee_id' => $employeeId,
+            'surveillance_id' => null,
+        ]);
+
+        $jobTitles = $validated['occup_job_title'] ?? [];
+        $companyNames = $validated['occup_company_name'] ?? [];
+        $employmentDurations = $validated['employment_duration'] ?? [];
+        $exposureDurations = $validated['chemical_exposure_duration'] ?? [];
+        $exposureIncidents = $validated['chemical_exposure_incidents'] ?? [];
+
+        $rowCount = max(
+            count($jobTitles),
+            count($companyNames),
+            count($employmentDurations),
+            count($exposureDurations),
+            count($exposureIncidents)
+        );
+
+        for ($index = 0; $index < $rowCount; $index++) {
+            $payload = [
+                'job_title' => trim((string) ($jobTitles[$index] ?? '')),
+                'company_name' => trim((string) ($companyNames[$index] ?? '')),
+                'employment_duration' => trim((string) ($employmentDurations[$index] ?? '')),
+                'chemical_exposure_duration' => trim((string) ($exposureDurations[$index] ?? '')),
+                'chemical_exposure_incidents' => trim((string) ($exposureIncidents[$index] ?? '')),
+            ];
+
+            if (implode('', $payload) === '') {
+                continue;
+            }
+
+            DB::table('occupational_history')->insert($payload + [
+                'employee_id' => $employeeId,
+                'surveillance_id' => null,
+            ]);
+        }
+
+        DB::table('personal_social_history')->insert([
+            'smoking_history' => $validated['smoking_history'],
+            'years_of_smoking' => (int) ($validated['years_of_smoking'] ?? 0),
+            'no_of_cigarettes' => (int) ($validated['no_of_cigarettes'] ?? 0),
+            'vaping_history' => $validated['vaping_history'],
+            'years_of_vaping' => (int) ($validated['years_of_vaping'] ?? 0),
+            'hobby' => trim((string) $validated['hobby']),
+            'employee_id' => $employeeId,
+            'surveillance_id' => null,
+        ]);
+
+        DB::table('training_history')->insert([
+            'handling_of_chemical' => $validated['handling_of_chemical'],
+            'chemical_comments' => trim((string) $validated['chemical_comments']),
+            'sign_symptoms' => $validated['sign_symptoms'],
+            'sign_comments' => trim((string) $validated['sign_comments']),
+            'chemical_poisoning' => $validated['chemical_poisoning'],
+            'poisoning_comments' => trim((string) $validated['poisoning_comments']),
+            'proper_PPE' => $validated['proper_PPE'],
+            'proper_comments' => trim((string) $validated['proper_comments']),
+            'PPE_usage' => $validated['PPE_usage'],
+            'usage_comments' => trim((string) $validated['usage_comments']),
+            'employee_id' => $employeeId,
+            'surveillance_id' => null,
+        ]);
+
+        $redirectParams = [];
+        if ($selectedCompany) {
+            $redirectParams['company_id'] = $selectedCompany->company_id;
+        }
+
+        return redirect()
+            ->route('surveillance.employee', $redirectParams)
+            ->with('status', $selectedCompany
+                ? 'Employee saved successfully for the selected company in the active clinic.'
+                : 'Employee saved successfully for the active clinic.');
+    }
+
+    public function saveSurveillanceFitnessReport(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'surveillance_id' => ['required', 'integer', 'min:1'],
+            'employee_id' => ['nullable', 'integer', 'min:1'],
+            'company_id' => ['nullable', 'integer', 'min:1'],
+            'declaration_id' => ['nullable', 'integer', 'min:1'],
+            'remarks' => ['nullable', 'string'],
+        ]);
+
+        if (! Schema::hasTable('fitness_report')) {
+            return redirect()->back()->with('status', 'Fitness report table is not available.');
+        }
+
+        $surveillanceId = (int) $validated['surveillance_id'];
+        $remarks = trim((string) ($validated['remarks'] ?? ''));
+
+        $record = DB::table('fitness_report')
+            ->where('surveillance_id', $surveillanceId)
+            ->first();
+
+        if ($record) {
+            DB::table('fitness_report')
+                ->where('fitnessReport_id', $record->fitnessReport_id)
+                ->update([
+                    'remarks' => $remarks,
+                    'employee_id' => $validated['employee_id'] ?? $record->employee_id,
+                    'company_id' => $validated['company_id'] ?? $record->company_id,
+                ]);
+        } else {
+            DB::table('fitness_report')->insert([
+                'result' => 'Pending review',
+                'remarks' => $remarks,
+                'employee_id' => $validated['employee_id'] ?? null,
+                'surveillance_id' => $surveillanceId,
+                'company_id' => $validated['company_id'] ?? null,
+                'doctor_id' => null,
+            ]);
+        }
+
+        $params = array_filter([
+            'declaration_id' => $validated['declaration_id'] ?? null,
+            'employee_id' => $validated['employee_id'] ?? null,
+            'company_id' => $validated['company_id'] ?? null,
+            'surveillance_id' => $surveillanceId,
+        ], static fn ($value) => $value !== null && $value !== '');
+
+        return redirect()
+            ->route('surveillance.report.fitness', $params)
+            ->with('status', 'USECHH 3 remarks saved successfully.');
     }
 
     public function switchAdmin(Request $request): RedirectResponse
