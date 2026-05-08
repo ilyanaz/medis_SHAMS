@@ -51,6 +51,10 @@ Route::view('/panel/account-settings', 'panel.account_settings')->name('panel.ac
 Route::view('/panel/forgot-password', 'panel.forgot_password')->name('panel.forgot_password');
 Route::post('/surveillance/company', [PanelController::class, 'storeSurveillanceCompany'])->name('surveillance.company.store');
 Route::post('/surveillance/employee', [PanelController::class, 'storeSurveillanceEmployee'])->name('surveillance.employee.store');
+Route::get('/surveillance/records/{declaration}', [PanelController::class, 'surveillanceRecordView'])->name('surveillance.record.view');
+Route::get('/surveillance/records/{declaration}/edit', [PanelController::class, 'surveillanceRecordEdit'])->name('surveillance.record.edit');
+Route::delete('/surveillance/records/{declaration}', [PanelController::class, 'destroySurveillanceRecord'])->name('surveillance.record.destroy');
+Route::post('/surveillance/examination', [PanelController::class, 'saveSurveillanceExamination'])->name('surveillance.examination.save');
 Route::post('/surveillance/report/fitness', [PanelController::class, 'saveSurveillanceFitnessReport'])->name('surveillance.report.fitness.save');
 Route::post('/surveillance/report/summary', [PanelController::class, 'saveSurveillanceSummaryReport'])->name('surveillance.report.summary.save');
 Route::post('/surveillance/report/removal', [PanelController::class, 'saveSurveillanceRemovalReport'])->name('surveillance.report.removal.save');
@@ -109,7 +113,6 @@ $legacyViewRoutes = [
     'surveillance.employee.edit' => 'action.edit_surveillanceEmp',
     'surveillance.employee.delete' => 'action.delete_surveillanceEmp',
     'surveillance.list' => 'surveillance.surveillance_list',
-    'surveillance.record.edit' => 'action.edit_surveillanceRecord',
     'surveillance.record.delete' => 'action.delete_surveillanceRecord',
     'surveillance.declaration' => 'surveillance.surveillance_examination',
     'surveillance.examination' => 'surveillance.surveillance_examination',
@@ -169,9 +172,7 @@ $legacyPostRoutes = [
     'surveillance.employee.update',
     'surveillance.employee.destroy',
     'surveillance.record.update',
-    'surveillance.record.destroy',
     'surveillance.declaration.save',
-    'surveillance.examination.save',
     'surveillance.chemical-option.store',
     'audiometry.examination.save',
     'settings.header.upload',

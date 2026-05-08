@@ -393,6 +393,24 @@ class LegacyClinicContext
             $hasDoctorSignature = !empty($row->doctor_signature);
             $hasEmployeeSignature = !empty($row->employee_signature);
             $isCompleted = $hasDoctorSignature && $hasEmployeeSignature && !empty($row->doctor_date) && !empty($row->employee_date);
+            $findings = null;
+            if (! empty($row->surveillance_id) && Schema::hasTable('ms_findings')) {
+                $findings = DB::table('ms_findings')
+                    ->where('surveillance_id', $row->surveillance_id)
+                    ->first();
+            }
+            $isAbnormal = false;
+            if ($findings) {
+                $isAbnormal = in_array((string) ($findings->conclusion_fitness ?? ''), ['Not Fit', 'Abnormal'], true)
+                    || in_array((string) ($findings->history_of_health ?? ''), ['Yes', 'Abnormal'], true)
+                    || in_array((string) ($findings->clinical_findings ?? ''), ['Yes', 'Abnormal'], true)
+                    || in_array((string) ($findings->target_organ ?? ''), ['Yes', 'Abnormal'], true)
+                    || in_array((string) ($findings->biological_monitoring ?? ''), ['Yes', 'Abnormal'], true)
+                    || in_array((string) ($findings->CF_work_related ?? ''), ['Yes', 'Abnormal'], true)
+                    || in_array((string) ($findings->TO_work_related ?? ''), ['Yes', 'Abnormal'], true)
+                    || in_array((string) ($findings->BM_work_related ?? ''), ['Yes', 'Abnormal'], true)
+                    || in_array((string) ($findings->pregnancy_breastFeding ?? ''), ['Yes', 'Abnormal'], true);
+            }
             $routeParams = array_filter([
                 'declaration_id' => $row->declaration_id,
                 'employee_id' => $row->employee_id,
@@ -411,7 +429,7 @@ class LegacyClinicContext
                 'date_examined' => (string) ($row->employee_date ?: $row->doctor_date ?: ''),
             ];
 
-            return [
+            $reports = [
                 array_merge($base, [
                     'filter' => 'usechh 2',
                     'href' => route('surveillance.report.summary-employee', $routeParams),
@@ -432,12 +450,17 @@ class LegacyClinicContext
                     'href' => route('surveillance.report.removal', $routeParams),
                     'pdf_href' => route('pdf.usechh5i', $routeParams),
                 ]),
-                array_merge($base, [
+            ];
+
+            if ($isAbnormal) {
+                $reports[] = array_merge($base, [
                     'filter' => 'usechh 5ii',
                     'href' => route('surveillance.report.abnormal', $routeParams),
                     'pdf_href' => route('pdf.usechh5ii', $routeParams),
-                ]),
-            ];
+                ]);
+            }
+
+            return $reports;
         })->all();
     }
 
