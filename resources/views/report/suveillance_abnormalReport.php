@@ -77,10 +77,12 @@ $rows = [[
 body{margin:0;padding:16px;background:#fff;color:#0f172a;font-family:"Poppins","Segoe UI",Tahoma,Geneva,Verdana,sans-serif}
 .sheet{display:grid;gap:16px}
 .report-card{border:1px solid #d9e6dd;border-radius:22px;background:#fff;overflow:hidden}
-.report-head{padding:18px 22px;border-bottom:1px solid #e5efe7;display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
-.eyebrow{font-size:.82rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#2f7a45}
-.report-title{margin:6px 0 0;font-size:1.65rem}
-.report-subtitle{margin:6px 0 0;color:#5f6f65;max-width:760px}
+.report-head{padding:18px 22px;border-bottom:1px solid #e5efe7}
+.report-head-top{position:relative;display:block;text-align:center}
+.report-code{position:absolute;right:0;top:0;font-size:14px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#0f172a}
+.report-head-act{font-size:14px;font-weight:700;line-height:1.35}
+.report-head-regulation{margin-top:4px;font-size:15px;font-weight:700;line-height:1.35}
+.report-title{margin:12px 0 0;text-align:center;font-size:18px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
 .table-wrap{padding:20px 22px}
 .abnormal-table{width:100%;border-collapse:collapse;table-layout:fixed}
 .abnormal-table th,.abnormal-table td{border:1px solid #c6ddd0;padding:10px 8px;vertical-align:top;font-size:.88rem;line-height:1.45}
@@ -93,10 +95,11 @@ body{margin:0;padding:16px;background:#fff;color:#0f172a;font-family:"Poppins","
     <?php require __DIR__ . '/partials/clinic_header.php'; ?>
     <section class="report-card">
         <div class="report-head">
-            <div>
-                <div class="eyebrow">USECHH 5ii</div>
+            <div class="report-head-top">
+                <div class="report-code">USECHH 5ii</div>
+                <div class="report-head-act">Occupational Safety and Health Act 1994 (Act 514)</div>
+                <div class="report-head-regulation">Use and Standard of Exposure of Chemical Hazardous to Health Regulations 2000</div>
                 <h1 class="report-title">Workers With Abnormal Examination Results</h1>
-                <p class="report-subtitle">Landscape review sheet for employees with findings that require tracking, removal protection, or closer follow-up.</p>
             </div>
         </div>
 

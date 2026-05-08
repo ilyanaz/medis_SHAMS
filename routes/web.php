@@ -52,6 +52,8 @@ Route::view('/panel/forgot-password', 'panel.forgot_password')->name('panel.forg
 Route::post('/surveillance/company', [PanelController::class, 'storeSurveillanceCompany'])->name('surveillance.company.store');
 Route::post('/surveillance/employee', [PanelController::class, 'storeSurveillanceEmployee'])->name('surveillance.employee.store');
 Route::post('/surveillance/report/fitness', [PanelController::class, 'saveSurveillanceFitnessReport'])->name('surveillance.report.fitness.save');
+Route::post('/surveillance/report/summary', [PanelController::class, 'saveSurveillanceSummaryReport'])->name('surveillance.report.summary.save');
+Route::post('/surveillance/report/removal', [PanelController::class, 'saveSurveillanceRemovalReport'])->name('surveillance.report.removal.save');
 
 Route::get('/admin/dashboard', [PanelController::class, 'adminDashboard'])->name('admin.dashboard');
 Route::get('/admin/doctors', [PanelController::class, 'doctorList'])->name('admin.doctor_list');
@@ -170,7 +172,6 @@ $legacyPostRoutes = [
     'surveillance.record.destroy',
     'surveillance.declaration.save',
     'surveillance.examination.save',
-    'surveillance.report.removal.save',
     'surveillance.chemical-option.store',
     'audiometry.examination.save',
     'settings.header.upload',

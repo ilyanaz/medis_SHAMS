@@ -104,8 +104,8 @@ body{margin:0;padding:18px;background:#fff;color:#000;font-family:Arial,Helvetic
 .clinic-report-header__fallback{padding:16px;border:1px solid #c9d8ea;border-radius:12px;font-size:18px;font-weight:700;letter-spacing:.04em}
 .report-shell{border:1px solid #111;background:#fff}
 .usechh-head{padding:8px 12px 0;text-align:center}
-.usechh-head__top{display:grid;grid-template-columns:1fr auto;align-items:start;font-size:14px}
-.usechh-head__right{font-weight:700}
+.usechh-head__top{position:relative;display:block;text-align:center;font-size:14px}
+.usechh-head__right{position:absolute;right:0;top:0;font-weight:700}
 .usechh-head__title{margin:12px 0 0;font-size:18px;font-weight:700}
 .usechh-head__subtitle{margin:6px 0 10px;font-size:15px}
 .meta{padding:0 10px 8px;font-size:14px}

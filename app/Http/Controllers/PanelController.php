@@ -1255,6 +1255,134 @@ class PanelController extends Controller
             ->with('status', 'USECHH 3 remarks saved successfully.');
     }
 
+    public function saveSurveillanceSummaryReport(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'surveillance_id' => ['required', 'integer', 'min:1'],
+            'employee_id' => ['nullable', 'integer', 'min:1'],
+            'company_id' => ['nullable', 'integer', 'min:1'],
+            'declaration_id' => ['nullable', 'integer', 'min:1'],
+            'totalNo_workplace' => ['nullable', 'integer', 'min:0'],
+            'name_of_workUnit' => ['nullable', 'string'],
+            'no_exposedWorkers' => ['nullable', 'integer', 'min:0'],
+            'totalNo_examined' => ['nullable', 'integer', 'min:0'],
+            'CHRA_reportNo' => ['nullable', 'string'],
+            'indication_CHRAreport' => ['nullable', 'string'],
+            'name_of_laboratoy' => ['nullable', 'string'],
+            'recommendation' => ['nullable', 'string'],
+            'decision' => ['nullable', 'string'],
+            'justification_decision' => ['nullable', 'string'],
+            'date_of_implementation' => ['nullable', 'date'],
+        ]);
+
+        if (! Schema::hasTable('summary_report')) {
+            return redirect()->back()->with('status', 'Summary report table is not available.');
+        }
+
+        $surveillanceId = (int) $validated['surveillance_id'];
+        $employeeId = $validated['employee_id'] ?? null;
+        $companyId = $validated['company_id'] ?? null;
+
+        $record = DB::table('summary_report')
+            ->where('surveillance_id', $surveillanceId)
+            ->first();
+
+        $payload = [
+            'employee_id' => $employeeId ?? ($record->employee_id ?? null),
+            'company_id' => $companyId ?? ($record->company_id ?? null),
+            'surveillance_id' => $surveillanceId,
+            'totalNo_workplace' => $validated['totalNo_workplace'] ?? ($record->totalNo_workplace ?? null),
+            'name_of_workUnit' => trim((string) ($validated['name_of_workUnit'] ?? ($record->name_of_workUnit ?? ''))),
+            'no_exposedWorkers' => $validated['no_exposedWorkers'] ?? ($record->no_exposedWorkers ?? null),
+            'totalNo_examined' => $validated['totalNo_examined'] ?? ($record->totalNo_examined ?? null),
+            'CHRA_reportNo' => trim((string) ($validated['CHRA_reportNo'] ?? ($record->CHRA_reportNo ?? ''))),
+            'indication_CHRAreport' => trim((string) ($validated['indication_CHRAreport'] ?? ($record->indication_CHRAreport ?? ''))),
+            'name_of_laboratoy' => trim((string) ($validated['name_of_laboratoy'] ?? ($record->name_of_laboratoy ?? ''))),
+            'recommendation' => trim((string) ($validated['recommendation'] ?? ($record->recommendation ?? ''))),
+            'decision' => trim((string) ($validated['decision'] ?? ($record->decision ?? ''))),
+            'justification_decision' => trim((string) ($validated['justification_decision'] ?? ($record->justification_decision ?? ''))),
+            'date_of_implementation' => $validated['date_of_implementation'] ?? ($record->date_of_implementation ?? null),
+        ];
+
+        if ($record) {
+            DB::table('summary_report')
+                ->where('summaryReport_id', $record->summaryReport_id)
+                ->update($payload);
+        } else {
+            DB::table('summary_report')->insert($payload);
+        }
+
+        $params = array_filter([
+            'declaration_id' => $validated['declaration_id'] ?? null,
+            'employee_id' => $employeeId,
+            'company_id' => $companyId,
+            'surveillance_id' => $surveillanceId,
+        ], static fn ($value) => $value !== null && $value !== '');
+
+        return redirect()
+            ->route('surveillance.report.summary', $params)
+            ->with('status', 'USECHH 4 details saved successfully.');
+    }
+
+    public function saveSurveillanceRemovalReport(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'surveillance_id' => ['required', 'integer', 'min:1'],
+            'employee_id' => ['nullable', 'integer', 'min:1'],
+            'company_id' => ['nullable', 'integer', 'min:1'],
+            'declaration_id' => ['nullable', 'integer', 'min:1'],
+            'removal_type' => ['nullable', 'string'],
+        ]);
+
+        if (! Schema::hasTable('removal_report')) {
+            return redirect()->back()->with('status', 'Removal report table is not available.');
+        }
+
+        $surveillanceId = (int) $validated['surveillance_id'];
+        $employeeId = $validated['employee_id'] ?? null;
+        $companyId = $validated['company_id'] ?? null;
+        $declarationId = $validated['declaration_id'] ?? null;
+
+        $record = DB::table('removal_report')
+            ->where('surveillance_id', $surveillanceId)
+            ->first();
+        $declaration = $declarationId && Schema::hasTable('declaration')
+            ? DB::table('declaration')->where('declaration_id', $declarationId)->first()
+            : null;
+        $fitnessRecord = Schema::hasTable('fitness_report')
+            ? DB::table('fitness_report')->where('surveillance_id', $surveillanceId)->first()
+            : null;
+
+        $payload = [
+            'employee_id' => $employeeId ?? ($record->employee_id ?? null),
+            'company_id' => $companyId ?? ($record->company_id ?? null),
+            'surveillance_id' => $surveillanceId,
+            'removal_type' => trim((string) ($validated['removal_type'] ?? ($record->removal_type ?? ''))),
+            'reasons_recommendations' => trim((string) ($record->reasons_recommendations ?? '')),
+            'doctor_id' => $record->doctor_id ?? ($declaration->doctor_id ?? null),
+            'fitnessReport_id' => $record->fitnessReport_id ?? ($fitnessRecord->fitnessReport_id ?? null),
+        ];
+
+        if ($record) {
+            DB::table('removal_report')
+                ->where('removalReport_id', $record->removalReport_id)
+                ->update($payload);
+        } else {
+            DB::table('removal_report')->insert($payload);
+        }
+
+        $params = array_filter([
+            'declaration_id' => $validated['declaration_id'] ?? null,
+            'employee_id' => $employeeId,
+            'company_id' => $companyId,
+            'surveillance_id' => $surveillanceId,
+        ], static fn ($value) => $value !== null && $value !== '');
+
+        return redirect()
+            ->route('surveillance.report.removal', $params)
+            ->with('status', 'USECHH 5i details saved successfully.');
+    }
+
     public function switchAdmin(Request $request): RedirectResponse
     {
         $user = $this->requirePanelUser($request);

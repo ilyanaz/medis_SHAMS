@@ -50,11 +50,11 @@ medis_render_navigation_start([
 .report-btn{display:inline-flex;align-items:center;gap:8px;text-decoration:none;border:1px solid #d1d5db;border-radius:10px;padding:8px 14px;background:#fff;color:#374151;font-size:14px;font-weight:500;cursor:pointer}
 .report-btn.primary{background:#389B5B;border-color:#389B5B;color:#fff}
 .sheet-top{position:relative;display:block;text-align:center;margin-bottom:10px}
-.center-title{display:block;width:100%;text-align:center;font-size:12px;font-weight:700;line-height:1.45;color:#0f172a}
-.right-code{position:absolute;right:0;top:0;font-size:12px;font-weight:700;line-height:1.45;color:#0f172a}
+.center-title{display:block;width:100%;text-align:center;font-size:14px;font-weight:700;line-height:1.35;color:#0f172a}
+.right-code{position:absolute;right:0;top:0;font-size:14px;font-weight:700;line-height:1.35;color:#0f172a}
 .sheet-title{text-align:center;margin-bottom:18px}
-.sheet-title .line{font-size:12px;font-weight:700;line-height:1.45}
-.sheet-title .main{font-size:15px;font-weight:700;line-height:1.45;margin-top:8px}
+.sheet-title .line{font-size:15px;font-weight:700;line-height:1.35}
+.sheet-title .main{font-size:18px;font-weight:700;line-height:1.35;margin-top:8px;letter-spacing:.04em}
 .document-table{width:100%;border-collapse:collapse;margin-bottom:16px;table-layout:fixed}
 .document-table th,.document-table td{border:1px solid #c9d8ea;padding:8px 10px;font-size:11.5px;vertical-align:top;text-align:left;word-wrap:break-word}
 .document-table th{font-weight:700;color:#0f172a;background:#fff}

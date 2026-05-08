@@ -67,9 +67,12 @@ body{margin:0;padding:18px;background:#fff;color:#0f172a;font-family:"Poppins","
 .clinic-report-header{padding:0 0 8px}
 .clinic-report-header img{display:block;width:100%;max-width:100%;max-height:none;height:auto;object-fit:contain}
 .report-card{background:#fff;overflow:hidden}
-.report-head{padding:6px 0 14px;display:flex;justify-content:space-between;gap:12px;align-items:flex-start;border-bottom:2px solid #dce8de}
-.eyebrow{font-size:.82rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#0f172a}
-.report-title{margin:6px 0 0;font-size:1.75rem}
+.report-head{padding:6px 0 14px;border-bottom:2px solid #dce8de}
+.report-head-top{position:relative;display:block;text-align:center}
+.report-code{position:absolute;right:0;top:0;font-size:14px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#0f172a}
+.report-head-act{font-size:14px;font-weight:700;line-height:1.35}
+.report-head-regulation{margin-top:4px;font-size:15px;font-weight:700;line-height:1.35}
+.report-title{margin:12px 0 0;text-align:center;font-size:18px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
 .section{padding:18px 0;border-top:1px solid #edf2ee}
 .section:first-of-type{border-top:0}
 .detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 24px}
@@ -99,10 +102,12 @@ body{margin:0;padding:18px;background:#fff;color:#0f172a;font-family:"Poppins","
 
     <section class="report-card">
         <div class="report-head">
-            <div>
+            <div class="report-head-top">
+                <div class="report-code">USECHH 3</div>
+                <div class="report-head-act">Occupational Safety and Health Act 1994 (Act 514)</div>
+                <div class="report-head-regulation">Use and Standard of Exposure of Chemical Hazardous to Health Regulations 2000</div>
                 <h1 class="report-title">Certificate of Fitness</h1>
             </div>
-            <div class="eyebrow">USECHH 3</div>
         </div>
 
         <?php if ($statusMessage !== ''): ?>
