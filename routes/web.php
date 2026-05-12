@@ -58,6 +58,7 @@ Route::post('/surveillance/examination', [PanelController::class, 'saveSurveilla
 Route::post('/surveillance/report/fitness', [PanelController::class, 'saveSurveillanceFitnessReport'])->name('surveillance.report.fitness.save');
 Route::post('/surveillance/report/summary', [PanelController::class, 'saveSurveillanceSummaryReport'])->name('surveillance.report.summary.save');
 Route::post('/surveillance/report/removal', [PanelController::class, 'saveSurveillanceRemovalReport'])->name('surveillance.report.removal.save');
+Route::view('/audiometry/report/questionnaire', 'report.audiometry_questionnaire_report')->name('audiometry.report.questionnaire');
 
 Route::get('/admin/dashboard', [PanelController::class, 'adminDashboard'])->name('admin.dashboard');
 Route::get('/admin/doctors', [PanelController::class, 'doctorList'])->name('admin.doctor_list');

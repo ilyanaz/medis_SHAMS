@@ -1,69 +1,281 @@
-<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Audiometry Report</title></head>
-<body>
 <?php
-require dirname(__DIR__) . '/panel/navigation.php';
-$pdfMode = !empty($pdfMode);
-$esc = static fn($v) => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
+declare(strict_types=1);
+
+use Carbon\Carbon;
+
+$esc = static fn ($value): string => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 $selectedEmployee = $selectedEmployee ?? null;
 $selectedCompany = $selectedCompany ?? null;
-$employeeId = $selectedEmployee->employee_id ?? request()->query('employee_id') ?? '';
-$companyId = $selectedCompany->company_id ?? request()->query('company_id') ?? '';
+$currentOccupationalHistory = $currentOccupationalHistory ?? null;
+$audiometryTest = $audiometryTest ?? null;
+$pastMedical = $pastMedical ?? null;
+$audioComments = $audioComments ?? null;
+$calculatedAverages = $calculatedAverages ?? [];
+$doctor = $doctor ?? null;
 $doctorSignatureUrl = $doctorSignatureUrl ?? null;
 $doctorSignatureName = $doctorSignatureName ?? 'Doctor';
-$steps = [
-    ['label' => 'Company', 'url' => function_exists('route') ? route('audiometry.company') : 'audiometry_company.php'],
-    ['label' => 'Employee', 'url' => function_exists('route') ? route('audiometry.employee', array_filter(['company_id' => $companyId])) : 'audiometry_employee.php'],
-    ['label' => 'Questionnaire', 'url' => function_exists('route') ? route('audiometry.questionnaire', array_filter(['employee_id' => $employeeId, 'company_id' => $companyId])) : 'audiometry_questionnaire.php'],
-    ['label' => 'Audiometry List', 'url' => function_exists('route') ? route('audiometry.list', array_filter(['employee_id' => $employeeId, 'company_id' => $companyId])) : 'audiometry_list.php'],
-    ['label' => 'Examination', 'url' => function_exists('route') ? route('audiometry.examination', array_filter(['employee_id' => $employeeId, 'company_id' => $companyId])) : 'audiometry_examination.php'],
-    ['label' => 'Report', 'url' => function_exists('route') ? route('audiometry.report', array_filter(['employee_id' => $employeeId, 'company_id' => $companyId])) : 'audiometry_report.php', 'active' => true],
+$isAudiometryAbnormal = ! empty($isAudiometryAbnormal);
+
+$employeeName = trim((string) (($selectedEmployee->employee_firstName ?? '') . ' ' . ($selectedEmployee->employee_lastName ?? '')));
+$employeeIdentity = trim((string) (($selectedEmployee->employee_NRIC ?? '') ?: ($selectedEmployee->employee_passportNo ?? '')));
+$employeeAge = ! empty($selectedEmployee->employee_DOB) ? (string) Carbon::parse($selectedEmployee->employee_DOB)->age : '-';
+$jobTitle = trim((string) ($currentOccupationalHistory->job_title ?? '-'));
+$workUnit = trim((string) ($currentOccupationalHistory->department ?? $currentOccupationalHistory->work_unit ?? '-'));
+$companyName = trim((string) ($selectedCompany->company_name ?? '-'));
+$companyAddress = trim((string) implode(', ', array_filter([
+    $selectedCompany->company_address ?? null,
+    $selectedCompany->company_postcode ?? null,
+    $selectedCompany->company_district ?? null,
+    $selectedCompany->company_state ?? null,
+])));
+$examDate = (string) ($audiometryTest->audioTest_date ?? '');
+$doctorName = trim((string) (($doctor->doctor_firstName ?? '') . ' ' . ($doctor->doctor_lastName ?? '')));
+$doctorRegNo = trim((string) ($doctor->OHD_registrationNo ?? ''));
+$doctorAddress = trim((string) implode(', ', array_filter([
+    $doctor->doctor_address ?? null,
+    $doctor->doctor_postcode ?? null,
+    $doctor->doctor_district ?? null,
+    $doctor->doctor_state ?? null,
+])));
+
+$showValue = static function ($value, string $fallback = '-'): string {
+    $value = trim((string) $value);
+    return $value !== '' ? $value : $fallback;
+};
+$yesNo = static function ($value): string {
+    if ($value === null || $value === '') {
+        return '-';
+    }
+
+    if (is_numeric($value)) {
+        return (int) $value === 1 ? 'Yes' : 'No';
+    }
+
+    $normalized = strtolower(trim((string) $value));
+    if (in_array($normalized, ['yes', 'y', '1', 'true', 'normal'], true)) {
+        return 'Yes';
+    }
+    if (in_array($normalized, ['no', 'n', '0', 'false', 'abnormal'], true)) {
+        return 'No';
+    }
+
+    return trim((string) $value);
+};
+$contains = static function (?string $haystack, string $needle): bool {
+    return str_contains(strtolower(trim((string) $haystack)), strtolower($needle));
+};
+
+$conclusions = [
+    'Occupational Hearing Impairment' => $isAudiometryAbnormal,
+    'Occupational Permanent Standard Threshold Shift' => in_array((string) ($calculatedAverages['STS_right'] ?? ''), ['Yes', 'Abnormal'], true) || in_array((string) ($calculatedAverages['STS_left'] ?? ''), ['Yes', 'Abnormal'], true),
+    'Occupational Noise-Induced Hearing Loss' => $contains($audioComments->standard_analysis ?? '', 'noise') || $contains($audioComments->audio_recommendation ?? '', 'noise'),
+    'Age-related Hearing Loss (Presbycusis)' => $contains($audioComments->standard_analysis ?? '', 'presby'),
 ];
-medis_render_navigation_start(['clinicName'=>$clinicName ?? 'Medis SHAMS','clinicLogoUrl'=>$clinicLogoUrl ?? null,'username'=>$username ?? 'User','active'=>'report','pageSubtitle'=>'Insert audiometry report details in one page','pdfMode'=>$pdfMode]);
+
+$recommendations = [
+    'Repeat audiometry after treatment' => $contains($audioComments->audio_recommendation ?? '', 'repeat'),
+    'Continue annual audiometry education & training' => $contains($audioComments->audio_recommendation ?? '', 'annual'),
+    'Provision of PHP' => $contains($audioComments->audio_recommendation ?? '', 'php') || $contains($audioComments->audio_recommendation ?? '', 'hearing protection'),
+    'Referral to specialist for further management' => $contains($audioComments->audio_recommendation ?? '', 'referral') || $contains($audioComments->audio_recommendation ?? '', 'specialist'),
+    'Notification of DOSH' => $contains($audioComments->audio_recommendation ?? '', 'dosh'),
+];
+
+$impression = [];
+if ($isAudiometryAbnormal) {
+    $impression[] = 'Sensorineural Hearing Loss';
+}
+if (! empty($pastMedical->otoscopy) && (int) $pastMedical->otoscopy !== 1) {
+    $impression[] = 'Conductive Hearing Loss';
+}
+if ($impression === []) {
+    $impression[] = 'No abnormal impression recorded';
+}
 ?>
-<style><?php if ($pdfMode): ?>.stepper,.actions-top,.actions{display:none !important;} .content{border:0 !important;padding:0 !important;margin-top:0 !important;}<?php endif; ?>
-.flow{display:grid;grid-template-rows:auto minmax(0,1fr);gap:28px}.stepper{display:block;border:0;border-radius:0;background:transparent;padding:0;margin:0}.stepper h3{display:none}.step-list{position:relative;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;align-items:start;padding-bottom:6px}.step-list::before{content:"";position:absolute;left:20px;right:20px;top:19px;height:2px;background:#d7dee8;z-index:0}.step-link{position:relative;z-index:1;display:grid;justify-items:center;gap:8px;padding:0 4px;border-radius:14px;text-decoration:none;color:#374151;border:1px solid transparent;background:transparent;text-align:center}.step-link.active{color:#14321f;font-weight:700}.step-index{width:38px;height:38px;border-radius:999px;border:1px solid #9ca3af;background:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:.82rem;font-weight:700}.step-link.active .step-index{background:#389B5B;border-color:#389B5B;color:#fff}.step-label{font-size:.82rem;line-height:1.25;max-width:96px}.content{border:1px solid #e5e7eb;border-radius:20px;background:#fff;padding:18px;overflow:auto;min-height:0;margin-top:2px}.head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}.head h2{margin:0 0 10px;font-size:1.8rem}.head p{margin:0;color:#6b7280;max-width:780px}.actions-top{display:flex;gap:10px;flex-wrap:wrap}.btn,.next{display:inline-flex;align-items:center;gap:8px;text-decoration:none;border:1px solid #d1d5db;border-radius:12px;padding:10px 14px;background:#fff;color:#374151;cursor:pointer}.next{background:#389B5B;border-color:#389B5B;color:#fff}.report-shell{margin-top:18px;display:grid;gap:16px}.report-intro{border:1px solid #dbe7df;border-radius:18px;padding:18px;background:linear-gradient(135deg,#f7fbf8,#eef7f0)}.report-intro strong{display:block;font-size:1rem;letter-spacing:.02em}.report-intro span{display:block;margin-top:6px;color:#475569}.section-card{border:1px solid #e5e7eb;border-radius:18px;padding:18px;background:#fff}.section-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:14px}.section-head h3{margin:0;font-size:1.08rem}.section-head p{margin:4px 0 0;color:#6b7280;font-size:.9rem}.pill{display:inline-flex;align-items:center;border-radius:999px;padding:7px 12px;background:#eef7f0;color:#166534;font-size:.8rem;font-weight:700}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.field{display:grid;gap:6px}.field label{font-size:.9rem;font-weight:600;color:#1f2937}.field input,.field select,.field textarea{border:1px solid #d1d5db;border-radius:12px;padding:10px 12px;font:inherit;background:#fff}.field textarea{min-height:100px;resize:vertical}.full{grid-column:1/-1}.helper{font-size:.82rem;color:#6b7280}.option-group{display:grid;gap:10px}.option-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 18px}.option-grid.inline-options{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.option-grid.inline-options.two-row{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.check-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #e5e7eb;border-radius:12px;background:#fafafa}.check-item input,.radio-row input{width:18px;height:18px;accent-color:#389B5B}.hidden-field{display:none !important}.hidden-field.is-visible{display:grid !important}.other-justify-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 18px}.other-justify-row .spacer{display:block}.inline-pair{display:grid;grid-template-columns:160px minmax(0,1fr);gap:12px;align-items:start}.history-grid{display:grid;grid-template-columns:1fr;gap:14px;margin-top:14px}.history-item{display:grid;grid-template-columns:minmax(220px,.76fr) 150px minmax(260px,1.24fr);gap:18px;align-items:center}.history-item.compact{grid-template-columns:minmax(220px,.76fr) 150px minmax(260px,1.24fr)}.history-item.physical-item{grid-template-columns:minmax(220px,.62fr) minmax(240px,max-content) minmax(260px,1.18fr)}.history-label{font-size:.9rem;font-weight:600;color:#1f2937;line-height:1.35}.history-radios{display:flex;gap:16px;flex-wrap:nowrap;align-items:center;justify-self:start;margin-left:0}.history-radios.physical-radio{min-width:240px}.history-radios label,.radio-row label{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}.history-radios input[type="radio"],.radio-row input[type="radio"]{width:20px;height:20px;accent-color:#389B5B;cursor:pointer;flex-shrink:0}.radio-row{display:flex;gap:18px;flex-wrap:wrap;align-items:center}.note-box{padding:12px 14px;border:1px dashed #cbd5e1;border-radius:14px;background:#fafcfa;color:#475569;font-size:.85rem}.tuning-card{display:grid;gap:14px;padding:16px;border:1px solid #e5e7eb;border-radius:16px;background:#fafafa}.tuning-head{display:grid;gap:4px}.tuning-head strong{font-size:1rem}.tuning-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 18px}.tuning-grid.rinne-grid{grid-template-columns:1fr}.tuning-block{display:grid;gap:10px}.tuning-line{display:grid;grid-template-columns:minmax(180px,.8fr) minmax(0,1fr);gap:14px;align-items:center}.tuning-line.compact{grid-template-columns:minmax(140px,max-content) minmax(220px,320px) minmax(220px,max-content);column-gap:22px}.tuning-line.weber-choice{grid-template-columns:1fr}.tuning-line.weber-line{grid-template-columns:1fr}.tuning-line strong{font-size:.94rem}.choice-row{display:flex;gap:18px;align-items:center;flex-wrap:wrap}.choice-row label{display:inline-flex;align-items:center;gap:12px;white-space:nowrap}.weber-choice .choice-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:center}.weber-choice .choice-row label{justify-self:start}.physical-radio label{gap:12px}.choice-row input[type="radio"],.choice-row input[type="checkbox"]{width:20px;height:20px;accent-color:#389B5B;cursor:pointer;flex-shrink:0}.signature-wrap{display:grid;grid-template-columns:280px 1fr;gap:16px}.stamp-box{min-height:220px;border:1px dashed #cbd5e1;border-radius:14px;background:#fcfcfd;padding:18px;color:#6b7280}.stamp-box img{max-width:100%;max-height:110px;display:block;margin-bottom:14px;object-fit:contain}.stamp-name{font-size:.95rem;font-weight:700;color:#0f172a}.stamp-caption{font-size:.82rem;color:#64748b}.consent-box{border:1px solid #e5e7eb;border-radius:14px;padding:14px;background:#fafafa}.signoff-fields{display:grid;grid-template-columns:1fr;gap:14px}.actions{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:18px}.actions-right{display:flex;gap:10px;flex-wrap:wrap}.clinic-report-header{text-align:center}.clinic-report-header img{max-width:100%;max-height:140px;object-fit:contain}.clinic-report-header__fallback{padding:16px;border:1px solid #c9d8ea;border-radius:12px;font-size:18px;font-weight:700;letter-spacing:.04em}@media(max-width:1100px){.stepper{padding:14px}.step-list{grid-template-columns:repeat(3,minmax(0,1fr))}.step-label{max-width:none}.grid,.grid-3,.signature-wrap,.option-grid,.inline-pair,.other-justify-row,.tuning-grid,.tuning-line,.tuning-line.compact,.tuning-line.weber-line,.tuning-line.weber-choice{grid-template-columns:1fr}.option-grid.inline-options{grid-template-columns:1fr}.other-justify-row .spacer{display:none}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audiometry Report</title>
+</head>
+<body>
+<style>
+@page{size:A4 portrait;margin:12mm}
+body{margin:0;padding:16px;background:#fff;color:#0f172a;font-family:"Poppins","Segoe UI",Tahoma,Geneva,Verdana,sans-serif}
+.sheet{display:grid;gap:16px}
+.clinic-report-header{padding:0 0 8px}
+.clinic-report-header img{display:block;width:100%;max-width:100%;height:auto;object-fit:contain}
+.report-card{display:grid;gap:16px}
+.report-head{padding:6px 0 14px;border-bottom:2px solid #dce8de}
+.report-head-top{position:relative;display:block;text-align:center}
+.report-code{position:absolute;right:0;top:0;font-size:14px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#0f172a}
+.report-head-act{font-size:14px;font-weight:700;line-height:1.35}
+.report-head-regulation{margin-top:4px;font-size:15px;font-weight:700;line-height:1.35}
+.report-title{margin:12px 0 0;text-align:center;font-size:18px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.report-subtitle{text-align:center;margin-top:6px;font-size:12px;font-weight:600;color:#475569;letter-spacing:.03em;text-transform:uppercase}
+.section{display:grid;gap:10px}
+.section-title{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.section-title h2{margin:0;font-size:14px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.section-note{font-size:11px;color:#64748b}
+.detail-table,.check-table{width:100%;border-collapse:collapse;table-layout:fixed}
+.detail-table th,.detail-table td,.check-table th,.check-table td{border:1px solid #d8e1e6;padding:8px 9px;vertical-align:top;font-size:11.5px;line-height:1.45}
+.detail-table th,.check-table th{background:#f5faf6;font-weight:700;text-align:left}
+.detail-table td strong{font-weight:700}
+.two-col{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.bullet-list{display:grid;gap:6px;font-size:11.5px;line-height:1.45}
+.bullet-list div{padding:7px 9px;border:1px solid #d8e1e6}
+.flag{display:inline-flex;align-items:center;gap:8px}
+.mark{width:16px;height:16px;border:1.5px solid #9fb2a5;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+.mark.on{background:#389B5B;color:#fff;border-color:#389B5B}
+.signature-wrap{display:grid;grid-template-columns:260px 1fr;gap:16px;align-items:start}
+.stamp-box{min-height:180px;border:1px dashed #cbd5e1;border-radius:14px;background:#fcfcfd;padding:16px;color:#6b7280}
+.stamp-box img{max-width:100%;max-height:100px;display:block;margin-bottom:12px;object-fit:contain}
+.stamp-name{font-size:.95rem;font-weight:700;color:#0f172a}
+.stamp-caption{font-size:.82rem;color:#64748b}
+.consent-box{border:1px solid #d8e1e6;border-radius:14px;padding:14px;background:#fff}
+.consent-box p{margin:0 0 12px;font-size:11.5px;line-height:1.55}
+.grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.line-field{display:grid;gap:4px}
+.line-field span{font-size:10.5px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.03em}
+.line-field strong,.line-field div{border-bottom:1px solid #cbd5e1;padding-bottom:5px;font-size:11.5px;min-height:20px}
+.empty-state{padding:16px 0;color:#5f6f65;font-size:.95rem;line-height:1.6}
+@media print{body{padding:0}.report-card{break-inside:avoid}}
 </style>
-<style>.flow{grid-template-rows:auto 1fr;min-height:calc(100dvh - 204px);height:auto;align-content:start;gap:24px}.step-list{gap:10px;padding-bottom:10px}.step-list::before{left:24px;right:24px;top:20px}.step-link{gap:10px;padding:0 6px}.step-index{width:40px;height:40px;font-size:.84rem}.step-label{font-size:.84rem;line-height:1.3;max-width:112px}.content{margin-top:0;overflow:visible;min-height:clamp(500px,calc(100dvh - 314px),780px);display:flex;flex-direction:column}.actions{margin-top:auto;padding-top:24px}@media(max-width:1100px){.flow{min-height:auto}.content{min-height:auto}.step-label{max-width:none}}@media(max-width:760px){.content{padding:16px}}</style><div class="flow"><aside class="stepper"><div class="step-list"><?php foreach($steps as $index => $step): ?><a class="step-link<?php echo !empty($step['active']) ? ' active' : ''; ?>" href="<?php echo $esc($step['url']); ?>"><span class="step-index"><?php echo $index + 1; ?></span><span class="step-label"><?php echo $esc($step['label']); ?></span></a><?php endforeach; ?></div></aside><section class="content"><div class="head"><div><h2>Audiometry Report</h2></div><div class="actions-top"><a class="btn" href="general_report.php">Back</a></div></div><form method="post" action="#"><div class="report-shell"><?php require dirname(__DIR__) . '/report/partials/clinic_header.php'; ?><div class="report-intro"><strong>REPORT OF OCCUPATIONAL DISEASE / POISONINGS</strong><span>Information required for noise related hearing disorder</span></div><section class="section-card"><div class="section-head"><div><h3>Employee Details</h3><p>Basic employee and employment information.</p></div><span class="pill">Part A</span></div><div class="grid"><label class="field">Name<input type="text" name="employee_name" placeholder="Enter employee name"></label><label class="field">Age<input type="text" name="age" placeholder="Enter age"></label><label class="field">IC / Passport<input type="text" name="passport_no" placeholder="Enter IC or passport number"></label><label class="field">Sex<select name="sex"><option value="">Select sex</option><option>Male</option><option>Female</option></select></label><label class="field">Nationality<input type="text" name="nationality" placeholder="Enter nationality"></label><label class="field">Job Title<input type="text" name="job_title" placeholder="Enter job title"></label><label class="field">Company<input type="text" name="company" placeholder="Enter company name"></label><label class="field">Work Unit<input type="text" name="work_unit" placeholder="Enter work unit"></label></div></section><section class="section-card"><div class="section-head"><div><h3>Medical History</h3><p>Key hearing, exposure, and lifestyle information.</p></div><span class="pill">Part B</span></div><div class="grid"><label class="field">Personal Exposure Monitoring (dB(A))<input type="text" name="db_monitoring" placeholder="Enter dB(A)"></label><label class="field">Date of Monitoring<input type="date" name="monitoring_date"></label><label class="field full">Current Illness / Symptoms<textarea name="current_illness" placeholder="Insert current symptoms or illness notes"></textarea></label></div><div class="note-box">Please refer to personal exposure monitoring of individual/similar exposure group (SEG) in the Noise Risk Assessment Report.</div><div class="history-grid"><div class="history-item compact"><div class="history-label">Smoking</div><div class="history-radios"><label><input type="radio" name="smoking" value="Yes"> Yes</label><label><input type="radio" name="smoking" value="No"> No</label></div><label class="field">Pack Per Day<input type="text" name="pack_per_day" placeholder="Enter pack per day"></label></div><div class="history-item"><div class="history-label">Past Ear Disease / Ear Infection / Discharge</div><div class="history-radios"><label><input type="radio" name="ear_disease" value="Yes"> Yes</label><label><input type="radio" name="ear_disease" value="No"> No</label></div><label class="field">Please Specify<input type="text" name="ear_disease_notes" placeholder="Add note"></label></div><div class="history-item"><div class="history-label">Past Head Injury / Accident / Surgery</div><div class="history-radios"><label><input type="radio" name="head_injury" value="Yes"> Yes</label><label><input type="radio" name="head_injury" value="No"> No</label></div><label class="field">Please Specify<input type="text" name="head_injury_notes" placeholder="Add note"></label></div><div class="history-item"><div class="history-label">Past Medical History</div><div class="history-radios"><label><input type="radio" name="medical_history" value="Yes"> Yes</label><label><input type="radio" name="medical_history" value="No"> No</label></div><label class="field">Please Specify<input type="text" name="medical_history_notes" placeholder="Add note"></label></div><div class="history-item"><div class="history-label">Ototoxic Medication / Chemical Exposure</div><div class="history-radios"><label><input type="radio" name="ototoxic" value="Yes"> Yes</label><label><input type="radio" name="ototoxic" value="No"> No</label></div><label class="field">Please Specify<input type="text" name="ototoxic_notes" placeholder="Add note"></label></div></div><div class="option-group" style="margin-top:14px;"><label class="field">Hobbies With Noise Exposure</label><div class="option-grid"><label class="check-item"><input type="checkbox" name="hobby_diving"> Diving</label><label class="check-item"><input type="checkbox" name="hobby_karaoke"> Karaoke</label><label class="check-item"><input type="checkbox" name="hobby_loud_music"> Loud music</label><label class="check-item"><input type="checkbox" name="hobby_shooting"> Shooting</label><label class="check-item"><input type="checkbox" name="hobby_instrument"> Musical instrument</label><label class="check-item"><input type="checkbox" name="hobby_others" id="hobbyOthersToggle"> Others</label></div><div class="other-justify-row hidden-field" id="hobbyOthersField"><span class="spacer" aria-hidden="true"></span><label class="field">Please Justify<input type="text" name="hobby_others_justify" placeholder="Please justify"></label></div></div><div class="option-group" style="margin-top:14px;"><label class="field">Use of Personal Hearing Protectors (PHP)</label><div class="option-grid"><label class="check-item"><input type="checkbox" name="php_earplug"> Ear plug</label><label class="check-item"><input type="checkbox" name="php_earmuff"> Earmuff</label><label class="check-item"><input type="checkbox" name="php_combination"> Combination</label><label class="check-item"><input type="checkbox" name="php_none"> None</label></div></div></section><section class="section-card"><div class="section-head"><div><h3>Physical Examination</h3><p>Clinical review and tuning fork findings.</p></div><span class="pill">Part C</span></div><div class="history-grid"><div class="history-item physical-item"><div class="history-label">External Ear</div><div class="history-radios physical-radio"><label><input type="radio" name="external_ear" value="Normal"> Normal</label><label><input type="radio" name="external_ear" value="Abnormal"> Abnormal</label></div><label class="field">External Ear Notes<input type="text" name="external_ear_notes" placeholder="Please specify"></label></div><div class="history-item physical-item"><div class="history-label">Middle Ear (Otoscopy)</div><div class="history-radios physical-radio"><label><input type="radio" name="middle_ear" value="Normal"> Normal</label><label><input type="radio" name="middle_ear" value="Abnormal"> Abnormal</label></div><label class="field">Middle Ear Notes<input type="text" name="middle_ear_notes" placeholder="Please specify"></label></div></div><div class="tuning-card" style="margin-top:14px;"><div class="tuning-head"><span>Tuning fork test:</span><strong>WEBER</strong></div><div class="tuning-grid"><div class="tuning-block" style="grid-column:1/-1;"><div class="tuning-line weber-choice"><div class="choice-row"><label><input type="radio" name="weber_result" value="Centralization (Midline)"> Centralization (Midline)</label><label><input type="radio" name="weber_result" value="Lateralization Right Ear"> Lateralization Right Ear</label><label><input type="radio" name="weber_result" value="Lateralization Left Ear"> Lateralization Left Ear</label></div></div></div></div><div class="tuning-head" style="margin-top:4px;"><strong>RINNER</strong></div><div class="tuning-grid rinne-grid"><div class="tuning-block"><div class="tuning-line compact"><span><strong>Right Ear:</strong></span><label class="field"><input type="text" name="rinne_right_note" placeholder="e.g. Midline"></label><div class="choice-row"><label><input type="radio" name="rinne_right" value="Positive"> Positive</label><label><input type="radio" name="rinne_right" value="Negative"> Negative</label></div></div></div><div class="tuning-block"><div class="tuning-line compact"><span><strong>Left Ear:</strong></span><label class="field"><input type="text" name="rinne_left_note" placeholder="e.g. Midline"></label><div class="choice-row"><label><input type="radio" name="rinne_left" value="Positive"> Positive</label><label><input type="radio" name="rinne_left" value="Negative"> Negative</label></div></div></div></div></div><div class="option-group" style="margin-top:14px;"><label class="field">Impression</label><div class="option-grid inline-options"><label class="check-item"><input type="checkbox" name="impression_conductive"> Conductive Hearing Loss</label><label class="check-item"><input type="checkbox" name="impression_sensorineural"> Sensorineural Hearing Loss</label><label class="check-item"><input type="checkbox" name="impression_mixed"> Mixed Hearing Loss</label></div></div></section><section class="section-card"><div class="section-head"><div><h3>Conclusion & Recommendation</h3><p>Main hearing outcome and follow-up action in one clean block.</p></div><span class="pill">Part D-E</span></div><div class="grid"><div class="option-group"><label class="field">Conclusion</label><div class="check-list"><label class="check-item"><input type="checkbox" name="conclusion_ohi"> Occupational Hearing Impairment</label><label class="check-item"><input type="checkbox" name="conclusion_sts"> Occupational Permanent Standard Threshold Shift</label><label class="check-item"><input type="checkbox" name="conclusion_nihl"> Occupational Noise-Induced Hearing Loss</label><label class="check-item"><input type="checkbox" name="conclusion_presbycusis"> Age-related Hearing Loss (Presbycusis)</label></div><label class="field">Others<input type="text" name="conclusion_others" placeholder="Add other conclusion"></label></div><div class="option-group"><label class="field">Recommendation</label><div class="check-list"><label class="check-item"><input type="checkbox" name="recommend_repeat"> Repeat audiometry after treatment</label><label class="check-item"><input type="checkbox" name="recommend_annual"> Continue annual audiometry education & training</label><label class="check-item"><input type="checkbox" name="recommend_php"> Provision of PHP</label><label class="check-item"><input type="checkbox" name="recommend_specialist"> Referral to specialist for further management</label><label class="check-item"><input type="checkbox" name="recommend_dosh"> Notification of DOSH</label></div><label class="field">Others<input type="text" name="recommend_others" placeholder="Add other recommendation"></label></div></div></section><section class="section-card"><div class="section-head"><div><h3>Remarks & Sign-Off</h3><p>Final remarks, stamp area, and employee acknowledgement.</p></div><span class="pill">Final</span></div><div class="grid"><label class="field full">Remarks<textarea name="remarks" placeholder="Insert remarks"></textarea></label></div><div class="signature-wrap" style="margin-top:14px;"><div class="stamp-box"><?php if ($doctorSignatureUrl): ?><img src="<?php echo $esc($doctorSignatureUrl); ?>" alt="<?php echo $esc($doctorSignatureName); ?> signature"><?php endif; ?><div class="stamp-name"><?php echo $esc($doctorSignatureName); ?></div><div class="stamp-caption">Name, signature &amp; stamp OHD</div></div><div class="consent-box"><p style="margin-top:0;">I acknowledge that the doctor attending me has explained the results of the examination and their implication. I hereby authorize the doctor to disclose the information in third form to my employer / representative and DOSH if necessary.</p><div class="signoff-fields"><label class="field">Employee Signature<input type="text" name="employee_signature" placeholder="Enter employee name or signature note"></label><label class="field">Date<input type="date" name="employee_date"></label><label class="field">Name<input type="text" name="employee_ack_name" placeholder="Enter employee name"></label><label class="field">IC / Passport No<input type="text" name="employee_ack_ic" placeholder="Enter IC or passport number"></label></div></div></div></section></div><div class="actions"><a class="btn" href="general_report.php">Back</a><div class="actions-right"><button class="btn" type="submit">Save</button></div></div></form></section></div>
-<script>(function(){var hobbyOthersToggle=document.getElementById("hobbyOthersToggle");var hobbyOthersField=document.getElementById("hobbyOthersField");if(hobbyOthersToggle&&hobbyOthersField){var syncOthers=function(){hobbyOthersField.classList.toggle("is-visible",hobbyOthersToggle.checked);};hobbyOthersToggle.addEventListener("change",syncOthers);syncOthers();}}());</script><?php medis_render_navigation_end(); ?>
-</body></html>
+<div class="sheet">
+    <?php require dirname(__DIR__) . '/report/partials/clinic_header.php'; ?>
+    <section class="report-card">
+        <div class="report-head">
+            <div class="report-head-top">
+                <div class="report-code">AUDIO REPORT</div>
+                <div class="report-head-act">Occupational Safety and Health Act 1994 (Act 514)</div>
+                <div class="report-head-regulation">Use and Standard of Exposure of Chemical Hazardous to Health Regulations 2000</div>
+                <h1 class="report-title"><?php echo $esc($isAudiometryAbnormal ? 'Medical Examination for Abnormal Audiogram' : 'Audiometry Examination Summary'); ?></h1>
+                <div class="report-subtitle">Report of Occupational Disease / Poisonings</div>
+            </div>
+        </div>
 
+        <?php if (! $audiometryTest): ?>
+            <div class="empty-state">No audiometry examination record is available for the selected employee yet.</div>
+        <?php else: ?>
+            <section class="section">
+                <div class="section-title"><h2>Part A: Employee Details</h2></div>
+                <table class="detail-table">
+                    <tr><th>Name</th><td><?php echo $esc($showValue($employeeName)); ?></td><th>Age</th><td><?php echo $esc($showValue($employeeAge)); ?></td></tr>
+                    <tr><th>IC / Passport</th><td><?php echo $esc($showValue($employeeIdentity)); ?></td><th>Sex</th><td><?php echo $esc($showValue($selectedEmployee->employee_gender ?? null)); ?></td></tr>
+                    <tr><th>Nationality</th><td><?php echo $esc($showValue($selectedEmployee->employee_citizenship ?? null)); ?></td><th>Job Title</th><td><?php echo $esc($showValue($jobTitle)); ?></td></tr>
+                    <tr><th>Company</th><td><?php echo $esc($showValue($companyName)); ?></td><th>Work Unit</th><td><?php echo $esc($showValue($workUnit)); ?></td></tr>
+                </table>
+            </section>
 
+            <section class="section">
+                <div class="section-title">
+                    <h2>Part B: Medical History</h2>
+                    <div class="section-note">Saved audiometry questionnaire and examination history</div>
+                </div>
+                <table class="detail-table">
+                    <tr><th>Personal Exposure Monitoring</th><td><?php echo $esc($showValue($pastMedical->exposure_lex ?? null) . ' dB(A)'); ?></td><th>Date of Monitoring</th><td><?php echo $esc($showValue($examDate)); ?></td></tr>
+                    <tr><th>Current Illness / Symptoms</th><td colspan="3"><?php echo $esc($showValue($audioComments->remarks ?? null, 'No symptoms recorded.')); ?></td></tr>
+                    <tr><th>Past Ear Disease / Infection</th><td><?php echo $esc($yesNo($pastMedical->ear_infections ?? null)); ?></td><th>Smoking</th><td>-</td></tr>
+                    <tr><th>Past Head Injury / Surgery</th><td><?php echo $esc($yesNo($pastMedical->head_injury ?? null)); ?></td><th>Past Medical History</th><td>-</td></tr>
+                    <tr><th>Ototoxic Medication / Chemical Exposure</th><td><?php echo $esc($yesNo($pastMedical->ototoxic_drugs ?? null)); ?></td><th>Previous Noise Exposure</th><td><?php echo $esc($showValue($pastMedical->pre_noiseExposure ?? null)); ?></td></tr>
+                    <tr><th>Hobbies with Noise Exposure</th><td><?php echo $esc($showValue($pastMedical->significant_hobbies ?? null)); ?></td><th>Use of PHP</th><td>-</td></tr>
+                </table>
+            </section>
 
+            <section class="section">
+                <div class="section-title"><h2>Part C: Physical Examination</h2></div>
+                <div class="two-col">
+                    <table class="detail-table">
+                        <tr><th>External Ear</th><td><?php echo $esc(((int) ($pastMedical->otoscopy ?? 1) === 1) ? 'Normal' : 'Abnormal'); ?></td></tr>
+                        <tr><th>Middle Ear (Otoscopy)</th><td><?php echo $esc(((int) ($pastMedical->otoscopy ?? 1) === 1) ? 'Normal' : 'Abnormal'); ?></td></tr>
+                        <tr><th>Weber</th><td><?php echo $esc($showValue($pastMedical->audio_weber ?? null)); ?></td></tr>
+                        <tr><th>Rinne Right</th><td><?php echo $esc($showValue($pastMedical->audio_rinneRight ?? null)); ?></td></tr>
+                        <tr><th>Rinne Left</th><td><?php echo $esc($showValue($pastMedical->audio_rinneLeft ?? null)); ?></td></tr>
+                        <tr><th>Impression</th><td><?php echo $esc(implode(', ', $impression)); ?></td></tr>
+                    </table>
+                    <table class="detail-table">
+                        <tr><th>STS Right</th><td><?php echo $esc($showValue($calculatedAverages['STS_right'] ?? null)); ?></td></tr>
+                        <tr><th>STS Left</th><td><?php echo $esc($showValue($calculatedAverages['STS_left'] ?? null)); ?></td></tr>
+                        <tr><th>Average 2K / 3K / 4K Right</th><td><?php echo $esc($showValue($calculatedAverages['average1_right'] ?? null)); ?></td></tr>
+                        <tr><th>Average 2K / 3K / 4K Left</th><td><?php echo $esc($showValue($calculatedAverages['average1_left'] ?? null)); ?></td></tr>
+                        <tr><th>Average 0.5K / 1K / 2K / 3K Right</th><td><?php echo $esc($showValue($calculatedAverages['average2_right'] ?? null)); ?></td></tr>
+                        <tr><th>Average 0.5K / 1K / 2K / 3K Left</th><td><?php echo $esc($showValue($calculatedAverages['average2_left'] ?? null)); ?></td></tr>
+                    </table>
+                </div>
+            </section>
 
+            <section class="section">
+                <div class="section-title"><h2>Part D: Conclusion</h2></div>
+                <table class="check-table">
+                    <thead>
+                        <tr><th style="width:44px;">#</th><th>Conclusion</th><th>Selected</th></tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($conclusions as $label => $checked): ?>
+                            <tr>
+                                <td><?php echo $esc(substr($label, 0, 1)); ?></td>
+                                <td><?php echo $esc($label); ?></td>
+                                <td><span class="flag"><span class="mark <?php echo $checked ? 'on' : ''; ?>"><?php echo $checked ? '&#10003;' : ''; ?></span><?php echo $checked ? 'Yes' : 'No'; ?></span></td>
+                            </tr>
+                        <?php endforeach; ?>
+                        <tr><td>O</td><td>Others</td><td><?php echo $esc($showValue($audioComments->standard_analysis ?? null)); ?></td></tr>
+                    </tbody>
+                </table>
+            </section>
 
+            <section class="section">
+                <div class="section-title"><h2>Part E: Recommendation</h2></div>
+                <table class="check-table">
+                    <thead>
+                        <tr><th style="width:44px;">#</th><th>Recommendation</th><th>Selected</th></tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($recommendations as $label => $checked): ?>
+                            <tr>
+                                <td><?php echo $esc(substr($label, 0, 1)); ?></td>
+                                <td><?php echo $esc($label); ?></td>
+                                <td><span class="flag"><span class="mark <?php echo $checked ? 'on' : ''; ?>"><?php echo $checked ? '&#10003;' : ''; ?></span><?php echo $checked ? 'Yes' : 'No'; ?></span></td>
+                            </tr>
+                        <?php endforeach; ?>
+                        <tr><td>O</td><td>Others</td><td><?php echo $esc($showValue($audioComments->audio_recommendation ?? null)); ?></td></tr>
+                    </tbody>
+                </table>
+            </section>
 
+            <section class="section">
+                <div class="section-title"><h2>Remarks</h2></div>
+                <div class="bullet-list">
+                    <div><?php echo nl2br($esc($showValue($audioComments->remarks ?? null, 'NA'))); ?></div>
+                </div>
+            </section>
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+            <section class="section">
+                <div class="signature-wrap">
+                    <div class="stamp-box">
+                        <?php if ($doctorSignatureUrl): ?>
+                            <img src="<?php echo $esc($doctorSignatureUrl); ?>" alt="<?php echo $esc($doctorSignatureName); ?> signature">
+                        <?php endif; ?>
+                        <div class="stamp-name"><?php echo $esc($showValue($doctorName, $doctorSignatureName)); ?></div>
+                        <div class="stamp-caption">Name, signature &amp; stamp OHD</div>
+                    </div>
+                    <div class="consent-box">
+                        <p>
+                            I acknowledge that the doctor attending me has explained the results of the examination and their implication.
+                            I hereby authorize the doctor to disclose the information in third form to my employer / representative and DOSH if necessary.
+                        </p>
+                        <div class="grid-2">
+                            <div class="line-field"><span>Employee Name</span><strong><?php echo $esc($showValue($employeeName)); ?></strong></div>
+                            <div class="line-field"><span>Date</span><strong><?php echo $esc($showValue($examDate)); ?></strong></div>
+                            <div class="line-field"><span>IC / Passport</span><strong><?php echo $esc($showValue($employeeIdentity)); ?></strong></div>
+                            <div class="line-field"><span>OHD Reg. No.</span><strong><?php echo $esc($showValue($doctorRegNo)); ?></strong></div>
+                            <div class="line-field"><span>Practice Address</span><div><?php echo $esc($showValue($doctorAddress)); ?></div></div>
+                            <div class="line-field"><span>Company Address</span><div><?php echo $esc($showValue($companyAddress)); ?></div></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        <?php endif; ?>
+    </section>
+</div>
+</body>
+</html>

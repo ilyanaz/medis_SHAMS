@@ -23,6 +23,9 @@ $backUrl = function_exists('route')
 $nextUrl = function_exists('route')
     ? route('audiometry.list', array_filter(['employee_id' => $employeeId, 'company_id' => $companyId]))
     : 'audiometry_list.php?' . http_build_query(array_filter(['employee_id' => $employeeId, 'company_id' => $companyId]));
+$examUrl = function_exists('route')
+    ? route('audiometry.examination', array_filter(['employee_id' => $employeeId, 'company_id' => $companyId]))
+    : 'audiometry_examination.php?' . http_build_query(array_filter(['employee_id' => $employeeId, 'company_id' => $companyId]));
 $newUrl = function_exists('route')
     ? route('audiometry.questionnaire.new', array_filter(['employee_id' => $employeeId, 'company_id' => $companyId]))
     : 'new_questionnaire.php?' . http_build_query(array_filter(['employee_id' => $employeeId, 'company_id' => $companyId]));
@@ -30,12 +33,12 @@ $newUrl = function_exists('route')
 $steps = [
     ['label' => 'Company', 'url' => function_exists('route') ? route('audiometry.company') : 'audiometry_company.php'],
     ['label' => 'Employee', 'url' => function_exists('route') ? route('audiometry.employee', array_filter(['company_id' => $companyId])) : $backUrl],
-    ['label' => 'Questionnaire', 'url' => function_exists('route') ? route('audiometry.questionnaire', array_filter(['employee_id' => $employeeId, 'company_id' => $companyId])) : 'audiometry_questionnaire.php'],
     ['label' => 'Audiometry List', 'url' => $nextUrl],
+    ['label' => 'Questionnaire', 'url' => function_exists('route') ? route('audiometry.questionnaire', array_filter(['employee_id' => $employeeId, 'company_id' => $companyId])) : 'audiometry_questionnaire.php'],
     ['label' => 'Examination', 'url' => function_exists('route') ? route('audiometry.examination', array_filter(['employee_id' => $employeeId, 'company_id' => $companyId])) : 'audiometry_examination.php'],
     ['label' => 'Report', 'url' => function_exists('route') ? route('audiometry.report', array_filter(['employee_id' => $employeeId, 'company_id' => $companyId])) : 'audiometry_report.php'],
 ];
-$steps[2]['active'] = true;
+$steps[3]['active'] = true;
 
 $selectedEmployeeName = trim((string) (($selectedEmployee->employee_firstName ?? '') . ' ' . ($selectedEmployee->employee_lastName ?? '')));
 
@@ -117,7 +120,7 @@ medis_render_navigation_start([
             </div>
             <div class="top-actions">
                 <a class="btn" href="#">Import</a>
-                <a class="next" href="<?php echo $esc($newUrl); ?>">+ Add Questionnaire</a>
+                <a class="next" href="<?php echo $esc($examUrl); ?>">+ Add Record</a>
             </div>
         </div>
 

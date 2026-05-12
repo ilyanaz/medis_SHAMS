@@ -20,8 +20,8 @@ $companyId = $selectedCompany->company_id ?? request()->query('company_id') ?? '
 $steps = [
     ['label' => 'Company', 'url' => function_exists('route') ? route('audiometry.company') : 'audiometry_company.php'],
     ['label' => 'Employee', 'url' => function_exists('route') ? route('audiometry.employee', array_filter(['company_id' => $companyId])) : 'audiometry_employee.php'],
-    ['label' => 'Questionnaire', 'url' => function_exists('route') ? route('audiometry.questionnaire', array_filter(['employee_id' => $employeeId, 'company_id' => $companyId])) : 'audiometry_questionnaire.php'],
     ['label' => 'Audiometry List', 'url' => function_exists('route') ? route('audiometry.list', array_filter(['employee_id' => $employeeId, 'company_id' => $companyId])) : 'audiometry_list.php'],
+    ['label' => 'Questionnaire', 'url' => function_exists('route') ? route('audiometry.questionnaire', array_filter(['employee_id' => $employeeId, 'company_id' => $companyId])) : 'audiometry_questionnaire.php'],
     ['label' => 'Examination', 'url' => function_exists('route') ? route('audiometry.examination', array_filter(['employee_id' => $employeeId, 'company_id' => $companyId])) : 'audiometry_examination.php', 'active' => true],
     ['label' => 'Report', 'url' => function_exists('route') ? route('audiometry.report', array_filter(['employee_id' => $employeeId, 'company_id' => $companyId])) : 'audiometry_report.php'],
 ];
@@ -678,5 +678,4 @@ refreshVisibleStatuses();sync();
 <?php medis_render_navigation_end(); ?>
 </body>
 </html>
-
 

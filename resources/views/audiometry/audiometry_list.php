@@ -10,7 +10,7 @@
 require dirname(__DIR__) . '/panel/navigation.php';
 
 $esc = static fn($v) => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
-$records = $records ?? collect();
+$records = $records ?? ($questionnaireRows ?? collect());
 $recordTotal = $recordTotal ?? (is_countable($records) ? count($records) : 0);
 $selectedEmployee = $selectedEmployee ?? null;
 $selectedCompany = $selectedCompany ?? null;
@@ -37,8 +37,8 @@ $reportUrl = function_exists('route')
 $steps = [
     ['label' => 'Company', 'url' => $companyUrl],
     ['label' => 'Employee', 'url' => $employeeUrl],
-    ['label' => 'Questionnaire', 'url' => $questionnaireUrl],
     ['label' => 'Audiometry List', 'url' => $listUrl, 'active' => true],
+    ['label' => 'Questionnaire', 'url' => $questionnaireUrl],
     ['label' => 'Examination', 'url' => $examUrl],
     ['label' => 'Report', 'url' => $reportUrl],
 ];
@@ -122,7 +122,7 @@ medis_render_navigation_start([
             </div>
             <div class="top-actions">
                 <a class="btn" href="#">Import</a>
-                <a class="next" href="<?php echo $esc($examUrl); ?>">+ Add Record</a>
+                <a class="next" href="<?php echo $esc($questionnaireUrl); ?>">+ Add Questionnaire</a>
             </div>
         </div>
 

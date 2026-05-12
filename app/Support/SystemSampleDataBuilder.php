@@ -259,6 +259,71 @@ class SystemSampleDataBuilder
         });
     }
 
+    /**
+     * @return array{employee_id:int, audiometry_id:int|null, company_id:int, company_name:string, doctor_username:string}
+     */
+    public function seedAudiometryForEmployee(int $employeeId): array
+    {
+        foreach (['users', 'doctor', 'employee', 'company', 'audiometry_test', 'baseline_audiograph', 'annual_audiograph', 'audiometry_pastmedical', 'audio_comments'] as $table) {
+            if (! Schema::hasTable($table)) {
+                throw new RuntimeException("Required table [{$table}] is missing.");
+            }
+        }
+
+        return DB::transaction(function () use ($employeeId): array {
+            $employee = DB::table('employee')->where('employee_id', $employeeId)->first();
+            if (! $employee) {
+                throw new RuntimeException("Employee [{$employeeId}] was not found.");
+            }
+
+            $doctor = $this->ensureDoctor();
+
+            $companyId = null;
+            $companyName = '';
+
+            if (Schema::hasColumn('employee', 'company_id')) {
+                $companyId = (int) ($employee->company_id ?? 0);
+            }
+
+            if ($companyId > 0) {
+                $company = DB::table('company')->where('company_id', $companyId)->first();
+                $companyName = trim((string) ($company->company_name ?? ''));
+            }
+
+            if ($companyName === '' && Schema::hasTable('occupational_history')) {
+                $history = DB::table('occupational_history')
+                    ->where('employee_id', $employeeId)
+                    ->orderBy('occupHistory_id')
+                    ->first();
+
+                $companyName = trim((string) ($history->company_name ?? ''));
+                if ($companyId <= 0 && $companyName !== '') {
+                    $companyId = (int) (DB::table('company')->where('company_name', $companyName)->value('company_id') ?? 0);
+                }
+            }
+
+            if ($companyId <= 0 || $companyName === '') {
+                throw new RuntimeException("Employee [{$employeeId}] is not linked to a current company yet.");
+            }
+
+            if (Schema::hasColumn('employee', 'company_id') && (int) ($employee->company_id ?? 0) !== $companyId) {
+                DB::table('employee')
+                    ->where('employee_id', $employeeId)
+                    ->update(['company_id' => $companyId]);
+            }
+
+            $audiometryId = $this->ensureAbnormalAudiometryRecord($companyId, $employeeId, (int) $doctor->doctor_id);
+
+            return [
+                'employee_id' => $employeeId,
+                'audiometry_id' => $audiometryId,
+                'company_id' => $companyId,
+                'company_name' => $companyName,
+                'doctor_username' => (string) ($doctor->doctor_username ?? 'doctor'),
+            ];
+        });
+    }
+
     protected function ensureDoctor(): object
     {
         $doctorUser = DB::table('users')
@@ -765,6 +830,101 @@ class SystemSampleDataBuilder
             'annualAudio_id' => $annualId,
             'baselineAudio_id' => $baselineId,
         ]);
+    }
+
+    protected function ensureAbnormalAudiometryRecord(int $companyId, int $employeeId, int $doctorId): int
+    {
+        $examDate = now()->startOfDay()->toDateString();
+
+        $audiometryId = $this->upsertRow('audiometry_test', 'audiometry_id', [
+            'employee_id' => $employeeId,
+            'company_id' => $companyId,
+            'audioTest_date' => $examDate,
+        ], [
+            'total_years_working' => 8,
+            'noYears_working' => 4,
+            'audiometer' => 2,
+            'calibration_date' => $examDate,
+        ]);
+
+        $baselineId = $this->upsertRow('baseline_audiograph', 'baselineAudio_id', [
+            'employee_id' => $employeeId,
+            'audiometry_id' => $audiometryId,
+        ], array_merge($this->audiographPayload(10), [
+            'company_id' => $companyId,
+        ]));
+
+        $annualId = $this->upsertRow('annual_audiograph', 'annualAudio_id', [
+            'employee_id' => $employeeId,
+            'audiometry_id' => $audiometryId,
+        ], array_merge($this->audiographPayload(12), [
+            'company_id' => $companyId,
+            'baselineAudio_id' => $baselineId,
+        ]));
+
+        DB::table('annual_audiograph')
+            ->where('annualAudio_id', $annualId)
+            ->update([
+                'R_2k' => 35,
+                'R_3k' => 50,
+                'R_4k' => 60,
+                'R_6k' => 62,
+                'R_8k' => 58,
+                'L_2k' => 20,
+                'L_3k' => 25,
+                'L_4k' => 30,
+                'L_6k' => 35,
+                'L_8k' => 30,
+                'bone_R2k' => 28,
+                'bone_R3k' => 42,
+                'bone_R4k' => 52,
+                'bone_L2k' => 18,
+                'bone_L3k' => 22,
+                'bone_L4k' => 26,
+            ]);
+
+        $this->upsertRow('audiometry_pastmedical', 'audioPastMedical_id', [
+            'employee_id' => $employeeId,
+            'audiometry_id' => $audiometryId,
+        ], [
+            'ear_infections' => 1,
+            'head_injury' => 0,
+            'ototoxic_drugs' => 0,
+            'prev_earSurgery' => 0,
+            'pre_noiseExposure' => 'Yes',
+            'significant_hobbies' => 'Yes',
+            'seg' => 1,
+            'otoscopy' => 0,
+            'audio_rinneRight' => 'Negative',
+            'audio_rinneLeft' => 'Positive',
+            'audio_weber' => 'Right',
+            'type_audiogram' => 'Annual',
+            'exposure_lex' => 92.4,
+            'peakExposure_Lpeak' => 118.0,
+            'maxExposure_Lmax' => 97.0,
+            'company_id' => $companyId,
+        ]);
+
+        $this->upsertRow('audio_comments', $this->audioCommentsPrimaryKey(), [
+            'employee_id' => $employeeId,
+            'audiometry_id' => $audiometryId,
+        ], [
+            'STS_right' => 'Yes',
+            'STS_left' => 'No',
+            'average1_right' => 48.33,
+            'average2_right' => 26.75,
+            'average1_left' => 25,
+            'average2_left' => 18.75,
+            'standard_analysis' => 'Abnormal right-ear threshold shift detected with findings consistent with occupational noise-related hearing disorder.',
+            'audio_recommendation' => 'Refer to specialist for further management, continue annual audiometry monitoring, and reinforce provision of personal hearing protection.',
+            'remarks' => 'Seeded abnormal audiometry sample for questionnaire and report PDF QA.',
+            'doctor_id' => $doctorId,
+            'company_id' => $companyId,
+            'annualAudio_id' => $annualId,
+            'baselineAudio_id' => $baselineId,
+        ]);
+
+        return $audiometryId;
     }
 
     protected function audiographPayload(int $value): array

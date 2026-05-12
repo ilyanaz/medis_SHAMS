@@ -53,6 +53,20 @@ class LegacyClinicContext
                 $questionnaireRows = $this->audiometryRows($selectedCompany, $selectedEmployee);
                 $payload['questionnaireRows'] = $existing['questionnaireRows'] ?? $questionnaireRows;
                 $payload['questionnaireTotal'] = $existing['questionnaireTotal'] ?? count($questionnaireRows);
+
+                if ($viewName === 'audiometry.audiometry_list') {
+                    $payload['records'] = $existing['records'] ?? $questionnaireRows;
+                    $payload['recordTotal'] = $existing['recordTotal'] ?? count($questionnaireRows);
+                    $payload['totalRecords'] = $existing['totalRecords'] ?? count($questionnaireRows);
+                }
+            }
+
+            if ($this->needsAudiometryDataContext($viewName) && $selectedEmployee) {
+                $payload = array_merge(
+                    $payload,
+                    $existing,
+                    $this->audiometryDataContext($activeClinicId, $selectedCompany, $selectedEmployee, $request)
+                );
             }
 
             if ($this->needsSurveillanceEmployeeReportContext($viewName) && $selectedEmployee) {
@@ -507,15 +521,242 @@ class LegacyClinicContext
                 'status_key' => $statusKey,
                 'date_examined' => (string) ($row->audioTest_date ?? ''),
                 'href' => route('audiometry.report', array_filter([
+                    'audiometry_id' => $row->audiometry_id,
                     'employee_id' => $row->employee_id,
                     'company_id' => $row->company_id,
                 ])),
                 'pdf_href' => route('pdf.audio-report', array_filter([
+                    'audiometry_id' => $row->audiometry_id,
                     'employee_id' => $row->employee_id,
                     'company_id' => $row->company_id,
                 ])),
             ];
         })->all();
+    }
+
+    protected function audiometryDataContext(?int $clinicId, ?object $selectedCompany, ?object $selectedEmployee, Request $request): array
+    {
+        if (! Schema::hasTable('audiometry_test') || ! $selectedEmployee) {
+            return [];
+        }
+
+        $audiometryId = (int) $request->query('audiometry_id', 0);
+        $query = DB::table('audiometry_test')
+            ->where('employee_id', $selectedEmployee->employee_id);
+
+        if ($selectedCompany) {
+            $query->where('company_id', $selectedCompany->company_id);
+        }
+
+        if ($audiometryId > 0) {
+            $query->where('audiometry_id', $audiometryId);
+        } else {
+            $query->orderByDesc('audiometry_id');
+        }
+
+        $audiometryTest = $query->first();
+        if (! $audiometryTest) {
+            return [
+                'audiometryId' => null,
+                'audiometryTest' => null,
+                'pastMedical' => null,
+                'baselineAudiograph' => null,
+                'annualAudiograph' => null,
+                'audioComments' => null,
+                'currentOccupationalHistory' => $this->currentOccupationalHistory($selectedEmployee, $selectedCompany),
+                'summaryRightRows' => [],
+                'summaryLeftRows' => [],
+                'calculatedAverages' => [],
+                'isAudiometryAbnormal' => false,
+            ];
+        }
+
+        $audiometryId = (int) $audiometryTest->audiometry_id;
+        $pastMedical = Schema::hasTable('audiometry_pastmedical')
+            ? DB::table('audiometry_pastmedical')
+                ->where('audiometry_id', $audiometryId)
+                ->where('employee_id', $selectedEmployee->employee_id)
+                ->first()
+            : null;
+        $baselineAudiograph = Schema::hasTable('baseline_audiograph')
+            ? DB::table('baseline_audiograph')
+                ->where('audiometry_id', $audiometryId)
+                ->where('employee_id', $selectedEmployee->employee_id)
+                ->first()
+            : null;
+        $annualAudiograph = Schema::hasTable('annual_audiograph')
+            ? DB::table('annual_audiograph')
+                ->where('audiometry_id', $audiometryId)
+                ->where('employee_id', $selectedEmployee->employee_id)
+                ->first()
+            : null;
+        $audioComments = Schema::hasTable('audio_comments')
+            ? DB::table('audio_comments')
+                ->where('audiometry_id', $audiometryId)
+                ->where('employee_id', $selectedEmployee->employee_id)
+                ->first()
+            : null;
+
+        $calculatedAverages = $this->calculateAudiometryAverages($baselineAudiograph, $annualAudiograph, $audioComments);
+
+        return [
+            'audiometryId' => $audiometryId,
+            'audiometryTest' => $audiometryTest,
+            'pastMedical' => $pastMedical,
+            'baselineAudiograph' => $baselineAudiograph,
+            'annualAudiograph' => $annualAudiograph,
+            'audioComments' => $audioComments,
+            'currentOccupationalHistory' => $this->currentOccupationalHistory($selectedEmployee, $selectedCompany),
+            'summaryRightRows' => $this->audiometrySummaryRows('right', $baselineAudiograph, $annualAudiograph, $audiometryTest),
+            'summaryLeftRows' => $this->audiometrySummaryRows('left', $baselineAudiograph, $annualAudiograph, $audiometryTest),
+            'calculatedAverages' => $calculatedAverages,
+            'isAudiometryAbnormal' => $this->isAudiometryAbnormal($audioComments, $calculatedAverages),
+        ];
+    }
+
+    protected function currentOccupationalHistory(?object $selectedEmployee, ?object $selectedCompany): ?object
+    {
+        if (! $selectedEmployee || ! Schema::hasTable('occupational_history')) {
+            return null;
+        }
+
+        $query = DB::table('occupational_history')
+            ->where('employee_id', $selectedEmployee->employee_id)
+            ->orderBy('occupHistory_id');
+
+        if ($selectedCompany && Schema::hasColumn('occupational_history', 'company_name')) {
+            $companyMatch = DB::table('occupational_history')
+                ->where('employee_id', $selectedEmployee->employee_id)
+                ->where('company_name', (string) $selectedCompany->company_name)
+                ->orderBy('occupHistory_id')
+                ->first();
+            if ($companyMatch) {
+                return $companyMatch;
+            }
+        }
+
+        return $query->first();
+    }
+
+    protected function audiometrySummaryRows(string $side, ?object $baselineAudiograph, ?object $annualAudiograph, ?object $audiometryTest): array
+    {
+        $prefix = strtolower($side) === 'right' ? 'R_' : 'L_';
+        $rows = [];
+        foreach ([
+            ['tone' => 'Baseline', 'date' => (string) ($audiometryTest->audioTest_date ?? ''), 'row' => $baselineAudiograph],
+            ['tone' => 'Annual', 'date' => (string) ($audiometryTest->audioTest_date ?? ''), 'row' => $annualAudiograph],
+        ] as $meta) {
+            if (! $meta['row']) {
+                continue;
+            }
+
+            $rows[] = [
+                'tone' => $meta['tone'],
+                'date' => $meta['date'],
+                'values' => [
+                    '500' => $meta['row']->{$prefix . '500'} ?? '',
+                    '1000' => $meta['row']->{$prefix . '1k'} ?? '',
+                    '2000' => $meta['row']->{$prefix . '2k'} ?? '',
+                    '3000' => $meta['row']->{$prefix . '3k'} ?? '',
+                    '4000' => $meta['row']->{$prefix . '4k'} ?? '',
+                    '6000' => $meta['row']->{$prefix . '6k'} ?? '',
+                    '8000' => $meta['row']->{$prefix . '8k'} ?? '',
+                ],
+            ];
+        }
+
+        return $rows;
+    }
+
+    protected function calculateAudiometryAverages(?object $baselineAudiograph, ?object $annualAudiograph, ?object $audioComments): array
+    {
+        $averages = [
+            'average1_right' => $audioComments->average1_right ?? null,
+            'average1_left' => $audioComments->average1_left ?? null,
+            'average2_right' => $audioComments->average2_right ?? null,
+            'average2_left' => $audioComments->average2_left ?? null,
+            'STS_right' => (string) ($audioComments->STS_right ?? ''),
+            'STS_left' => (string) ($audioComments->STS_left ?? ''),
+        ];
+
+        foreach (['right' => 'R_', 'left' => 'L_'] as $side => $prefix) {
+            if ($annualAudiograph) {
+                $average1 = $this->numericAverage([
+                    $annualAudiograph->{$prefix . '2k'} ?? null,
+                    $annualAudiograph->{$prefix . '3k'} ?? null,
+                    $annualAudiograph->{$prefix . '4k'} ?? null,
+                ]);
+                $average2 = $this->numericAverage([
+                    $annualAudiograph->{$prefix . '500'} ?? null,
+                    $annualAudiograph->{$prefix . '1k'} ?? null,
+                    $annualAudiograph->{$prefix . '2k'} ?? null,
+                    $annualAudiograph->{$prefix . '3k'} ?? null,
+                ]);
+
+                if ($averages['average1_' . $side] === null) {
+                    $averages['average1_' . $side] = $average1;
+                }
+                if ($averages['average2_' . $side] === null) {
+                    $averages['average2_' . $side] = $average2;
+                }
+            }
+
+            if ($averages['STS_' . $side] === '' && $baselineAudiograph && $annualAudiograph) {
+                $baselineAverage = $this->numericAverage([
+                    $baselineAudiograph->{$prefix . '2k'} ?? null,
+                    $baselineAudiograph->{$prefix . '3k'} ?? null,
+                    $baselineAudiograph->{$prefix . '4k'} ?? null,
+                ]);
+                $annualAverage = $this->numericAverage([
+                    $annualAudiograph->{$prefix . '2k'} ?? null,
+                    $annualAudiograph->{$prefix . '3k'} ?? null,
+                    $annualAudiograph->{$prefix . '4k'} ?? null,
+                ]);
+
+                if ($baselineAverage !== null && $annualAverage !== null) {
+                    $averages['STS_' . $side] = ($annualAverage - $baselineAverage) >= 10 ? 'Yes' : 'No';
+                }
+            }
+        }
+
+        return $averages;
+    }
+
+    protected function numericAverage(array $values): ?float
+    {
+        $numeric = array_values(array_filter($values, static fn ($value) => $value !== null && $value !== '' && is_numeric($value)));
+        if ($numeric === []) {
+            return null;
+        }
+
+        return round(array_sum(array_map('floatval', $numeric)) / count($numeric), 2);
+    }
+
+    protected function isAudiometryAbnormal(?object $audioComments, array $calculatedAverages): bool
+    {
+        if (! $audioComments) {
+            return false;
+        }
+
+        if (in_array((string) ($audioComments->STS_right ?? ''), ['Yes', 'Abnormal'], true)
+            || in_array((string) ($audioComments->STS_left ?? ''), ['Yes', 'Abnormal'], true)) {
+            return true;
+        }
+
+        foreach (['average1_right', 'average1_left', 'average2_right', 'average2_left'] as $key) {
+            if (isset($calculatedAverages[$key]) && is_numeric($calculatedAverages[$key]) && (float) $calculatedAverages[$key] >= 25) {
+                return true;
+            }
+        }
+
+        $analysis = strtolower(trim((string) ($audioComments->standard_analysis ?? '')));
+        $recommendation = strtolower(trim((string) ($audioComments->audio_recommendation ?? '')));
+
+        return str_contains($analysis, 'abnormal')
+            || str_contains($analysis, 'shift')
+            || str_contains($recommendation, 'referral')
+            || str_contains($recommendation, 'noise-induced')
+            || str_contains($recommendation, 'hearing loss');
     }
 
     protected function assetUrl(?string $path): ?string
@@ -580,6 +821,17 @@ class LegacyClinicContext
         return in_array($viewName, [
             'audiometry.audiometry_questionnaire',
             'audiometry.audiometry_list',
+        ], true);
+    }
+
+    protected function needsAudiometryDataContext(string $viewName): bool
+    {
+        return in_array($viewName, [
+            'audiometry.audiometry_examination',
+            'audiometry.audiometry_report',
+            'report.PDF_audioReport',
+            'report.PDF_questionnaire',
+            'report.audiometry_questionnaire_report',
         ], true);
     }
 

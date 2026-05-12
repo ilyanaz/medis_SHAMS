@@ -7,11 +7,13 @@ require dirname(__DIR__) . '/panel/navigation.php';
 $esc = static fn($v) => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
 $audioCompanyUrl = 'audiometry_company.php';
 $audioEmployeeUrl = 'audiometry_employee.php';
+$audioListUrl = 'audiometry_list.php';
 $audioQuestionnaireUrl = 'audiometry_questionnaire.php';
 $audioExaminationUrl = 'audiometry_examination.php';
 $steps = [
     ['label' => 'Company', 'url' => $audioCompanyUrl, 'key' => 'company'],
     ['label' => 'Employee', 'url' => $audioEmployeeUrl, 'key' => 'employee'],
+    ['label' => 'Audiometry List', 'url' => $audioListUrl, 'key' => 'list'],
     ['label' => 'Questionnaire', 'url' => $audioQuestionnaireUrl, 'key' => 'questionnaire'],
     ['label' => 'Examination', 'url' => $audioExaminationUrl, 'key' => 'examination'],
 ];
@@ -22,9 +24,9 @@ $steps = [
 <div class="flow">
 <aside class="stepper"><h3>Audiometry Flow</h3><div class="step-list"><?php foreach($steps as $index => $step): ?><a class="step-link" href="<?php echo $esc($step['url']); ?>"><span class="step-index"><?php echo $index + 1; ?></span><span><?php echo $esc($step['label']); ?></span></a><?php endforeach; ?></div></aside>
 <section class="content">
-<div class="head"><div><h2>Audiometry Overview</h2><p>Manage company, employee, questionnaire, and examination records in one audiometry workflow.</p></div><div class="top-actions"><a class="next" href="audiometry_company.php">Start Audiometry Flow</a></div></div>
+<div class="head"><div><h2>Audiometry Overview</h2><p>Manage company, employee, list, questionnaire, and examination records in one audiometry workflow.</p></div><div class="top-actions"><a class="next" href="audiometry_company.php">Start Audiometry Flow</a></div></div>
 <div class="cards"><div class="stat"><span>Total Audiometry Companies</span><strong>128</strong></div><div class="stat"><span>Registered Employees</span><strong>2,846</strong></div><div class="stat"><span>Questionnaires Pending</span><strong>34</strong></div><div class="stat"><span>Examinations This Month</span><strong>186</strong></div></div>
-<div class="hero"><div class="panel"><h3>Workflow Steps</h3><div class="quick-list"><a class="quick-item" href="audiometry_company.php"><div><strong>Company</strong><span>Register and maintain employer details</span></div><span>Open</span></a><a class="quick-item" href="audiometry_employee.php"><div><strong>Employee</strong><span>Assign and manage audiometry staff records</span></div><span>Open</span></a><a class="quick-item" href="audiometry_questionnaire.php"><div><strong>Questionnaire</strong><span>Track risk factors and hearing history</span></div><span>Open</span></a><a class="quick-item" href="audiometry_examination.php"><div><strong>Examination</strong><span>Review tests, results, and follow-up actions</span></div><span>Open</span></a></div></div><div class="panel"><h3>Recent Audiometry Activity</h3><div class="mini-list"><div class="mini-row"><strong>Alpha Engineering</strong><span>12 employees added</span></div><div class="mini-row"><strong>Zeta Marine</strong><span>8 questionnaires submitted</span></div><div class="mini-row"><strong>Kota Manufacturing</strong><span>5 examinations completed</span></div></div><div class="note">Use this page as the main audiometry entry point. Each section follows the same clean table style as the company page.</div></div></div>
+<div class="hero"><div class="panel"><h3>Workflow Steps</h3><div class="quick-list"><a class="quick-item" href="audiometry_company.php"><div><strong>Company</strong><span>Register and maintain employer details</span></div><span>Open</span></a><a class="quick-item" href="audiometry_employee.php"><div><strong>Employee</strong><span>Assign and manage audiometry staff records</span></div><span>Open</span></a><a class="quick-item" href="audiometry_list.php"><div><strong>Audiometry List</strong><span>Review saved audiometry records before continuing</span></div><span>Open</span></a><a class="quick-item" href="audiometry_questionnaire.php"><div><strong>Questionnaire</strong><span>Track risk factors and hearing history</span></div><span>Open</span></a><a class="quick-item" href="audiometry_examination.php"><div><strong>Examination</strong><span>Review tests, results, and follow-up actions</span></div><span>Open</span></a></div></div><div class="panel"><h3>Recent Audiometry Activity</h3><div class="mini-list"><div class="mini-row"><strong>Alpha Engineering</strong><span>12 employees added</span></div><div class="mini-row"><strong>Zeta Marine</strong><span>8 questionnaires submitted</span></div><div class="mini-row"><strong>Kota Manufacturing</strong><span>5 examinations completed</span></div></div><div class="note">Use this page as the main audiometry entry point. Each section follows the same clean table style as the company page.</div></div></div>
 </section>
 </div>
 <?php medis_render_navigation_end(); ?>
