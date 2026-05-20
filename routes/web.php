@@ -127,25 +127,15 @@ $legacyViewRoutes = [
     'profile' => 'panel.dashboard',
     'settings' => 'panel.settings',
     'account.settings' => 'panel.account_settings',
-    'panel.company_list' => 'company.company_list',
-    'panel.company_new' => 'company.new_company',
-    'panel.company_setup' => 'company.company_setup',
     'logout.page' => 'panel.logout',
     'general.report' => 'report.general_report',
     'general.examination' => 'report.general_examination',
-    'surveillance.company' => 'company.surveillance_company',
     'surveillance.company.new' => 'company.new_company',
     'surveillance.company.edit' => 'action.edit_surveillanceComp',
     'surveillance.company.delete' => 'action.delete_surveillanceComp',
-    'surveillance.patient' => 'surveillance.surveillance_patient',
-    'surveillance.patient.new' => 'surveillance.new_surveillancePatient',
-    'surveillance.employee' => 'surveillance.surveillance_patient',
     'surveillance.employee.new' => 'employee.new_employee',
     'surveillance.employee.edit' => 'action.edit_surveillanceEmp',
     'surveillance.employee.delete' => 'action.delete_surveillanceEmp',
-    'surveillance.record.delete' => 'action.delete_surveillanceRecord',
-    'surveillance.declaration' => 'surveillance.surveillance_declaration',
-    'surveillance.examination' => 'surveillance.surveillance_examination',
     'surveillance.confirm' => 'surveillance.surveillance_list',
     'surveillance.report' => 'report.surveillance_usechh1Report',
     'surveillance.report.abnormal' => 'report.suveillance_abnormalReport',
@@ -190,19 +180,22 @@ $legacyViewRoutes = [
     'pdf.usechh5ii' => 'report.PDF_USECHH5ii',
 ];
 
+$registeredLegacyNames = array_keys(Route::getRoutes()->getRoutesByName());
+
 foreach ($legacyViewRoutes as $name => $view) {
-    if (!Route::has($name)) {
-        Route::get('/legacy/' . str_replace('.', '/', $name), fn () => view($view))->name($name);
+    if (in_array($name, $registeredLegacyNames, true)) {
+        continue;
     }
+
+    Route::get('/legacy/' . str_replace('.', '/', $name), fn () => view($view))->name($name);
+    $registeredLegacyNames[] = $name;
 }
 
 $legacyPostRoutes = [
     'surveillance.company.update',
-    'surveillance.company.destroy',
     'surveillance.employee.update',
     'surveillance.employee.destroy',
     'surveillance.record.update',
-    'surveillance.declaration.save',
     'surveillance.chemical-option.store',
     'audiometry.examination.save',
     'settings.header.upload',
@@ -214,8 +207,13 @@ $legacyPostRoutes = [
     'account.password.update',
 ];
 
+$registeredLegacyPostNames = array_keys(Route::getRoutes()->getRoutesByName());
+
 foreach ($legacyPostRoutes as $name) {
-    if (!Route::has($name)) {
-        Route::post('/legacy/' . str_replace('.', '/', $name), fn () => redirect()->route('panel.dashboard'))->name($name);
+    if (in_array($name, $registeredLegacyPostNames, true)) {
+        continue;
     }
+
+    Route::post('/legacy/' . str_replace('.', '/', $name), fn () => redirect()->route('panel.dashboard'))->name($name);
+    $registeredLegacyPostNames[] = $name;
 }
