@@ -40,6 +40,9 @@ $profileInitial = strtoupper(substr($fullName, 0, 1));
 $profileInitial = $profileInitial !== '' ? $profileInitial : 'D';
 $profilePicture = trim($old('doctor_picture', ''));
 $signaturePath = trim($old('doctor_sign', ''));
+$hasDoctorStatus = $doctorRecord === null || property_exists((object) $doctorRecord, 'doctor_status');
+$hasDoctorPicture = $doctorRecord === null || property_exists((object) $doctorRecord, 'doctor_picture');
+$hasDoctorSignature = $doctorRecord === null || property_exists((object) $doctorRecord, 'doctor_sign');
 $formAction = route(match ($pageMode) {
     'edit' => \Illuminate\Support\Facades\Route::has('admin.doctor.update') ? 'admin.doctor.update' : 'panel.doctor.update',
     default => \Illuminate\Support\Facades\Route::has('admin.doctor_setup.store') ? 'admin.doctor_setup.store' : 'panel.doctor_setup.store',
@@ -147,7 +150,7 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
                     </label>
                     <strong id="doctorPictureName"><?php echo htmlspecialchars($fullName !== '' ? $fullName : 'Doctor Name', ENT_QUOTES, 'UTF-8'); ?></strong>
                 </div>
-                <?php if (! $isReadOnly): ?>
+                <?php if (! $isReadOnly && $hasDoctorPicture): ?>
                     <input id="doctor_picture_upload" name="doctor_picture" type="file" accept="image/*">
                 <?php endif; ?>
             </section>
@@ -258,14 +261,16 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
                     <input id="doctor_fax_number" name="doctor_fax_number" type="tel" value="<?php echo htmlspecialchars($old('doctor_fax_number'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="Fax number" <?php echo $isReadOnly ? 'readonly' : ''; ?>>
                 </div>
             </div>
-            <div class="field">
-                <label for="doctor_status">Status</label>
-                <select id="doctor_status" name="doctor_status" <?php echo $isReadOnly ? 'disabled' : ''; ?>>
-                    <?php foreach ($statusOptions as $value => $label): ?>
-                        <option value="<?php echo htmlspecialchars($value, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $old('doctor_status', 'active') === $value ? 'selected' : ''; ?>><?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
+            <?php if ($hasDoctorStatus): ?>
+                <div class="field">
+                    <label for="doctor_status">Status</label>
+                    <select id="doctor_status" name="doctor_status" <?php echo $isReadOnly ? 'disabled' : ''; ?>>
+                        <?php foreach ($statusOptions as $value => $label): ?>
+                            <option value="<?php echo htmlspecialchars($value, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $old('doctor_status', 'active') === $value ? 'selected' : ''; ?>><?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            <?php endif; ?>
         </div>
 
         <div class="field" style="margin-top:18px;">
@@ -291,7 +296,7 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
         <div class="media-grid">
             <div class="field">
                 <label for="doctor_sign_upload">Signature</label>
-                <?php if (! $isReadOnly): ?>
+                <?php if (! $isReadOnly && $hasDoctorSignature): ?>
                     <input id="doctor_sign_upload" name="doctor_sign_upload" type="file" accept="image/*">
                     <p style="margin:8px 0 0;color:#6b7280;font-size:.88rem;">Upload a signature file or draw an eSign below.</p>
                     <div class="signature-box" style="margin-top:14px;">
@@ -339,7 +344,6 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
     const canvas = document.getElementById('signature-pad');
     const hiddenInput = document.getElementById('doctor_sign_data');
     const clearButton = document.getElementById('clear-signature');
-    const saveSignatureButton = document.getElementById('save-signature');
     const signatureStatus = document.getElementById('signature-status');
     const pictureInput = document.getElementById('doctor_picture_upload');
     const pictureImage = document.getElementById('doctorPictureImage');
@@ -351,7 +355,7 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
     const firstNameInput = document.getElementById('doctor_firstName');
     const lastNameInput = document.getElementById('doctor_lastName');
     const profileName = document.getElementById('doctorPictureName');
-    const existingSignature = <?php echo json_encode($signaturePath !== '', JSON_THROW_ON_ERROR); ?>;
+    const existingSignature = <?php echo json_encode($signaturePath !== ''); ?>;
 
     const syncProfileText = () => {
         const fullName = [firstNameInput?.value || '', lastNameInput?.value || ''].join(' ').trim();
@@ -488,8 +492,6 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
         signaturePad.addEventListener('endStroke', syncSignatureData);
         canvas.addEventListener('mouseup', syncSignatureData);
         canvas.addEventListener('touchend', syncSignatureData);
-        saveSignatureButton?.addEventListener('click', saveDrawnSignature);
-
         clearButton?.addEventListener('click', () => {
             signaturePad.clear();
             hiddenInput.value = '';

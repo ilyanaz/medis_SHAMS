@@ -30,6 +30,8 @@ $normalizeCountryCode = static function (?string $value, string $default = '+60'
     return '+' . $digits;
 };
 $statusOptions = ['active' => 'Active', 'not active' => 'Not Active'];
+$hasClinicStatus = isset($clinicRecord) ? property_exists((object) $clinicRecord, 'clinic_status') : true;
+$hasClinicHeader = isset($clinicRecord) ? property_exists((object) $clinicRecord, 'clinic_header_path') : true;
 $formAction = route(match ($pageMode) {
     'edit' => \Illuminate\Support\Facades\Route::has('admin.clinic.update') ? 'admin.clinic.update' : 'panel.clinic.update',
     default => \Illuminate\Support\Facades\Route::has('admin.clinic_setup.store') ? 'admin.clinic_setup.store' : 'panel.clinic_setup.store',
@@ -164,18 +166,22 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.clinic_list') ?
         </div>
 
         <div class="grid-2" style="margin-top:18px;">
-            <div class="field">
-                <label for="clinic_status">Status</label>
-                <select id="clinic_status" name="clinic_status" <?php echo $isReadOnly ? 'disabled' : 'required'; ?>>
-                    <?php foreach ($statusOptions as $value => $label): ?>
-                        <option value="<?php echo htmlspecialchars($value, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $old('clinic_status', 'active') === $value ? 'selected' : ''; ?>><?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="field">
-                <label for="header_upload">Upload Header Setup</label>
-                <input id="header_upload" name="header_upload" type="file" accept="image/*" <?php echo $pageMode === 'create' ? 'required' : ''; ?> <?php echo $isReadOnly ? 'disabled' : ''; ?>>
-            </div>
+            <?php if ($hasClinicStatus): ?>
+                <div class="field">
+                    <label for="clinic_status">Status</label>
+                    <select id="clinic_status" name="clinic_status" <?php echo $isReadOnly ? 'disabled' : 'required'; ?>>
+                        <?php foreach ($statusOptions as $value => $label): ?>
+                            <option value="<?php echo htmlspecialchars($value, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $old('clinic_status', 'active') === $value ? 'selected' : ''; ?>><?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            <?php endif; ?>
+            <?php if ($hasClinicHeader): ?>
+                <div class="field">
+                    <label for="header_upload">Upload Header Setup</label>
+                    <input id="header_upload" name="header_upload" type="file" accept="image/*" <?php echo $pageMode === 'create' ? 'required' : ''; ?> <?php echo $isReadOnly ? 'disabled' : ''; ?>>
+                </div>
+            <?php endif; ?>
         </div>
 
         <?php if ($headerPreview !== ''): ?>
