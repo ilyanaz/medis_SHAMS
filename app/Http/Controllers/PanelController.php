@@ -2984,18 +2984,19 @@ class PanelController extends Controller
 
     protected function clinicSelectColumns(): array
     {
-        $columns = ['clinic_id', 'clinic_name', 'clinic_email', 'clinic_telephone', 'clinic_address'];
-
-        if (Schema::hasColumn('clinic', 'clinic_header_path')) {
-            $columns[] = 'clinic_header_path';
-        }
-
-        return $columns;
+        return $this->existingColumns('clinic', [
+            'clinic_id',
+            'clinic_name',
+            'clinic_email',
+            'clinic_telephone',
+            'clinic_address',
+            'clinic_header_path',
+        ]);
     }
 
     protected function clinicListColumns(): array
     {
-        $columns = [
+        return $this->existingColumns('clinic', [
             'clinic_id',
             'clinic_name',
             'clinic_address',
@@ -3006,26 +3007,15 @@ class PanelController extends Controller
             'clinic_fax',
             'clinic_email',
             'clinic_username',
-        ];
-
-        $optionalColumns = [
             'clinic_registration',
             'clinic_header_path',
             'clinic_status',
-        ];
-
-        foreach ($optionalColumns as $column) {
-            if (Schema::hasColumn('clinic', $column)) {
-                $columns[] = $column;
-            }
-        }
-
-        return $columns;
+        ]);
     }
 
     protected function doctorListColumns(): array
     {
-        $columns = [
+        return $this->existingColumns('doctor', [
             'doctor_id',
             'doctor_firstName',
             'doctor_lastName',
@@ -3033,13 +3023,8 @@ class PanelController extends Controller
             'doctor_fax',
             'doctor_email',
             'OHD_registrationNo',
-        ];
-
-        if (Schema::hasColumn('doctor', 'doctor_status')) {
-            $columns[] = 'doctor_status';
-        }
-
-        return $columns;
+            'doctor_status',
+        ]);
     }
 
     protected function clinicFormDefaults(?object $clinic = null): array
@@ -3173,9 +3158,30 @@ class PanelController extends Controller
 
     protected function linkedDoctorRecord(User $user): ?object
     {
-        $query = DB::table('doctor')
-            ->where('doctor_email', (string) $user->email)
-            ->orWhere('doctor_username', (string) $user->username);
+        if (! Schema::hasTable('doctor')) {
+            return null;
+        }
+
+        $hasDoctorEmail = Schema::hasColumn('doctor', 'doctor_email');
+        $hasDoctorUsername = Schema::hasColumn('doctor', 'doctor_username');
+
+        if (! $hasDoctorEmail && ! $hasDoctorUsername) {
+            return null;
+        }
+
+        $query = DB::table('doctor');
+
+        if ($hasDoctorEmail) {
+            $query->where('doctor_email', (string) $user->email);
+        }
+
+        if ($hasDoctorUsername) {
+            if ($hasDoctorEmail) {
+                $query->orWhere('doctor_username', (string) $user->username);
+            } else {
+                $query->where('doctor_username', (string) $user->username);
+            }
+        }
 
         if (Schema::hasColumn('doctor', 'doctor_status')) {
             $query->where('doctor_status', 'active');
@@ -3239,15 +3245,20 @@ class PanelController extends Controller
 
     protected function findClinic(int $clinicId): ?object
     {
+        $columns = $this->clinicListColumns();
+        if ($columns === []) {
+            return null;
+        }
+
         return DB::table('clinic')
-            ->select($this->clinicListColumns())
+            ->select($columns)
             ->where('clinic_id', $clinicId)
             ->first();
     }
 
     protected function findDoctor(int $doctorId): ?object
     {
-        $columns = [
+        $columns = $this->existingColumns('doctor', [
             'doctor_id',
             'doctor_firstName',
             'doctor_lastName',
@@ -3270,16 +3281,29 @@ class PanelController extends Controller
             'doctor_username',
             'doctor_sign',
             'doctor_picture',
-        ];
+            'doctor_status',
+        ]);
 
-        if (Schema::hasColumn('doctor', 'doctor_status')) {
-            $columns[] = 'doctor_status';
+        if ($columns === []) {
+            return null;
         }
 
         return DB::table('doctor')
             ->select($columns)
             ->where('doctor_id', $doctorId)
             ->first();
+    }
+
+    protected function existingColumns(string $table, array $columns): array
+    {
+        if (! Schema::hasTable($table)) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            $columns,
+            static fn (string $column): bool => Schema::hasColumn($table, $column)
+        ));
     }
 
     protected function findCompany(Request $request, int $companyId): ?object

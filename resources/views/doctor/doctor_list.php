@@ -75,8 +75,7 @@ medis_render_admin_navigation_start([
     <table class="table">
         <thead>
             <tr>
-                <th>Doctor ID</th>
-                <th>Name</th>
+                <th>Doctor Name</th>
                 <th>OHD Registration Number</th>
                 <th>Contact</th>
                 <th>Status</th>
@@ -93,7 +92,6 @@ medis_render_admin_navigation_start([
                     $isActive = $statusValue === 'active';
                     ?>
                     <tr>
-                        <td>#DOC<?php echo $esc($doctor->doctor_id); ?></td>
                         <td>
                             <div class="stack">
                                 <span class="table-name"><?php echo $esc($fullName !== '' ? $fullName : 'Doctor'); ?></span>

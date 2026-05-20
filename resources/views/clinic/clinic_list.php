@@ -47,8 +47,7 @@ medis_render_admin_navigation_start([
     <table class="table">
         <thead>
             <tr>
-                <th>Clinic ID</th>
-                <th>Name</th>
+                <th>Clinic Name</th>
                 <th>Registration</th>
                 <th>Contact</th>
                 <th>Status</th>
@@ -64,7 +63,6 @@ medis_render_admin_navigation_start([
                     $isActive = $statusValue === 'active';
                     ?>
                     <tr>
-                        <td>#CLN<?php echo $esc($clinic->clinic_id); ?></td>
                         <td>
                             <div class="stack">
                                 <span class="table-name"><?php echo $esc($clinic->clinic_name); ?></span>
