@@ -56,7 +56,7 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.clinic_list') ?
         .form-card h2{margin:0 0 18px;font-size:1.25rem;font-weight:700}
         .field{display:grid;gap:8px}
         .field label{font-weight:600;color:#334155}
-        .required-note{margin-left:6px;font-size:.82rem;font-weight:600;color:#dc2626}
+        .required-note{margin-left:4px;font-size:1rem;font-weight:700;color:#dc2626}
         .field input,.field textarea,.field select{border:1px solid #cbd5e1;border-radius:12px;padding:12px 14px;background:#fff;color:#0f172a;font-size:.98rem;outline:none}
         .field textarea{min-height:120px;resize:vertical}
         .field input[readonly],.field textarea[readonly],.field select:disabled{background:#f8fafc;color:#475569}
@@ -106,11 +106,11 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.clinic_list') ?
 
         <div class="grid-2">
             <div class="field">
-                <label for="clinic_name">Clinic Name<span class="required-note">(Required)</span></label>
+                <label for="clinic_name">Clinic Name<span class="required-note">*</span></label>
                 <input id="clinic_name" name="clinic_name" type="text" value="<?php echo htmlspecialchars($old('clinic_name'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="Medis Health Center" <?php echo $isReadOnly ? 'readonly' : 'required'; ?>>
             </div>
             <div class="field">
-                <label for="registration">Registration Number<span class="required-note">(Required)</span></label>
+                <label for="registration">Registration Number<span class="required-note">*</span></label>
                 <input id="registration" name="registration" type="text" value="<?php echo htmlspecialchars($old('registration'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="CLN-789012" <?php echo $isReadOnly ? 'readonly' : 'required'; ?>>
             </div>
         </div>
@@ -179,7 +179,7 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.clinic_list') ?
             <?php endif; ?>
             <?php if ($hasClinicHeader): ?>
                 <div class="field">
-                    <label for="header_upload">Upload Header Setup<span class="required-note">(Required)</span></label>
+                    <label for="header_upload">Upload Header Setup<span class="required-note">*</span></label>
                     <input id="header_upload" name="header_upload" type="file" accept="image/*" <?php echo $pageMode === 'create' ? 'required' : ''; ?> <?php echo $isReadOnly ? 'disabled' : ''; ?>>
                 </div>
             <?php endif; ?>

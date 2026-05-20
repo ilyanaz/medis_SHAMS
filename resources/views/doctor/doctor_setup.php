@@ -65,7 +65,7 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
         .form-card{margin-top:18px}
         .field{display:grid;gap:8px}
         .field label{font-weight:600;color:#334155}
-        .required-note{margin-left:6px;font-size:.82rem;font-weight:600;color:#dc2626}
+        .required-note{margin-left:4px;font-size:1rem;font-weight:700;color:#dc2626}
         .field input,.field textarea,.field select{border:1px solid #cbd5e1;border-radius:12px;padding:12px 14px;background:#fff;color:#0f172a;font-size:.98rem;outline:none}
         .field input[readonly],.field textarea[readonly],.field select:disabled{background:#f8fafc;color:#475569}
         .field textarea{min-height:120px;resize:vertical}
@@ -158,11 +158,11 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
 
             <div class="details-stack">
                 <div class="field">
-                    <label for="doctor_firstName">First Name<span class="required-note">(Required)</span></label>
+                    <label for="doctor_firstName">First Name<span class="required-note">*</span></label>
                     <input id="doctor_firstName" name="doctor_firstName" type="text" value="<?php echo htmlspecialchars($old('doctor_firstName'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="Ali" <?php echo $isReadOnly ? 'readonly' : 'required'; ?>>
                 </div>
                 <div class="field">
-                    <label for="doctor_lastName">Last Name<span class="required-note">(Required)</span></label>
+                    <label for="doctor_lastName">Last Name<span class="required-note">*</span></label>
                     <input id="doctor_lastName" name="doctor_lastName" type="text" value="<?php echo htmlspecialchars($old('doctor_lastName'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="Bin Abu" <?php echo $isReadOnly ? 'readonly' : 'required'; ?>>
                 </div>
                 <div class="field">
@@ -228,11 +228,11 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
                 </select>
             </div>
             <div class="field">
-                <label for="MMC_no">MMC Number<span class="required-note">(Required)</span></label>
+                <label for="MMC_no">MMC Number<span class="required-note">*</span></label>
                 <input id="MMC_no" name="MMC_no" type="text" value="<?php echo htmlspecialchars($old('MMC_no'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="MMC-12345" <?php echo $isReadOnly ? 'readonly' : 'required'; ?>>
             </div>
             <div class="field">
-                <label for="OHD_registrationNo">OHD Registration Number<span class="required-note">(Required)</span></label>
+                <label for="OHD_registrationNo">OHD Registration Number<span class="required-note">*</span></label>
                 <input id="OHD_registrationNo" name="OHD_registrationNo" type="text" value="<?php echo htmlspecialchars($old('OHD_registrationNo'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="OHD-67890" <?php echo $isReadOnly ? 'readonly' : 'required'; ?>>
             </div>
         </div>
@@ -296,7 +296,7 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
 
         <div class="media-grid">
             <div class="field">
-                <label for="doctor_sign_upload">Signature<span class="required-note">(Required)</span></label>
+                <label for="doctor_sign_upload">Signature<span class="required-note">*</span></label>
                 <?php if (! $isReadOnly && $hasDoctorSignature): ?>
                     <input id="doctor_sign_upload" name="doctor_sign_upload" type="file" accept="image/*">
                     <p style="margin:8px 0 0;color:#6b7280;font-size:.88rem;">Upload a signature file or draw an eSign below.</p>
