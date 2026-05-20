@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>New Company</title>
+    <title>Edit Company</title>
     <style>
         :root{--line:#e5e7eb;--bg:rgba(15,23,42,.55);--panel:#fff;--text:#111827;--muted:#6b7280;--green:#389B5B}
         *{box-sizing:border-box}
@@ -37,23 +37,35 @@
 require_once __DIR__ . '/view_bootstrap.php';
 
 $esc = static fn ($value) => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
-$routeFacade = \Illuminate\Support\Facades\Route::class;
+$companyRecord = $companyRecord ?? null;
+$companyFormData = is_array($companyFormData ?? null) ? $companyFormData : [];
+$csrfToken = function_exists('csrf_token') ? (string) csrf_token() : '';
+$hasErrors = isset($errors) && method_exists($errors, 'any') && $errors->any();
+$firstError = $hasErrors ? (string) $errors->first() : '';
 $countryCodes = config('country_codes', []);
-$selectedModule = old('company_module', (string) request()->query('company_module', 'surveillance'));
-$backUrl = function_exists('route')
-    ? route($routeFacade::has('panel.company_list') ? 'panel.company_list' : 'surveillance.company')
-    : '#';
-$formAction = function_exists('route')
-    ? route($routeFacade::has('panel.company_setup.store') ? 'panel.company_setup.store' : 'surveillance.company.store')
-    : '#';
+$old = static function (string $key, string $default = '') use ($companyFormData) {
+    $fallback = array_key_exists($key, $companyFormData) ? (string) $companyFormData[$key] : $default;
+    return function_exists('old') ? (string) old($key, $fallback) : $fallback;
+};
+$backUrl = function_exists('route') ? route('panel.company_list') : '#';
+$formAction = ($companyRecord && function_exists('route')) ? route('panel.company.update', ['company' => $companyRecord->company_id]) : '#';
+$phoneRaw = trim($old('company_telephone', (string) ($companyRecord->company_telephone ?? '')));
+$phoneCode = '+60';
+$phoneNumber = $phoneRaw;
+if ($phoneRaw !== '' && preg_match('/^(\+\d{1,3})\s*(.*)$/', $phoneRaw, $matches) === 1) {
+    $phoneCode = $matches[1];
+    $phoneNumber = $matches[2];
+}
+$phoneCode = $old('company_phone_code', $phoneCode ?: '+60');
+$selectedModule = strtolower($old('company_module', (string) ($companyRecord->company_module ?? 'surveillance')));
 ?>
 <div class="overlay">
-    <form class="modal" method="post" action="<?php echo $esc($formAction); ?>" id="newCompanyForm" novalidate>
-        <input type="hidden" name="_token" value="<?php echo $esc(csrf_token()); ?>">
-        <h1>New Company</h1>
-        
-        <?php if (isset($errors) && $errors->any()): ?>
-            <div class="error"><?php echo $esc($errors->first()); ?></div>
+    <form class="modal" method="post" action="<?php echo $esc($formAction); ?>" id="editCompanyForm" novalidate>
+        <input type="hidden" name="_token" value="<?php echo $esc($csrfToken); ?>">
+        <input type="hidden" name="_method" value="PUT">
+        <h1>Edit Company</h1>
+        <?php if ($hasErrors): ?>
+            <div class="error"><?php echo $esc($firstError); ?></div>
         <?php endif; ?>
         <div class="panel">
             <div class="grid">
@@ -72,27 +84,27 @@ $formAction = function_exists('route')
                 </label>
                 <label class="field">
                     Company Name <span class="req">*</span>
-                    <input name="company_name" type="text" value="<?php echo $esc(old('company_name')); ?>" placeholder="Enter company name" required>
+                    <input name="company_name" type="text" value="<?php echo $esc($old('company_name', (string) ($companyRecord->company_name ?? ''))); ?>" required>
                 </label>
                 <label class="field">
                     MYKPP Registration No <span class="req">*</span>
-                    <input name="mykpp_registration_no" type="text" value="<?php echo $esc(old('mykpp_registration_no')); ?>" placeholder="Enter registration no" required>
+                    <input name="mykpp_registration_no" type="text" value="<?php echo $esc($old('mykpp_registration_no', (string) ($companyRecord->mykpp_registration_no ?? ''))); ?>" required>
                 </label>
                 <label class="field full">
                     Company Address
-                    <input name="company_address" type="text" value="<?php echo $esc(old('company_address')); ?>" placeholder="Enter address">
+                    <input name="company_address" type="text" value="<?php echo $esc($old('company_address', (string) ($companyRecord->company_address ?? ''))); ?>" placeholder="Enter address">
                 </label>
                 <label class="field">
                     Company Postcode
-                    <input name="company_postcode" type="text" value="<?php echo $esc(old('company_postcode')); ?>" placeholder="Enter postcode" pattern="^[0-9]{4,10}$">
+                    <input name="company_postcode" type="text" value="<?php echo $esc($old('company_postcode', (string) ($companyRecord->company_postcode ?? ''))); ?>" placeholder="Enter postcode" pattern="^[0-9]{4,10}$">
                 </label>
                 <label class="field">
                     Company District
-                    <input name="company_district" type="text" value="<?php echo $esc(old('company_district')); ?>" placeholder="Enter district">
+                    <input name="company_district" type="text" value="<?php echo $esc($old('company_district', (string) ($companyRecord->company_district ?? ''))); ?>" placeholder="Enter district">
                 </label>
                 <label class="field">
                     Company State
-                    <input name="company_state" type="text" value="<?php echo $esc(old('company_state')); ?>" placeholder="Enter state">
+                    <input name="company_state" type="text" value="<?php echo $esc($old('company_state', (string) ($companyRecord->company_state ?? ''))); ?>" placeholder="Enter state">
                 </label>
                 <label class="field">
                     Company Telephone
@@ -100,35 +112,35 @@ $formAction = function_exists('route')
                         <select name="company_phone_code">
                             <option value="">Code</option>
                             <?php foreach ($countryCodes as $country): $code = (string) ($country['code'] ?? '+60'); ?>
-                                <option value="<?php echo $esc($code); ?>"<?php echo old('company_phone_code', '+60') === $code ? ' selected' : ''; ?>><?php echo $esc($code); ?></option>
+                                <option value="<?php echo $esc($code); ?>"<?php echo $phoneCode === $code ? ' selected' : ''; ?>><?php echo $esc($code); ?></option>
                             <?php endforeach; ?>
                         </select>
-                        <input name="company_telephone" type="tel" value="<?php echo $esc(old('company_telephone')); ?>" inputmode="numeric" placeholder="Phone number" pattern="^[0-9]{7,12}$">
+                        <input name="company_telephone" type="tel" value="<?php echo $esc($phoneNumber); ?>" inputmode="numeric" placeholder="Phone number" pattern="^[0-9]{7,12}$">
                     </div>
                 </label>
                 <label class="field">
                     Company Email
-                    <input name="company_email" type="email" value="<?php echo $esc(old('company_email')); ?>" placeholder="Enter email">
+                    <input name="company_email" type="email" value="<?php echo $esc($old('company_email', (string) ($companyRecord->company_email ?? ''))); ?>" placeholder="Enter email">
                 </label>
                 <label class="field">
                     Company Fax
-                    <input name="company_fax" type="text" value="<?php echo $esc(old('company_fax')); ?>" placeholder="Enter fax">
+                    <input name="company_fax" type="text" value="<?php echo $esc($old('company_fax', (string) ($companyRecord->company_fax ?? ''))); ?>" placeholder="Enter fax">
                 </label>
                 <label class="field">
                     Total Workers
-                    <input name="total_workers" type="number" min="0" value="<?php echo $esc(old('total_workers', 0)); ?>" placeholder="Enter total workers">
+                    <input name="total_workers" type="number" min="0" value="<?php echo $esc($old('total_workers', (string) ($companyRecord->total_workers ?? '0'))); ?>" placeholder="Enter total workers">
                 </label>
             </div>
         </div>
         <div class="actions">
             <a class="btn" href="<?php echo $esc($backUrl); ?>">Cancel</a>
-            <button class="btn primary" type="submit">Save</button>
+            <button class="btn primary" type="submit">Update Company</button>
         </div>
     </form>
 </div>
 <script>
 (function () {
-    var form = document.getElementById('newCompanyForm');
+    var form = document.getElementById('editCompanyForm');
     var choiceCards = Array.prototype.slice.call(document.querySelectorAll('.choice-card'));
 
     function syncCards() {

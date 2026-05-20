@@ -5,9 +5,9 @@ if (! function_exists('medis_nav_icon')) {
     function medis_nav_icon(string $name): string
     {
         $icons = [
+            'dashboard' => '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="1"></rect><rect x="13" y="3" width="8" height="8" rx="1"></rect><rect x="3" y="13" width="8" height="8" rx="1"></rect><rect x="13" y="13" width="8" height="8" rx="1"></rect></svg>',
             'menu' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"></path><path d="M4 12h16"></path><path d="M4 17h16"></path></svg>',
             'sidebar_toggle' => '<svg class="sidebar-toggle-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"></rect><path d="M16 3v18"></path><path class="toggle-chevron" d="M11.5 8 8 12l3.5 4"></path></svg>',
-            'dashboard' => '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="1"></rect><rect x="13" y="3" width="8" height="8" rx="1"></rect><rect x="3" y="13" width="8" height="8" rx="1"></rect><rect x="13" y="13" width="8" height="8" rx="1"></rect></svg>',
             'surveillance' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3h5"></path><path d="M9.2 3v5.6L5.4 16.2A2.8 2.8 0 0 0 7.8 20h7.4a2.8 2.8 0 0 0 2.4-3.8l-3.8-7.6V6.8"></path><path d="M7.5 14.5h8.8"></path><path d="M8.4 10.8h5.2"></path><path d="M16.2 4.4l4.3 1.6"></path><path d="M15.1 6.3l4.3 1.6"></path><path d="M16.4 3.7l1.3-2 2.9 1.7-1.2 2"></path><path d="M13.7 9.1c.4-.8 1.2-1.4 2.2-1.7"></path><path d="M13.3 11.1a1.3 1.3 0 1 0 0-2.6 1.3 1.3 0 0 0 0 2.6Z"></path></svg>',
             'audiometry' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.2 4.2a5.4 5.4 0 0 0-5.4 5.4c0 2 1 3.3 2 4.2.8.7 1.3 1.3 1.3 2.2"></path><path d="M16.2 4.2a4.7 4.7 0 0 1 4.7 4.7c0 2.2-1.2 3.7-2.7 4.9-1 .8-1.6 1.7-1.6 3.1"></path><path d="M15.9 17.1c-.2 1.7-1 2.8-2 3.6"></path><path d="M7.5 11.8h2.2l1.1-2.2 1.6 4.3 1.1-2.1h1.8"></path></svg>',
             'calendar' => '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M16 3v4"></path><path d="M8 3v4"></path><path d="M3 10h18"></path></svg>',
@@ -91,6 +91,7 @@ if (! function_exists('medis_render_navigation_start')) {
         $esc = static fn ($value) => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
         $dashboardUrl = medis_named_route(['panel.dashboard', 'dashboard']);
         $surveillanceUrl = medis_named_route(['surveillance.company']);
+        $companyUrl = medis_named_route(['panel.company_list']);
         $audiometryUrl = medis_named_route(['audiometry.company']);
         $logoutUrl = medis_named_route(['logout.page', 'panel.logout']);
         $profileUrl = medis_named_route(['profile']);
@@ -98,6 +99,15 @@ if (! function_exists('medis_render_navigation_start')) {
         $accountSettingsUrl = medis_named_route(['account.settings', 'panel.account_settings']);
         $reportUrl = medis_named_route(['general.report', 'surveillance.report']);
         $examinationUrl = medis_named_route(['general.examination']);
+        $surveillanceSubnav = $config['surveillanceSubnav'] ?? [
+            ['key' => 'company', 'label' => 'Company', 'href' => medis_named_route(['surveillance.company'])],
+            ['key' => 'patient', 'label' => 'Patient', 'href' => medis_named_route(['surveillance.patient', 'surveillance.employee'])],
+            ['key' => 'list', 'label' => 'Surveillance List', 'href' => medis_named_route(['surveillance.list'])],
+            ['key' => 'declaration', 'label' => 'Declaration', 'href' => medis_named_route(['surveillance.declaration'])],
+            ['key' => 'examination', 'label' => 'Examination', 'href' => medis_named_route(['surveillance.examination'])],
+        ];
+        $surveillanceSubActive = (string) ($config['surveillanceSubActive'] ?? '');
+        $showSurveillanceSubnav = (bool) ($config['showSurveillanceSubnav'] ?? ($active === 'surveillance' && $surveillanceSubActive !== ''));
         $pdfMode = ! empty($config['pdfMode']);
         $GLOBALS['medis_pdf_mode'] = $pdfMode;
         $resolvedUser = class_exists('\\Illuminate\\Support\\Facades\\Auth') ? \Illuminate\Support\Facades\Auth::user() : null;
@@ -198,6 +208,7 @@ if (! function_exists('medis_render_navigation_start')) {
 
         $defaultNavItems = [
             ['key' => 'dashboard', 'label' => 'Dashboard', 'href' => $dashboardUrl, 'icon' => 'dashboard'],
+            ['key' => 'company', 'label' => 'Company', 'href' => $companyUrl, 'icon' => 'workplaces'],
             ['key' => 'surveillance', 'label' => 'Surveillance', 'href' => $surveillanceUrl, 'icon' => 'surveillance'],
             ['key' => 'audiometry', 'label' => 'Audiometry', 'href' => $audiometryUrl, 'icon' => 'audiometry'],
             ['key' => 'examination', 'label' => 'Examination', 'href' => $examinationUrl, 'icon' => 'examination'],
@@ -235,9 +246,9 @@ if (! function_exists('medis_render_navigation_start')) {
     .app-shell{height:100vh;display:grid;grid-template-columns:228px 1fr;overflow:hidden}
     .app-shell.is-collapsed{grid-template-columns:84px 1fr}
     .app-shell.is-mobile-nav-open{overflow:hidden}
-    .app-sidebar{height:100vh;overflow:hidden;background:var(--panel-2);border-right:1px solid var(--line);padding:12px 8px 12px 10px;display:flex;flex-direction:column;gap:8px}
+    .app-sidebar{height:100vh;overflow:visible;background:var(--panel-2);border-right:1px solid var(--line);padding:12px 8px 12px 10px;display:flex;flex-direction:column;gap:8px}
     .app-sidebar-backdrop{display:none}
-    .app-brand-row{display:flex;align-items:flex-start;gap:6px;padding:2px 4px 2px}
+    .app-brand-row{display:flex;align-items:flex-start;gap:6px;padding:2px 4px 2px;margin-bottom:24px}
     .app-brand{display:flex;align-items:center;justify-content:center;gap:0;min-width:0;flex:1}
     .app-brand-logo{width:132px;height:52px;border-radius:12px;background:transparent;border:0;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0}
     .app-brand-logo img{width:100%;height:100%;object-fit:contain;padding:0}
@@ -263,16 +274,25 @@ if (! function_exists('medis_render_navigation_start')) {
     body.admin-shell .app-brand-text strong{font-size:.95rem;color:#0f172a}
     body.admin-shell .app-brand-text span{font-size:.82rem;color:#64748b;display:none}
     body.admin-shell .app-brand-row{margin-bottom:24px}
-    body.admin-shell .app-toggle-row{display:none}
     body.admin-shell .app-sidebar-tools{display:none}
     body.admin-shell .app-user-panel{display:none}
-    .app-toggle-row{display:flex;justify-content:center;padding:0 6px 4px}
-    .app-toggle{width:24px;height:24px;border:0;border-radius:0;background:transparent;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;padding:0}
-    .app-toggle svg,.app-nav-link svg,.app-top-action svg,.app-user-menu-link svg,.switch-btn svg,.app-mobile-menu-btn svg{width:18px;height:18px;stroke:#475569;fill:none;stroke-width:1.85;stroke-linecap:round;stroke-linejoin:round}
-    .app-toggle .sidebar-toggle-icon{width:18px;height:18px}
-    .app-toggle .toggle-chevron{transition:transform .18s ease;transform-origin:50% 50%}
-    .app-shell.is-collapsed .app-toggle .toggle-chevron{transform:scaleX(-1)}
-    body[data-theme="dark"] .app-toggle svg,body[data-theme="dark"] .app-nav-link svg,body[data-theme="dark"] .app-top-action svg,body[data-theme="dark"] .app-user-menu-link svg,body[data-theme="dark"] .switch-btn svg,body[data-theme="dark"] .app-mobile-menu-btn svg{stroke:#cbd5e1}
+    body.admin-shell .app-page{overflow:auto}
+    body.admin-shell .app-card{overflow:auto;min-height:0}
+    body.admin-shell .app-card > .content,
+    body.admin-shell .app-card > section.content,
+    body.admin-shell .app-card > .flow,
+    body.admin-shell .app-card > .dashboard-grid,
+    body.admin-shell .app-card > .page,
+    body.admin-shell .app-card > .page > .content,
+    body.admin-shell .app-card > .page > .main,
+    body.admin-shell .app-card .content,
+    body.admin-shell .app-card .main{min-height:auto !important;height:auto !important;overflow:visible !important}
+    body.admin-shell .app-card .card,
+    body.admin-shell .app-card .settings-card,
+    body.admin-shell .app-card .profile-card,
+    body.admin-shell .app-card .form-card{overflow:visible}
+    .app-nav-link svg,.app-top-action svg,.app-user-menu-link svg,.switch-btn svg,.app-mobile-menu-btn svg{width:18px;height:18px;stroke:#475569;fill:none;stroke-width:1.85;stroke-linecap:round;stroke-linejoin:round}
+    body[data-theme="dark"] .app-nav-link svg,body[data-theme="dark"] .app-top-action svg,body[data-theme="dark"] .app-user-menu-link svg,body[data-theme="dark"] .switch-btn svg,body[data-theme="dark"] .app-mobile-menu-btn svg{stroke:#cbd5e1}
     .app-nav-group{display:grid;gap:4px}
     .app-nav-caption{padding:8px 8px 2px;color:var(--muted);font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em}
     .app-nav-link{display:flex;align-items:center;gap:9px;padding:9px 10px;border:1px solid transparent;border-radius:14px;text-decoration:none;color:var(--text);font-size:.98rem;line-height:1.2;transition:.18s ease}
@@ -282,6 +302,15 @@ if (! function_exists('medis_render_navigation_start')) {
     .app-nav-link .icon{width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
     .app-nav-link .icon svg{width:18px;height:18px}
     .app-nav-link .label{display:inline-flex;align-items:center}
+    .app-nav-tree{display:grid;gap:4px}
+    .app-nav-children{display:grid;gap:4px;margin:2px 0 6px 34px;padding-left:10px;border-left:1px solid #dbe4ea}
+    .app-nav-sublink{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:12px;text-decoration:none;color:#475569;font-size:.88rem;line-height:1.25;transition:.18s ease}
+    .app-nav-sublink:hover{background:rgba(148,163,184,.08);color:var(--text)}
+    .app-nav-sublink.active{background:#eff8f1;color:#14321f;font-weight:700}
+    body[data-theme="dark"] .app-nav-sublink{color:#9fb0c8}
+    body[data-theme="dark"] .app-nav-sublink.active{background:rgba(56,155,91,.16);color:#d8f4e1}
+    .app-nav-sublink::before{content:"";width:7px;height:7px;border-radius:999px;background:#cbd5e1;flex-shrink:0}
+    .app-nav-sublink.active::before{background:#389B5B}
     .app-sidebar-tools{display:grid;gap:10px;margin-top:8px}
     .switch-card{border:1px solid var(--line);border-radius:16px;background:var(--panel);padding:10px}
     .switch-card h4{margin:0 0 8px;font-size:.8rem;color:var(--text)}
@@ -290,7 +319,7 @@ if (! function_exists('medis_render_navigation_start')) {
     .switch-btn.is-active{background:var(--panel);color:var(--text);box-shadow:0 6px 16px var(--shadow)}
     body[data-theme="dark"] .switch-btn{color:#9fb0c8}
     body[data-theme="dark"] .switch-btn.is-active{background:#172033;color:#e5eefb}
-    .app-user-panel{margin-top:auto;position:relative}
+    .app-user-panel{margin-top:auto;position:relative;overflow:visible}
     .app-user-card{width:100%;border:1px solid var(--line);border-radius:18px;background:var(--panel);padding:8px 10px;display:flex;align-items:center;gap:8px;cursor:pointer;appearance:none}
     .app-avatar{width:34px;height:34px;border-radius:999px;background:#eff2f6;display:inline-flex;align-items:center;justify-content:center;font-weight:700;color:#334155;flex-shrink:0}
     body[data-theme="dark"] .app-avatar{background:#1e293b;color:#e2e8f0}
@@ -298,7 +327,7 @@ if (! function_exists('medis_render_navigation_start')) {
     .app-user-meta strong{font-size:.96rem;color:var(--text)}
     .app-user-meta span{font-size:.82rem;color:#64748b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     body[data-theme="dark"] .app-user-meta span{color:#8aa0bf}
-    .app-user-menu{position:absolute;left:0;bottom:calc(100% + 12px);width:260px;border:1px solid var(--line);border-radius:24px;background:var(--panel);padding:14px 16px;box-shadow:0 18px 40px var(--shadow);display:none;z-index:40}
+    .app-user-menu{position:absolute;left:0;right:0;bottom:calc(100% + 12px);width:auto;border:1px solid var(--line);border-radius:24px;background:var(--panel);padding:14px 16px;box-shadow:0 18px 40px var(--shadow);display:none;z-index:40}
     .app-user-panel.is-open .app-user-menu{display:block}
     .app-user-menu-header{display:flex;align-items:center;gap:12px;padding-bottom:14px;border-bottom:1px solid var(--line)}
     .app-user-menu-list{display:grid;gap:4px;padding:12px 0}
@@ -323,9 +352,47 @@ if (! function_exists('medis_render_navigation_start')) {
     .app-topbar .app-clinic-meta span{font-size:.74rem;line-height:1.1}
     .app-topbar .app-clinic-chevron{font-size:.85rem}
     .app-topbar .app-clinic-menu{left:auto;right:0;top:calc(100% + 10px);width:min(360px,calc(100vw - 32px))}
-    .app-page{padding:22px;height:100%;overflow:auto;min-height:0;scrollbar-width:thin;scrollbar-color:#b9bec8 transparent}.app-page::-webkit-scrollbar,.app-sidebar-tools::-webkit-scrollbar,.app-user-menu::-webkit-scrollbar,.content::-webkit-scrollbar,.main::-webkit-scrollbar,.side::-webkit-scrollbar{width:10px;height:10px}.app-page::-webkit-scrollbar-track,.app-sidebar-tools::-webkit-scrollbar-track,.app-user-menu::-webkit-scrollbar-track,.content::-webkit-scrollbar-track,.main::-webkit-scrollbar-track,.side::-webkit-scrollbar-track{background:transparent;border-left:2px solid #2b6cb0}.app-page::-webkit-scrollbar-thumb,.app-sidebar-tools::-webkit-scrollbar-thumb,.app-user-menu::-webkit-scrollbar-thumb,.content::-webkit-scrollbar-thumb,.main::-webkit-scrollbar-thumb,.side::-webkit-scrollbar-thumb{background:#b9bec8;border-radius:999px;border:2px solid transparent;background-clip:padding-box}.app-page::-webkit-scrollbar-thumb:hover,.app-sidebar-tools::-webkit-scrollbar-thumb:hover,.app-user-menu::-webkit-scrollbar-thumb:hover,.content::-webkit-scrollbar-thumb:hover,.main::-webkit-scrollbar-thumb:hover,.side::-webkit-scrollbar-thumb:hover{background:#9ea6b3;border:2px solid transparent;background-clip:padding-box}
-    .app-card{background:var(--panel);border:1px solid var(--line);border-radius:24px;padding:22px}
-    .app-shell.is-collapsed .app-nav-link .label,.app-shell.is-collapsed .app-nav-caption,.app-shell.is-collapsed .app-user-meta,.app-shell.is-collapsed .app-sidebar-tools,.app-shell.is-collapsed .app-clinic-meta,.app-shell.is-collapsed .app-clinic-chevron{display:none}
+    .app-page{padding:22px;height:100%;overflow:auto;min-height:0;display:flex;flex-direction:column;scrollbar-width:thin;scrollbar-color:#b9bec8 transparent}.app-page::-webkit-scrollbar,.app-sidebar-tools::-webkit-scrollbar,.app-user-menu::-webkit-scrollbar,.content::-webkit-scrollbar,.main::-webkit-scrollbar,.side::-webkit-scrollbar{width:10px;height:10px}.app-page::-webkit-scrollbar-track,.app-sidebar-tools::-webkit-scrollbar-track,.app-user-menu::-webkit-scrollbar-track,.content::-webkit-scrollbar-track,.main::-webkit-scrollbar-track,.side::-webkit-scrollbar-track{background:transparent;border-left:2px solid #2b6cb0}.app-page::-webkit-scrollbar-thumb,.app-sidebar-tools::-webkit-scrollbar-thumb,.app-user-menu::-webkit-scrollbar-thumb,.content::-webkit-scrollbar-thumb,.main::-webkit-scrollbar-thumb,.side::-webkit-scrollbar-thumb{background:#b9bec8;border-radius:999px;border:2px solid transparent;background-clip:padding-box}.app-page::-webkit-scrollbar-thumb:hover,.app-sidebar-tools::-webkit-scrollbar-thumb:hover,.app-user-menu::-webkit-scrollbar-thumb:hover,.content::-webkit-scrollbar-thumb:hover,.main::-webkit-scrollbar-thumb:hover,.side::-webkit-scrollbar-thumb:hover{background:#9ea6b3;border:2px solid transparent;background-clip:padding-box}
+    .app-card{background:var(--panel);border:1px solid var(--line);border-radius:24px;padding:22px;flex:1;display:flex;flex-direction:column;min-height:100%;overflow:hidden}
+    .app-card > *{width:100%}
+    .app-card > .flow{flex:1;min-height:0}
+    .app-card > .content,
+    .app-card > section.content,
+    .app-card > .flow,
+    .app-card > .dashboard-grid,
+    .app-card > .page{flex:1}
+    .app-card > .content,
+    .app-card > section.content,
+    .app-card > .flow > .content,
+    .app-card > .flow .content,
+    .app-card > .flow .main,
+    .app-card > .flow .side,
+    .app-card > .flow .exam-shell,
+    .app-card > .dashboard-grid,
+    .app-card > .page,
+    .app-card > .page > .content,
+    .app-card > .page > .main{min-height:0 !important}
+    .app-card > .content,
+    .app-card > section.content,
+    .app-card > .flow > .content,
+    .app-card > .flow .content,
+    .app-card > .flow .main,
+    .app-card > .page,
+    .app-card > .page > .content,
+    .app-card > .page > .main{max-width:100%;box-sizing:border-box}
+    .app-card .bottom,
+    .app-card .actions{margin-top:auto;padding-top:18px}
+    .app-card .notice,
+    .app-card .notice-box,
+    .app-card .error,
+    .app-card .error-box,
+    .app-card .alert{margin-top:18px;padding:12px 14px;border-radius:14px}
+    .app-card .notice,
+    .app-card .notice-box{border:1px solid #a7f3d0;background:#ecfdf3;color:#065f46}
+    .app-card .error,
+    .app-card .error-box{border:1px solid #fecaca;background:#fef2f2;color:#991b1b}
+    .app-card .alert{border:1px solid #fdba74;background:#fff7ed;color:#9a3412}
+    .app-shell.is-collapsed .app-nav-link .label,.app-shell.is-collapsed .app-nav-caption,.app-shell.is-collapsed .app-user-meta,.app-shell.is-collapsed .app-sidebar-tools,.app-shell.is-collapsed .app-clinic-meta,.app-shell.is-collapsed .app-clinic-chevron,.app-shell.is-collapsed .app-nav-children{display:none}
     .app-shell.is-collapsed .app-sidebar{padding-inline:8px}
     .app-shell.is-collapsed .app-brand-row,.app-shell.is-collapsed .app-brand,.app-shell.is-collapsed .app-nav-link,.app-shell.is-collapsed .app-user-card,.app-shell.is-collapsed .app-clinic-card{justify-content:center}
     .app-shell.is-collapsed .app-nav-link{padding:8px}
@@ -483,10 +550,6 @@ if (! function_exists('medis_render_navigation_start')) {
                 <?php endif; ?>
             </div>
         </div>
-        <div class="app-toggle-row">
-            <button class="app-toggle" id="appNavToggle" type="button" aria-label="Toggle navigation"><?php echo medis_nav_icon('sidebar_toggle'); ?></button>
-        </div>
-
         <?php if (is_array($navGroups) && count($navGroups) > 0): ?>
             <?php foreach ($navGroups as $group): ?>
                 <div class="app-nav-group">
@@ -503,13 +566,49 @@ if (! function_exists('medis_render_navigation_start')) {
                 </div>
             <?php endforeach; ?>
         <?php else: ?>
+            <?php
+                $dashboardItem = null;
+                $remainingNavItems = [];
+                foreach ($navItems as $item) {
+                    if (($item['key'] ?? '') === 'dashboard' && $dashboardItem === null) {
+                        $dashboardItem = $item;
+                        continue;
+                    }
+                    $remainingNavItems[] = $item;
+                }
+            ?>
+            <?php if ($dashboardItem !== null): ?>
+                <div class="app-nav-group">
+                    <a class="app-nav-link<?php echo $active === $dashboardItem['key'] ? ' active' : ''; ?>" href="<?php echo $esc($dashboardItem['href']); ?>">
+                        <span class="icon"><?php echo medis_nav_icon($dashboardItem['icon']); ?></span>
+                        <span class="label" data-i18n="nav_<?php echo $esc(strtolower($dashboardItem['key'])); ?>"><?php echo $esc($dashboardItem['label']); ?></span>
+                    </a>
+                </div>
+            <?php endif; ?>
+
             <div class="app-nav-group">
                 <div class="app-nav-caption" data-i18n="menu">Menu</div>
-                <?php foreach ($navItems as $item): ?>
-                    <a class="app-nav-link<?php echo $active === $item['key'] ? ' active' : ''; ?>" href="<?php echo $esc($item['href']); ?>">
-                        <span class="icon"><?php echo medis_nav_icon($item['icon']); ?></span>
-                        <span class="label" data-i18n="nav_<?php echo $esc(strtolower($item['key'])); ?>"><?php echo $esc($item['label']); ?></span>
-                    </a>
+                <?php foreach ($remainingNavItems as $item): ?>
+                    <?php if (($item['key'] ?? '') === 'surveillance' && $showSurveillanceSubnav): ?>
+                        <div class="app-nav-tree">
+                            <a class="app-nav-link<?php echo $active === $item['key'] ? ' active' : ''; ?>" href="<?php echo $esc($item['href']); ?>">
+                                <span class="icon"><?php echo medis_nav_icon($item['icon']); ?></span>
+                                <span class="label" data-i18n="nav_<?php echo $esc(strtolower($item['key'])); ?>"><?php echo $esc($item['label']); ?></span>
+                            </a>
+                            <div class="app-nav-children">
+                                <?php foreach ($surveillanceSubnav as $subItem): ?>
+                                    <a class="app-nav-sublink<?php echo $surveillanceSubActive === ($subItem['key'] ?? '') ? ' active' : ''; ?>" href="<?php echo $esc($subItem['href'] ?? '#'); ?>">
+                                        <span><?php echo $esc($subItem['label'] ?? ''); ?></span>
+                                    </a>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    <?php else: ?>
+                        <a class="app-nav-link<?php echo $active === $item['key'] ? ' active' : ''; ?>" href="<?php echo $esc($item['href']); ?>">
+                            <span class="icon"><?php echo medis_nav_icon($item['icon']); ?></span>
+                            <span class="label" data-i18n="nav_<?php echo $esc(strtolower($item['key'])); ?>"><?php echo $esc($item['label']); ?></span>
+                        </a>
+                    <?php endif; ?>
                 <?php endforeach; ?>
             </div>
 
@@ -827,13 +926,11 @@ function () {
             return;
         }
 
+        shell.classList.remove('is-collapsed');
         if (isMobileLayout()) {
-            shell.classList.remove('is-collapsed');
             closeMobileNav();
             return;
         }
-
-        shell.classList.toggle('is-collapsed', getStoredCollapsed());
         syncBrandLogo();
     }
 
@@ -866,32 +963,6 @@ function () {
     } catch (error) {}
     applyTheme(savedTheme);
     applyLanguage(savedLang);
-
-    if (toggle && shell) {
-        toggle.addEventListener('click', function () {
-            if (isMobileLayout()) {
-                closeMobileNav();
-                return;
-            }
-
-            var collapsed = shell.classList.toggle('is-collapsed');
-            try {
-                if (window.localStorage) {
-                    window.localStorage.setItem(storageKey, collapsed ? '1' : '0');
-                }
-            } catch (error) {}
-            syncSidebarMode();
-            if (clinicPanel && clinicToggle) {
-                clinicPanel.classList.remove('is-open');
-                clinicToggle.setAttribute('aria-expanded', 'false');
-            }
-            if (userPanel && userToggle) {
-                userPanel.classList.remove('is-open');
-                userToggle.setAttribute('aria-expanded', 'false');
-            }
-            syncBrandLogo();
-        });
-    }
 
     if (mobileMenuBtn) {
         mobileMenuBtn.addEventListener('click', function () {

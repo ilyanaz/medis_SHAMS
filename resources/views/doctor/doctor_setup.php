@@ -21,7 +21,15 @@ $hasErrors = isset($errors) && method_exists($errors, 'any') && $errors->any();
 $firstError = $hasErrors ? (string) $errors->first() : '';
 $statusMessage = function_exists('session') ? (string) session('status', '') : '';
 $canSaveDoctor = isset($canSaveDoctor) ? (bool) $canSaveDoctor : true;
-$countryCodes = ['60' => '+60', '65' => '+65', '62' => '+62', '66' => '+66'];
+$countryCodes = config('country_codes', []);
+$normalizeCountryCode = static function (?string $value, string $default = '+60'): string {
+    $digits = preg_replace('/\D/', '', (string) $value) ?? '';
+    if ($digits === '') {
+        return $default;
+    }
+
+    return '+' . $digits;
+};
 $genderOptions = ['Male', 'Female'];
 $ethnicityOptions = ['Malay', 'Chinese', 'Indian', 'Orang Asli', 'Others'];
 $citizenshipOptions = ['Malaysian Citizen', 'Others'];
@@ -51,8 +59,7 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
         .notice-box,.error-box{margin-top:18px;padding:12px 14px;border-radius:14px}
         .notice-box{border:1px solid #a7f3d0;background:#ecfdf3;color:#065f46}
         .error-box{border:1px solid #fecaca;background:#fef2f2;color:#991b1b}
-        .card{border:1px solid #e5e7eb;border-radius:22px;background:#fff;padding:24px}
-        .form-card h2{margin:0 0 18px;font-size:1.25rem;font-weight:700}
+        .form-card{margin-top:18px}
         .field{display:grid;gap:8px}
         .field label{font-weight:600;color:#334155}
         .field input,.field textarea,.field select{border:1px solid #cbd5e1;border-radius:12px;padding:12px 14px;background:#fff;color:#0f172a;font-size:.98rem;outline:none}
@@ -61,8 +68,10 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
         .signature-box{border:1px solid #cbd5e1;border-radius:16px;padding:14px;background:#fff}
         .signature-pad-wrap{border:1px solid #d1d5db;border-radius:12px;overflow:hidden;background:#fff}
         .signature-pad{display:block;width:100%;height:220px;background:#fff}
-        .signature-tools{display:flex;justify-content:flex-end;margin-top:10px}
+        .signature-tools{display:flex;justify-content:flex-end;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap}
         .signature-clear{border:1px solid #d1d5db;background:#fff;color:#334155;border-radius:10px;padding:10px 14px;font:inherit;cursor:pointer}
+        .signature-save{border:1px solid #389B5B;background:#389B5B;color:#fff;border-radius:10px;padding:10px 14px;font:inherit;cursor:pointer}
+        .signature-status{margin-top:8px;color:#6b7280;font-size:.88rem}
         .top-grid{display:grid;grid-template-columns:300px minmax(0,1fr);gap:18px;align-items:start}
         .details-stack{display:grid;gap:14px}
         .media-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(320px,.9fr);gap:18px;margin-top:18px;align-items:start}
@@ -77,7 +86,7 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
         .profile-preview strong{font-size:1.05rem;color:#0f172a}
         .profile-preview span{font-size:.95rem;color:#64748b}
         .profile-card input[type=file]{display:none}
-        .phone-row{display:grid;grid-template-columns:160px minmax(0,1fr);gap:12px}
+        .phone-row{display:grid;grid-template-columns:92px minmax(0,1fr);gap:12px}
         .grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
         .grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
         .signature-preview{margin-top:14px;border:1px dashed #cbd5e1;border-radius:16px;padding:12px;background:#f8fafc}
@@ -112,8 +121,7 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
     <div class="error-box"><?php echo htmlspecialchars($firstError, ENT_QUOTES, 'UTF-8'); ?></div>
 <?php endif; ?>
 
-<section class="card form-card" style="margin-top:18px;">
-    <h2>Doctor Information</h2>
+<section class="form-card">
     <form method="POST" action="<?php echo htmlspecialchars($formAction, ENT_QUOTES, 'UTF-8'); ?>" enctype="multipart/form-data">
         <input type="hidden" name="_token" value="<?php echo htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8'); ?>">
         <?php if ($pageMode === 'edit'): ?>
@@ -138,7 +146,6 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
                         <?php endif; ?>
                     </label>
                     <strong id="doctorPictureName"><?php echo htmlspecialchars($fullName !== '' ? $fullName : 'Doctor Name', ENT_QUOTES, 'UTF-8'); ?></strong>
-                    <span>admin</span>
                 </div>
                 <?php if (! $isReadOnly): ?>
                     <input id="doctor_picture_upload" name="doctor_picture" type="file" accept="image/*">
@@ -156,7 +163,7 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
                 </div>
                 <div class="field">
                     <label for="doctor_email">Email</label>
-                    <input id="doctor_email" name="doctor_email" type="email" value="<?php echo htmlspecialchars($old('doctor_email'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="aliabu@example.com" <?php echo $isReadOnly ? 'readonly' : 'required'; ?>>
+                    <input id="doctor_email" name="doctor_email" type="email" value="<?php echo htmlspecialchars($old('doctor_email'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="aliabu@example.com" <?php echo $isReadOnly ? 'readonly' : ''; ?>>
                 </div>
             </div>
         </div>
@@ -172,14 +179,14 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
             </div>
             <div class="field">
                 <label for="doctor_DOB">Date of Birth</label>
-                <input id="doctor_DOB" name="doctor_DOB" type="date" value="<?php echo htmlspecialchars($old('doctor_DOB'), ENT_QUOTES, 'UTF-8'); ?>" <?php echo $isReadOnly ? 'readonly' : 'required'; ?>>
+                <input id="doctor_DOB" name="doctor_DOB" type="date" value="<?php echo htmlspecialchars($old('doctor_DOB'), ENT_QUOTES, 'UTF-8'); ?>" <?php echo $isReadOnly ? 'readonly' : ''; ?>>
             </div>
         </div>
 
         <div class="grid-3" style="margin-top:18px;">
             <div class="field">
                 <label for="doctor_gender">Gender</label>
-                <select id="doctor_gender" name="doctor_gender" <?php echo $isReadOnly ? 'disabled' : 'required'; ?>>
+                <select id="doctor_gender" name="doctor_gender" <?php echo $isReadOnly ? 'disabled' : ''; ?>>
                     <option value="">Select gender</option>
                     <?php foreach ($genderOptions as $option): ?>
                         <option value="<?php echo htmlspecialchars($option, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $old('doctor_gender') === $option ? 'selected' : ''; ?>><?php echo htmlspecialchars($option, ENT_QUOTES, 'UTF-8'); ?></option>
@@ -188,7 +195,7 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
             </div>
             <div class="field">
                 <label for="doctor_ethnicity">Ethnicity</label>
-                <select id="doctor_ethnicity" name="doctor_ethnicity" <?php echo $isReadOnly ? 'disabled' : 'required'; ?>>
+                <select id="doctor_ethnicity" name="doctor_ethnicity" <?php echo $isReadOnly ? 'disabled' : ''; ?>>
                     <option value="">Select ethnicity</option>
                     <?php foreach ($ethnicityOptions as $option): ?>
                         <option value="<?php echo htmlspecialchars($option, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $old('doctor_ethnicity') === $option ? 'selected' : ''; ?>><?php echo htmlspecialchars($option, ENT_QUOTES, 'UTF-8'); ?></option>
@@ -197,7 +204,7 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
             </div>
             <div class="field">
                 <label for="doctor_citizenship">Citizenship</label>
-                <select id="doctor_citizenship" name="doctor_citizenship" <?php echo $isReadOnly ? 'disabled' : 'required'; ?>>
+                <select id="doctor_citizenship" name="doctor_citizenship" <?php echo $isReadOnly ? 'disabled' : ''; ?>>
                     <option value="">Select citizenship</option>
                     <?php foreach ($citizenshipOptions as $option): ?>
                         <option value="<?php echo htmlspecialchars($option, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $old('doctor_citizenship') === $option ? 'selected' : ''; ?>><?php echo htmlspecialchars($option, ENT_QUOTES, 'UTF-8'); ?></option>
@@ -209,7 +216,7 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
         <div class="grid-3" style="margin-top:18px;">
             <div class="field">
                 <label for="doctor_martialStatus">Marital Status</label>
-                <select id="doctor_martialStatus" name="doctor_martialStatus" <?php echo $isReadOnly ? 'disabled' : 'required'; ?>>
+                <select id="doctor_martialStatus" name="doctor_martialStatus" <?php echo $isReadOnly ? 'disabled' : ''; ?>>
                     <option value="">Select marital status</option>
                     <?php foreach ($maritalStatusOptions as $option): ?>
                         <option value="<?php echo htmlspecialchars($option, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $old('doctor_martialStatus') === $option ? 'selected' : ''; ?>><?php echo htmlspecialchars($option, ENT_QUOTES, 'UTF-8'); ?></option>
@@ -230,20 +237,22 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
             <div class="field">
                 <label for="doctor_phone_number">Telephone</label>
                 <div class="phone-row">
-                    <select id="doctor_phone_code" name="doctor_phone_code" <?php echo $isReadOnly ? 'disabled' : 'required'; ?>>
-                        <?php foreach ($countryCodes as $value => $label): ?>
-                            <option value="<?php echo htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $old('doctor_phone_code', '60') === (string) $value ? 'selected' : ''; ?>><?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?></option>
+                    <select id="doctor_phone_code" name="doctor_phone_code" <?php echo $isReadOnly ? 'disabled' : ''; ?>>
+                        <?php foreach ($countryCodes as $country): ?>
+                            <?php $code = (string) ($country['code'] ?? '+60'); ?>
+                            <option value="<?php echo htmlspecialchars($code, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $normalizeCountryCode($old('doctor_phone_code', '+60')) === $code ? 'selected' : ''; ?>><?php echo htmlspecialchars($code, ENT_QUOTES, 'UTF-8'); ?></option>
                         <?php endforeach; ?>
                     </select>
-                    <input id="doctor_phone_number" name="doctor_phone_number" type="tel" value="<?php echo htmlspecialchars($old('doctor_phone_number'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="Phone number" <?php echo $isReadOnly ? 'readonly' : 'required'; ?>>
+                    <input id="doctor_phone_number" name="doctor_phone_number" type="tel" value="<?php echo htmlspecialchars($old('doctor_phone_number'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="Phone number" <?php echo $isReadOnly ? 'readonly' : ''; ?>>
                 </div>
             </div>
             <div class="field">
                 <label for="doctor_fax_number">Fax Number</label>
                 <div class="phone-row">
                     <select id="doctor_fax_code" name="doctor_fax_code" <?php echo $isReadOnly ? 'disabled' : ''; ?>>
-                        <?php foreach ($countryCodes as $value => $label): ?>
-                            <option value="<?php echo htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $old('doctor_fax_code', '60') === (string) $value ? 'selected' : ''; ?>><?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?></option>
+                        <?php foreach ($countryCodes as $country): ?>
+                            <?php $code = (string) ($country['code'] ?? '+60'); ?>
+                            <option value="<?php echo htmlspecialchars($code, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $normalizeCountryCode($old('doctor_fax_code', '+60')) === $code ? 'selected' : ''; ?>><?php echo htmlspecialchars($code, ENT_QUOTES, 'UTF-8'); ?></option>
                         <?php endforeach; ?>
                     </select>
                     <input id="doctor_fax_number" name="doctor_fax_number" type="tel" value="<?php echo htmlspecialchars($old('doctor_fax_number'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="Fax number" <?php echo $isReadOnly ? 'readonly' : ''; ?>>
@@ -251,7 +260,7 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
             </div>
             <div class="field">
                 <label for="doctor_status">Status</label>
-                <select id="doctor_status" name="doctor_status" <?php echo $isReadOnly ? 'disabled' : 'required'; ?>>
+                <select id="doctor_status" name="doctor_status" <?php echo $isReadOnly ? 'disabled' : ''; ?>>
                     <?php foreach ($statusOptions as $value => $label): ?>
                         <option value="<?php echo htmlspecialchars($value, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $old('doctor_status', 'active') === $value ? 'selected' : ''; ?>><?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?></option>
                     <?php endforeach; ?>
@@ -261,42 +270,51 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
 
         <div class="field" style="margin-top:18px;">
             <label for="doctor_address">Address</label>
-            <textarea id="doctor_address" name="doctor_address" placeholder="123 Main St, City, Country" <?php echo $isReadOnly ? 'readonly' : 'required'; ?>><?php echo htmlspecialchars($old('doctor_address'), ENT_QUOTES, 'UTF-8'); ?></textarea>
+            <textarea id="doctor_address" name="doctor_address" placeholder="123 Main St, City, Country" <?php echo $isReadOnly ? 'readonly' : ''; ?>><?php echo htmlspecialchars($old('doctor_address'), ENT_QUOTES, 'UTF-8'); ?></textarea>
         </div>
 
         <div class="grid-3" style="margin-top:18px;">
             <div class="field">
                 <label for="doctor_postcode">Postcode</label>
-                <input id="doctor_postcode" name="doctor_postcode" type="text" value="<?php echo htmlspecialchars($old('doctor_postcode'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="43000" <?php echo $isReadOnly ? 'readonly' : 'required'; ?>>
+                <input id="doctor_postcode" name="doctor_postcode" type="text" value="<?php echo htmlspecialchars($old('doctor_postcode'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="43000" <?php echo $isReadOnly ? 'readonly' : ''; ?>>
             </div>
             <div class="field">
                 <label for="doctor_district">District</label>
-                <input id="doctor_district" name="doctor_district" type="text" value="<?php echo htmlspecialchars($old('doctor_district'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="Kajang" <?php echo $isReadOnly ? 'readonly' : 'required'; ?>>
+                <input id="doctor_district" name="doctor_district" type="text" value="<?php echo htmlspecialchars($old('doctor_district'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="Kajang" <?php echo $isReadOnly ? 'readonly' : ''; ?>>
             </div>
             <div class="field">
                 <label for="doctor_state">State</label>
-                <input id="doctor_state" name="doctor_state" type="text" value="<?php echo htmlspecialchars($old('doctor_state'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="Selangor" <?php echo $isReadOnly ? 'readonly' : 'required'; ?>>
+                <input id="doctor_state" name="doctor_state" type="text" value="<?php echo htmlspecialchars($old('doctor_state'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="Selangor" <?php echo $isReadOnly ? 'readonly' : ''; ?>>
             </div>
         </div>
 
         <div class="media-grid">
             <div class="field">
-                <label for="signature-pad">eSign Signature</label>
+                <label for="doctor_sign_upload">Signature</label>
                 <?php if (! $isReadOnly): ?>
-                    <div class="signature-box">
+                    <input id="doctor_sign_upload" name="doctor_sign_upload" type="file" accept="image/*">
+                    <p style="margin:8px 0 0;color:#6b7280;font-size:.88rem;">Upload a signature file or draw an eSign below.</p>
+                    <div class="signature-box" style="margin-top:14px;">
                         <div class="signature-pad-wrap">
                             <canvas id="signature-pad" class="signature-pad"></canvas>
                         </div>
                         <div class="signature-tools">
+                            <!--<button id="save-signature" class="signature-save" type="button">Save eSign</button>-->
                             <button id="clear-signature" class="signature-clear" type="button">Clear</button>
                         </div>
+                        <div id="signature-status" class="signature-status">Draw your eSign, then click Save eSign.</div>
                     </div>
                 <?php endif; ?>
 
                 <?php if ($signaturePath !== ''): ?>
                     <div class="signature-preview">
-                        <img src="<?php echo htmlspecialchars(asset($signaturePath), ENT_QUOTES, 'UTF-8'); ?>" alt="Doctor signature preview">
-                        <span>Current saved signature</span>
+                        <img id="doctorSignatureImage" src="<?php echo htmlspecialchars(asset($signaturePath), ENT_QUOTES, 'UTF-8'); ?>" alt="Doctor signature preview">
+                        <span id="doctorSignatureText">Current saved signature</span>
+                    </div>
+                <?php elseif (! $isReadOnly): ?>
+                    <div class="signature-preview" id="doctorSignaturePreview" style="display:none;">
+                        <img id="doctorSignatureImage" src="" alt="Doctor signature preview">
+                        <span id="doctorSignatureText">Selected signature</span>
                     </div>
                 <?php endif; ?>
             </div>
@@ -321,16 +339,19 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
     const canvas = document.getElementById('signature-pad');
     const hiddenInput = document.getElementById('doctor_sign_data');
     const clearButton = document.getElementById('clear-signature');
+    const saveSignatureButton = document.getElementById('save-signature');
+    const signatureStatus = document.getElementById('signature-status');
     const pictureInput = document.getElementById('doctor_picture_upload');
     const pictureImage = document.getElementById('doctorPictureImage');
     const pictureInitial = document.getElementById('doctorPictureInitial');
+    const signatureInput = document.getElementById('doctor_sign_upload');
+    const signaturePreview = document.getElementById('doctorSignaturePreview') || document.querySelector('.signature-preview');
+    const signatureImage = document.getElementById('doctorSignatureImage');
+    const signatureText = document.getElementById('doctorSignatureText');
     const firstNameInput = document.getElementById('doctor_firstName');
     const lastNameInput = document.getElementById('doctor_lastName');
-    const nricInput = document.getElementById('doctor_NRIC');
-    const passportInput = document.getElementById('doctor_passportNo');
     const profileName = document.getElementById('doctorPictureName');
     const existingSignature = <?php echo json_encode($signaturePath !== '', JSON_THROW_ON_ERROR); ?>;
-    const isEditMode = <?php echo json_encode($pageMode === 'edit', JSON_THROW_ON_ERROR); ?>;
 
     const syncProfileText = () => {
         const fullName = [firstNameInput?.value || '', lastNameInput?.value || ''].join(' ').trim();
@@ -360,6 +381,27 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
         });
     }
 
+    if (signatureInput) {
+        signatureInput.addEventListener('change', () => {
+            const file = signatureInput.files && signatureInput.files[0] ? signatureInput.files[0] : null;
+            if (!file || !signaturePreview || !signatureImage) {
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                signatureImage.src = String(event.target?.result || '');
+                signaturePreview.style.display = 'block';
+                if (signatureText) {
+                    signatureText.textContent = 'Selected signature';
+                }
+                hiddenInput.value = '';
+                setSignatureStatus('Signature file selected. You can now save the doctor form.', 'success');
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
     if (firstNameInput) {
         firstNameInput.addEventListener('input', syncProfileText);
     }
@@ -368,85 +410,104 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
         lastNameInput.addEventListener('input', syncProfileText);
     }
 
-    const syncIdentityRequirement = () => {
-        const hasNric = (nricInput?.value || '').trim() !== '';
-        const hasPassport = (passportInput?.value || '').trim() !== '';
-
-        if (nricInput) {
-            nricInput.required = !hasPassport;
-        }
-
-        if (passportInput) {
-            passportInput.required = !hasNric;
-        }
-    };
-
-    if (nricInput) {
-        nricInput.addEventListener('input', syncIdentityRequirement);
-    }
-
-    if (passportInput) {
-        passportInput.addEventListener('input', syncIdentityRequirement);
-    }
-
     syncProfileText();
-    syncIdentityRequirement();
 
-    if (!form || !canvas || !hiddenInput || typeof SignaturePad === 'undefined') {
+    if (!form) {
         return;
     }
 
-    const resizeCanvas = () => {
-        const ratio = Math.max(window.devicePixelRatio || 1, 1);
-        const width = canvas.offsetWidth || 400;
-        const height = 220;
-        canvas.width = width * ratio;
-        canvas.height = height * ratio;
-        canvas.getContext('2d').scale(ratio, ratio);
-        canvas.style.height = height + 'px';
+    const setSignatureStatus = (message, tone = 'muted') => {
+        if (!signatureStatus) {
+            return;
+        }
+        signatureStatus.textContent = message;
+        signatureStatus.style.color = tone === 'success' ? '#166534' : (tone === 'error' ? '#b91c1c' : '#6b7280');
     };
 
-    resizeCanvas();
+    let signaturePad = null;
+    if (canvas && hiddenInput && typeof SignaturePad !== 'undefined') {
+        const syncSignatureData = () => {
+            hiddenInput.value = signaturePad && !signaturePad.isEmpty()
+                ? signaturePad.toDataURL('image/png')
+                : '';
+        };
 
-    const signaturePad = new SignaturePad(canvas, {
-        backgroundColor: 'rgb(255,255,255)',
-        penColor: 'rgb(15,23,42)',
-    });
+        const saveDrawnSignature = () => {
+            if (!signaturePad || signaturePad.isEmpty()) {
+                hiddenInput.value = '';
+                setSignatureStatus('Please draw the eSign first before saving it.', 'error');
+                return false;
+            }
 
-    clearButton?.addEventListener('click', () => {
-        signaturePad.clear();
-        hiddenInput.value = '';
-    });
+            syncSignatureData();
+
+            if (signaturePreview) {
+                signaturePreview.style.display = 'block';
+            }
+            if (signatureImage) {
+                signatureImage.src = hiddenInput.value;
+            }
+            if (signatureText) {
+                signatureText.textContent = 'Saved eSign';
+            }
+            if (signatureInput) {
+                signatureInput.value = '';
+            }
+
+            setSignatureStatus('eSign saved. You can now save the doctor form.', 'success');
+            return true;
+        };
+
+        const resizeCanvas = () => {
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+            const width = canvas.offsetWidth || 400;
+            const height = 220;
+            const existingValue = hiddenInput.value;
+            canvas.width = width * ratio;
+            canvas.height = height * ratio;
+            canvas.getContext('2d').scale(ratio, ratio);
+            canvas.style.height = height + 'px';
+            if (!signaturePad) {
+                return;
+            }
+            signaturePad.clear();
+            if (existingValue && existingValue.indexOf('data:image') === 0) {
+                try {
+                    signaturePad.fromDataURL(existingValue);
+                } catch (error) {
+                }
+            }
+        };
+
+        signaturePad = new SignaturePad(canvas, {
+            backgroundColor: 'rgb(255,255,255)',
+            penColor: 'rgb(15,23,42)',
+        });
+
+        resizeCanvas();
+        signaturePad.addEventListener('endStroke', syncSignatureData);
+        canvas.addEventListener('mouseup', syncSignatureData);
+        canvas.addEventListener('touchend', syncSignatureData);
+        saveSignatureButton?.addEventListener('click', saveDrawnSignature);
+
+        clearButton?.addEventListener('click', () => {
+            signaturePad.clear();
+            hiddenInput.value = '';
+            if (signatureText && (!signatureInput || !signatureInput.files || signatureInput.files.length === 0)) {
+                signatureText.textContent = existingSignature ? 'Current saved signature' : 'Selected signature';
+            }
+            setSignatureStatus('Draw your eSign, then click Save eSign.');
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+    }
 
     form.addEventListener('submit', (event) => {
-        hiddenInput.value = signaturePad.isEmpty() ? '' : signaturePad.toDataURL('image/png');
-
-        const hasNric = (nricInput?.value || '').trim() !== '';
-        const hasPassport = (passportInput?.value || '').trim() !== '';
-        if (!hasNric && !hasPassport) {
+        const hasUploadedSignature = !!(signatureInput && signatureInput.files && signatureInput.files.length > 0);
+        const hasDrawnSignature = !!(hiddenInput && hiddenInput.value.trim() !== '');
+        if (!hasUploadedSignature && !hasDrawnSignature && !existingSignature) {
             event.preventDefault();
-            alert('Please fill in either NRIC or Passport Number before saving.');
-            return;
-        }
-
-        if (!isEditMode && signaturePad.isEmpty()) {
-            event.preventDefault();
-            alert('Please provide the doctor eSign signature before saving.');
-            return;
-        }
-
-        if (isEditMode && signaturePad.isEmpty() && !existingSignature) {
-            event.preventDefault();
-            alert('Please provide the doctor eSign signature before saving.');
-        }
-    });
-
-    window.addEventListener('resize', () => {
-        const savedData = signaturePad.isEmpty() ? null : signaturePad.toData();
-        resizeCanvas();
-        signaturePad.clear();
-        if (savedData && savedData.length > 0) {
-            signaturePad.fromData(savedData);
+            alert('Please provide the doctor signature by upload or eSign before saving.');
         }
     });
 })();

@@ -49,10 +49,35 @@ Route::post('/panel/admin-mode', [PanelController::class, 'switchAdmin'])->name(
 Route::get('/panel/settings', [PanelController::class, 'adminSettings'])->name('panel.settings');
 Route::view('/panel/account-settings', 'panel.account_settings')->name('panel.account_settings');
 Route::view('/panel/forgot-password', 'panel.forgot_password')->name('panel.forgot_password');
+Route::get('/company/list', [PanelController::class, 'companyList'])->name('panel.company_list');
+Route::get('/company/new', [PanelController::class, 'companyNew'])->name('panel.company_new');
+Route::get('/surveillance/company-list', [PanelController::class, 'surveillanceCompanyList'])->name('surveillance.company');
+Route::get('/surveillance/patient-list', [PanelController::class, 'surveillancePatientList'])->name('surveillance.patient');
+Route::get('/surveillance/patient-new', [PanelController::class, 'surveillancePatientNew'])->name('surveillance.patient.new');
+Route::get('/surveillance/list', [PanelController::class, 'surveillanceList'])->name('surveillance.list');
+Route::get('/legacy/surveillance/list', [PanelController::class, 'surveillanceList']);
+Route::get('/surveillance/patient/{employee}', [PanelController::class, 'surveillancePatientView'])->name('surveillance.patient.view');
+Route::get('/surveillance/patient/{employee}/edit', [PanelController::class, 'surveillancePatientEdit'])->name('surveillance.patient.edit');
+Route::put('/surveillance/patient/{employee}', [PanelController::class, 'updateSurveillancePatient'])->name('surveillance.patient.update');
+Route::get('/surveillance/patient/{employee}/delete', [PanelController::class, 'surveillancePatientDelete'])->name('surveillance.patient.delete');
+Route::delete('/surveillance/patient/{employee}', [PanelController::class, 'destroySurveillancePatient'])->name('surveillance.patient.destroy');
+Route::get('/surveillance/employee-list', [PanelController::class, 'surveillancePatientList'])->name('surveillance.employee');
+Route::get('/company/{company}', [PanelController::class, 'companyShow'])->name('panel.company.show');
+Route::get('/company/{company}/edit', [PanelController::class, 'companyEdit'])->name('panel.company.edit');
+Route::put('/company/{company}', [PanelController::class, 'updateCompany'])->name('panel.company.update');
+Route::get('/company/{company}/delete', [PanelController::class, 'companyDelete'])->name('panel.company.delete');
+Route::delete('/company/{company}', [PanelController::class, 'destroyCompany'])->name('panel.company.destroy');
+Route::view('/panel/company-setup', 'company.company_setup')->name('panel.company_setup');
+Route::post('/panel/company-setup', [PanelController::class, 'storeSurveillanceCompany'])->name('panel.company_setup.store');
 Route::post('/surveillance/company', [PanelController::class, 'storeSurveillanceCompany'])->name('surveillance.company.store');
+Route::post('/surveillance/company/destroy', [PanelController::class, 'destroyLegacyCompany'])->name('surveillance.company.destroy');
 Route::post('/surveillance/employee', [PanelController::class, 'storeSurveillanceEmployee'])->name('surveillance.employee.store');
+Route::get('/surveillance/declaration', [PanelController::class, 'surveillanceDeclaration'])->name('surveillance.declaration');
+Route::post('/surveillance/declaration', [PanelController::class, 'saveSurveillanceDeclaration'])->name('surveillance.declaration.save');
+Route::get('/surveillance/examination', [PanelController::class, 'surveillanceExamination'])->name('surveillance.examination');
 Route::get('/surveillance/records/{declaration}', [PanelController::class, 'surveillanceRecordView'])->name('surveillance.record.view');
 Route::get('/surveillance/records/{declaration}/edit', [PanelController::class, 'surveillanceRecordEdit'])->name('surveillance.record.edit');
+Route::get('/surveillance/records/{declaration}/delete', [PanelController::class, 'surveillanceRecordDelete'])->name('surveillance.record.delete');
 Route::delete('/surveillance/records/{declaration}', [PanelController::class, 'destroySurveillanceRecord'])->name('surveillance.record.destroy');
 Route::post('/surveillance/examination', [PanelController::class, 'saveSurveillanceExamination'])->name('surveillance.examination.save');
 Route::post('/surveillance/report/fitness', [PanelController::class, 'saveSurveillanceFitnessReport'])->name('surveillance.report.fitness.save');
@@ -102,6 +127,9 @@ $legacyViewRoutes = [
     'profile' => 'panel.dashboard',
     'settings' => 'panel.settings',
     'account.settings' => 'panel.account_settings',
+    'panel.company_list' => 'company.company_list',
+    'panel.company_new' => 'company.new_company',
+    'panel.company_setup' => 'company.company_setup',
     'logout.page' => 'panel.logout',
     'general.report' => 'report.general_report',
     'general.examination' => 'report.general_examination',
@@ -109,13 +137,14 @@ $legacyViewRoutes = [
     'surveillance.company.new' => 'company.new_company',
     'surveillance.company.edit' => 'action.edit_surveillanceComp',
     'surveillance.company.delete' => 'action.delete_surveillanceComp',
-    'surveillance.employee' => 'employee.surveillance_employee',
+    'surveillance.patient' => 'surveillance.surveillance_patient',
+    'surveillance.patient.new' => 'surveillance.new_surveillancePatient',
+    'surveillance.employee' => 'surveillance.surveillance_patient',
     'surveillance.employee.new' => 'employee.new_employee',
     'surveillance.employee.edit' => 'action.edit_surveillanceEmp',
     'surveillance.employee.delete' => 'action.delete_surveillanceEmp',
-    'surveillance.list' => 'surveillance.surveillance_list',
     'surveillance.record.delete' => 'action.delete_surveillanceRecord',
-    'surveillance.declaration' => 'surveillance.surveillance_examination',
+    'surveillance.declaration' => 'surveillance.surveillance_declaration',
     'surveillance.examination' => 'surveillance.surveillance_examination',
     'surveillance.confirm' => 'surveillance.surveillance_list',
     'surveillance.report' => 'report.surveillance_usechh1Report',
@@ -131,7 +160,7 @@ $legacyViewRoutes = [
     'audiometry.company.new' => 'company.new_company',
     'audiometry.company.edit' => 'action.edit_audioComp',
     'audiometry.company.delete' => 'action.delete_audioComp',
-    'audiometry.employee' => 'employee.audiometry_employee',
+    'audiometry.employee' => 'audiometry.audiometry_employee',
     'audiometry.employee.new' => 'employee.new_employee',
     'audiometry.employee.edit' => 'action.edit_audioEmp',
     'audiometry.employee.delete' => 'action.delete_audioEmp',
@@ -146,7 +175,7 @@ $legacyViewRoutes = [
     'audiometry.record.edit' => 'action.edit_audioRecord',
     'audiometry.record.delete' => 'action.delete_audioRecord',
     'admin.company' => 'company.surveillance_company',
-    'admin.employee' => 'employee.surveillance_employee',
+    'admin.employee' => 'surveillance.surveillance_patient',
     'admin.clinic' => 'panel.dashboard',
     'pdf.questionnaire' => 'report.PDF_questionnaire',
     'pdf.company' => 'report.PDF_company',

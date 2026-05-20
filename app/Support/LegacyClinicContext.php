@@ -28,10 +28,11 @@ class LegacyClinicContext
             'doctorSignatureName' => $existing['doctorSignatureName'] ?? $this->doctorDisplayName($doctor),
         ];
 
+        $companyModule = $this->companyModuleForView($viewName);
         $companies = $this->needsCompanyContext($viewName)
-            ? $this->companies($activeClinicId)
+            ? $this->companies($activeClinicId, $companyModule)
             : collect();
-        $selectedCompany = $this->selectedCompany($request, $activeClinicId, $companies);
+        $selectedCompany = $this->selectedCompany($request, $activeClinicId, $companies, $companyModule);
 
         if ($this->needsCompanyContext($viewName)) {
             $payload['companies'] = $existing['companies'] ?? $companies;
@@ -137,7 +138,7 @@ class LegacyClinicContext
             ->first();
     }
 
-    protected function companies(?int $clinicId)
+    protected function companies(?int $clinicId, ?string $companyModule = null)
     {
         if (! Schema::hasTable('company')) {
             return collect();
@@ -156,6 +157,7 @@ class LegacyClinicContext
                 'company_email',
                 'company_fax',
                 'total_workers',
+                Schema::hasColumn('company', 'company_module') ? 'company_module' : DB::raw('NULL as company_module'),
             ])
             ->orderBy('company_name')
             ->orderBy('company_id');
@@ -164,10 +166,14 @@ class LegacyClinicContext
             $query->where('clinic_id', $clinicId);
         }
 
+        if ($companyModule !== null && Schema::hasColumn('company', 'company_module')) {
+            $query->where('company_module', $companyModule);
+        }
+
         return $query->get();
     }
 
-    protected function selectedCompany(Request $request, ?int $clinicId, $companies): ?object
+    protected function selectedCompany(Request $request, ?int $clinicId, $companies, ?string $companyModule = null): ?object
     {
         $companyId = (int) $request->query('company_id', 0);
         if ($companyId <= 0) {
@@ -184,7 +190,30 @@ class LegacyClinicContext
             $query->where('clinic_id', $clinicId);
         }
 
+        if ($companyModule !== null && Schema::hasColumn('company', 'company_module')) {
+            $query->where('company_module', $companyModule);
+        }
+
         return $query->first();
+    }
+
+    protected function companyModuleForView(string $viewName): ?string
+    {
+        if (
+            str_starts_with($viewName, 'surveillance.')
+            || $viewName === 'company.surveillance_company'
+        ) {
+            return 'surveillance';
+        }
+
+        if (
+            str_starts_with($viewName, 'audiometry.')
+            || $viewName === 'company.audiometry_company'
+        ) {
+            return 'audiometry';
+        }
+
+        return null;
     }
 
     protected function employees(?int $clinicId, ?object $selectedCompany)
@@ -300,10 +329,39 @@ class LegacyClinicContext
 
         $query = DB::table('declaration')
             ->leftJoin('employee', 'employee.employee_id', '=', 'declaration.employee_id')
+            ->leftJoin('company', 'company.company_id', '=', 'declaration.company_id')
+            ->leftJoin('chemical_information', 'chemical_information.surveillance_id', '=', 'declaration.surveillance_id')
+            ->leftJoin('history_of_health', 'history_of_health.surveillance_id', '=', 'declaration.surveillance_id')
+            ->leftJoin('clinical_findings', 'clinical_findings.surveillance_id', '=', 'declaration.surveillance_id')
+            ->leftJoin('physical_examination', 'physical_examination.surveillance_id', '=', 'declaration.surveillance_id')
+            ->leftJoin('target_organ', 'target_organ.surveillance_id', '=', 'declaration.surveillance_id')
+            ->leftJoin('biological_monitoring', 'biological_monitoring.surveillance_id', '=', 'declaration.surveillance_id')
+            ->leftJoin('fitness_respirator', 'fitness_respirator.surveillance_id', '=', 'declaration.surveillance_id')
+            ->leftJoin('ms_findings', 'ms_findings.surveillance_id', '=', 'declaration.surveillance_id')
+            ->leftJoin('recommendation', 'recommendation.surveillance_id', '=', 'declaration.surveillance_id')
             ->select([
                 'declaration.*',
                 'employee.employee_firstName',
                 'employee.employee_lastName',
+                'employee.employee_NRIC',
+                'employee.employee_passportNo',
+                'employee.employee_telephone',
+                'company.company_name',
+                'chemical_information.chemicals',
+                'chemical_information.examination_type',
+                'chemical_information.examination_date',
+                'clinical_findings.result_clinical_findings',
+                'physical_examination.weight',
+                'physical_examination.height',
+                'target_organ.blood_count',
+                'biological_monitoring.baseline_results',
+                'biological_monitoring.baseline_annual',
+                'biological_monitoring.blood_result_files',
+                'fitness_respirator.fitness_result',
+                'ms_findings.history_of_health',
+                'recommendation.recommencation_type',
+                'recommendation.employee_signature as recommendation_employee_signature',
+                'recommendation.employee_signature_date as recommendation_employee_signature_date',
             ])
             ->orderByDesc('declaration.declaration_id');
 
@@ -315,7 +373,28 @@ class LegacyClinicContext
             $query->where('declaration.employee_id', $selectedEmployee->employee_id);
         }
 
-        return $query->get()->all();
+        return $query->get()->map(function ($row) {
+            $sectionStatuses = [
+                'chemical' => trim((string) ($row->chemicals ?? '')) !== '' && trim((string) ($row->examination_type ?? '')) !== '' && trim((string) ($row->examination_date ?? '')) !== '',
+                'history' => ! is_null($row->surveillance_id) && Schema::hasTable('history_of_health')
+                    ? DB::table('history_of_health')->where('surveillance_id', $row->surveillance_id)->exists()
+                    : false,
+                'clinical' => trim((string) ($row->result_clinical_findings ?? '')) !== '',
+                'physical' => ($row->weight ?? null) !== null && ($row->height ?? null) !== null,
+                'target' => trim((string) ($row->blood_count ?? '')) !== '',
+                'biological' => trim((string) ($row->baseline_results ?? '')) !== '' || trim((string) ($row->baseline_annual ?? '')) !== '' || trim((string) ($row->blood_result_files ?? '')) !== '',
+                'respirator' => trim((string) ($row->fitness_result ?? '')) !== '',
+                'findings' => trim((string) ($row->history_of_health ?? '')) !== '',
+                'recommendation' => trim((string) ($row->recommencation_type ?? '')) !== ''
+                    && trim((string) ($row->recommendation_employee_signature ?? '')) !== ''
+                    && trim((string) ($row->recommendation_employee_signature_date ?? '')) !== '',
+            ];
+
+            $row->is_completed = ! in_array(false, $sectionStatuses, true);
+            $row->section_statuses = $sectionStatuses;
+
+            return $row;
+        })->all();
     }
 
     protected function audiometryRows(?object $selectedCompany, ?object $selectedEmployee): array

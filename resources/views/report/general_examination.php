@@ -33,17 +33,77 @@ $pickCompany = static function (int $index) use ($companyNames): string {
     return $companyNames[$index % count($companyNames)];
 };
 
-$defaultSurveillanceRows = [
-    ['module' => 'surveillance', 'filter' => 'declaration', 'employee_name' => 'Nur Aisyah', 'company' => $pickCompany(0), 'stage' => 'Declaration', 'status' => 'Completed', 'status_key' => 'completed', 'date_examined' => '2026-03-05', 'href' => function_exists('route') ? route('surveillance.declaration') : '#'],
-    ['module' => 'surveillance', 'filter' => 'examination', 'employee_name' => 'Hafiz Rahman', 'company' => $pickCompany(1), 'stage' => 'Examination', 'status' => 'Pending', 'status_key' => 'pending', 'date_examined' => '2026-03-07', 'href' => function_exists('route') ? route('surveillance.examination') : '#'],
-];
+$surveillanceRows = [];
+if (\Illuminate\Support\Facades\Schema::hasTable('declaration')) {
+    $declarationRows = \Illuminate\Support\Facades\DB::table('declaration')
+        ->leftJoin('company', 'company.company_id', '=', 'declaration.company_id')
+        ->leftJoin('employee', 'employee.employee_id', '=', 'declaration.employee_id')
+        ->leftJoin('recommendation', 'recommendation.surveillance_id', '=', 'declaration.surveillance_id')
+        ->select(
+            'declaration.declaration_id',
+            'declaration.surveillance_id',
+            'declaration.company_id',
+            'declaration.employee_id',
+            'declaration.company_name',
+            'declaration.employee_firstName',
+            'declaration.employee_lastName',
+            'declaration.employee_date',
+            'declaration.doctor_date',
+            'declaration.employee_signature',
+            'declaration.doctor_signature',
+            'company.company_name as linked_company_name',
+            'employee.employee_firstName as linked_first_name',
+            'employee.employee_lastName as linked_last_name',
+            'recommendation.is_final as recommendation_is_final'
+        )
+        ->orderByDesc('declaration.declaration_id')
+        ->get();
+
+    foreach ($declarationRows as $row) {
+        $employeeName = trim((string) (($row->linked_first_name ?? $row->employee_firstName ?? '') . ' ' . ($row->linked_last_name ?? $row->employee_lastName ?? '')));
+        $companyName = trim((string) ($row->linked_company_name ?? $row->company_name ?? ''));
+        $recordParams = array_filter([
+            'company_id' => (int) ($row->company_id ?? 0) ?: null,
+            'employee_id' => (int) ($row->employee_id ?? 0) ?: null,
+            'declaration_id' => (int) ($row->declaration_id ?? 0) ?: null,
+            'record_mode' => 1,
+        ]);
+        $hasDeclarationSignatures = !empty($row->employee_signature) && !empty($row->doctor_signature) && !empty($row->employee_date) && !empty($row->doctor_date);
+        $surveillanceRows[] = [
+            'module' => 'surveillance',
+            'filter' => 'declaration',
+            'employee_name' => $employeeName !== '' ? $employeeName : 'Not set',
+            'company' => $companyName !== '' ? $companyName : $pickCompany(0),
+            'stage' => 'Declaration',
+            'status' => $hasDeclarationSignatures ? 'Completed' : 'Incomplete',
+            'status_key' => $hasDeclarationSignatures ? 'completed' : 'incomplete',
+            'date_examined' => (string) ($row->employee_date ?: $row->doctor_date ?: date('Y-m-d')),
+            'href' => function_exists('route') ? route('surveillance.declaration', $recordParams) : '#',
+        ];
+
+        if (!empty($row->surveillance_id)) {
+            $isExamCompleted = !empty($row->recommendation_is_final);
+            $surveillanceRows[] = [
+                'module' => 'surveillance',
+                'filter' => 'examination',
+                'employee_name' => $employeeName !== '' ? $employeeName : 'Not set',
+                'company' => $companyName !== '' ? $companyName : $pickCompany(0),
+                'stage' => 'Examination',
+                'status' => $isExamCompleted ? 'Completed' : 'Incomplete',
+                'status_key' => $isExamCompleted ? 'completed' : 'incomplete',
+                'date_examined' => (string) ($row->employee_date ?: $row->doctor_date ?: date('Y-m-d')),
+                'href' => function_exists('route') ? route('surveillance.record.edit', ['declaration' => (int) $row->declaration_id]) : '#',
+            ];
+        }
+    }
+}
 
 $audioRows = [
     ['module' => 'audiometry', 'filter' => 'questionnaire', 'employee_name' => 'Zul Hilmi', 'company' => $pickCompany(0), 'stage' => 'Questionnaire', 'status' => 'Completed', 'status_key' => 'completed', 'date_examined' => '2026-03-09', 'href' => function_exists('route') ? route('audiometry.questionnaire') : '#'],
     ['module' => 'audiometry', 'filter' => 'examination', 'employee_name' => 'Farah Nadia', 'company' => $pickCompany(1), 'stage' => 'Examination', 'status' => 'Incomplete', 'status_key' => 'incomplete', 'date_examined' => '2026-03-12', 'href' => function_exists('route') ? route('audiometry.examination') : '#'],
     ['module' => 'audiometry', 'filter' => 'report', 'employee_name' => 'Hakim Roslan', 'company' => $pickCompany(2), 'stage' => 'Report', 'status' => 'Incomplete', 'status_key' => 'incomplete', 'date_examined' => '2026-03-14', 'href' => function_exists('route') ? route('audiometry.report') : '#'],
 ];
-$rows = array_merge($surveillanceExamRows ?? $defaultSurveillanceRows, $audioRows);
+$rows = array_merge(!empty($surveillanceRows) ? $surveillanceRows : ($surveillanceExamRows ?? []), $audioRows);
 ?>
 <style>
 .exam-shell{display:grid;gap:18px}.exam-head h2{margin:0;font-size:1.9rem}.exam-head p{margin:8px 0 0;color:#6b7280}.manage-card{border:1px solid #e5e7eb;border-radius:20px;background:#fff;padding:0;overflow:hidden}.module-bar{display:flex;gap:12px;padding:18px;border-bottom:1px solid #edf0f2;flex-wrap:wrap}.module-btn{appearance:none;border:1px solid #d1d5db;background:#fff;border-radius:12px;padding:12px 20px;font:inherit;font-weight:700;color:#374151;cursor:pointer;min-width:150px}.module-btn.active{background:#eef7f0;border-color:#b8d8c4;color:#166534}.subfilter-bar{display:flex;gap:18px;align-items:center;padding:0 18px;border-bottom:1px solid #edf0f2;flex-wrap:wrap}.subfilter-btn{appearance:none;border:0;background:transparent;padding:14px 0 12px;font:inherit;font-weight:600;color:#4b5563;cursor:pointer;position:relative;text-transform:uppercase;font-size:.82rem}.subfilter-btn.active{color:#166534}.subfilter-btn.active::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:#389B5B;border-radius:999px}.toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid #edf0f2;flex-wrap:wrap}.toolbar-left,.toolbar-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.toolbar-btn{display:inline-flex;align-items:center;gap:8px;border:1px solid #d1d5db;border-radius:10px;background:#fff;color:#374151;padding:9px 12px;text-decoration:none;font:inherit;cursor:pointer}.toolbar-btn.is-active{background:#eef7f0;border-color:#b8d8c4;color:#166534}.search{width:min(420px,100%);border:1px solid #d1d5db;border-radius:10px;padding:10px 12px;font:inherit}.filter-backdrop{display:none;position:fixed;inset:0;background:rgba(15,23,42,.18);z-index:120}.filter-backdrop.is-open{display:block}.filter-panel{display:none;position:fixed;top:110px;right:36px;width:min(520px,calc(100vw - 32px));padding:18px;border:1px solid #dbe3ea;border-radius:18px;background:#fff;box-shadow:0 26px 60px rgba(15,23,42,.16);z-index:121}.filter-panel.is-open{display:block}.filter-panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}.filter-panel-head h3{margin:0;font-size:1rem}.filter-close{border:0;background:transparent;color:#6b7280;font-size:1.35rem;line-height:1;cursor:pointer;padding:0 4px}.filter-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:end}.field{display:grid;gap:8px}.field label{font-size:.86rem;font-weight:600;color:#374151}.field input,.field select{width:100%;border:1px solid #d1d5db;border-radius:12px;padding:10px 12px;font:inherit;background:#fff}.field.full{grid-column:1/-1}.field-actions{display:flex;gap:10px;align-items:center;justify-content:flex-end;grid-column:1/-1}.clear-btn,.apply-btn{display:inline-flex;align-items:center;justify-content:center;border-radius:12px;padding:10px 14px;font:inherit;cursor:pointer;text-decoration:none}.clear-btn{border:1px solid #d1d5db;background:#fff;color:#374151}.apply-btn{border:1px solid #389B5B;background:#389B5B;color:#fff}.exam-table{width:100%;border-collapse:collapse}.exam-table th,.exam-table td{padding:16px 18px;text-align:left;border-top:1px solid #edf0f2;vertical-align:top}.exam-table th{font-size:.78rem;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;background:#fafafa}.status{display:inline-flex;align-items:center;border-radius:999px;padding:5px 10px;font-weight:700;font-size:.76rem}.status.completed{background:#dcfce7;color:#166534}.status.pending,.status.incomplete{background:#fef3c7;color:#92400e}.action-icons{display:flex;gap:10px;align-items:center}.icon-btn{display:inline-flex;align-items:center;justify-content:center;background:transparent;border:0;padding:0;color:#111827;cursor:pointer;text-decoration:none}.icon-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8}.icon-btn.delete{color:#ef4444}.table-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 18px;border-top:1px solid #edf0f2;flex-wrap:wrap}.pager{color:#6b7280;font-size:.84rem}.empty-row td{text-align:center;color:#6b7280}@media(max-width:980px){.toolbar{align-items:stretch}.toolbar-left,.toolbar-right{width:100%}.toolbar-right{justify-content:flex-start}.search{width:100%}.subfilter-bar{gap:14px}.filter-panel{top:96px;right:16px}}@media(max-width:640px){.filter-grid{grid-template-columns:1fr}.filter-panel{top:88px;width:calc(100vw - 24px);right:12px}}

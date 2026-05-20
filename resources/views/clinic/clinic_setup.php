@@ -20,7 +20,15 @@ $old = static function (string $key, string $default = '') use ($formData) {
 
 $hasErrors = isset($errors) && method_exists($errors, 'any') && $errors->any();
 $firstError = $hasErrors ? (string) $errors->first() : '';
-$countryCodes = ['60' => '+60', '65' => '+65', '62' => '+62', '66' => '+66'];
+$countryCodes = config('country_codes', []);
+$normalizeCountryCode = static function (?string $value, string $default = '+60'): string {
+    $digits = preg_replace('/\D/', '', (string) $value) ?? '';
+    if ($digits === '') {
+        return $default;
+    }
+
+    return '+' . $digits;
+};
 $statusOptions = ['active' => 'Active', 'not active' => 'Not Active'];
 $formAction = route(match ($pageMode) {
     'edit' => \Illuminate\Support\Facades\Route::has('admin.clinic.update') ? 'admin.clinic.update' : 'panel.clinic.update',
@@ -49,7 +57,7 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.clinic_list') ?
         .field input,.field textarea,.field select{border:1px solid #cbd5e1;border-radius:12px;padding:12px 14px;background:#fff;color:#0f172a;font-size:.98rem;outline:none}
         .field textarea{min-height:120px;resize:vertical}
         .field input[readonly],.field textarea[readonly],.field select:disabled{background:#f8fafc;color:#475569}
-        .phone-row{display:grid;grid-template-columns:160px minmax(0,1fr);gap:12px}
+        .phone-row{display:grid;grid-template-columns:92px minmax(0,1fr);gap:12px}
         .grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
         .grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
         .preview-card{margin-top:18px;border:1px dashed #cbd5e1;border-radius:18px;padding:16px;background:#f8fafc}
@@ -113,8 +121,9 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.clinic_list') ?
                 <label for="clinic_phone_number">Telephone</label>
                 <div class="phone-row">
                     <select id="clinic_phone_code" name="clinic_phone_code" <?php echo $isReadOnly ? 'disabled' : 'required'; ?>>
-                        <?php foreach ($countryCodes as $value => $label): ?>
-                            <option value="<?php echo htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $old('clinic_phone_code', '60') === (string) $value ? 'selected' : ''; ?>><?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?></option>
+                        <?php foreach ($countryCodes as $country): ?>
+                            <?php $code = (string) ($country['code'] ?? '+60'); ?>
+                            <option value="<?php echo htmlspecialchars($code, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $normalizeCountryCode($old('clinic_phone_code', '+60')) === $code ? 'selected' : ''; ?>><?php echo htmlspecialchars($code, ENT_QUOTES, 'UTF-8'); ?></option>
                         <?php endforeach; ?>
                     </select>
                     <input id="clinic_phone_number" name="clinic_phone_number" type="tel" value="<?php echo htmlspecialchars($old('clinic_phone_number'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="Phone number" <?php echo $isReadOnly ? 'readonly' : 'required'; ?>>
@@ -124,8 +133,9 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.clinic_list') ?
                 <label for="clinic_fax_number">Fax Number</label>
                 <div class="phone-row">
                     <select id="clinic_fax_code" name="clinic_fax_code" <?php echo $isReadOnly ? 'disabled' : ''; ?>>
-                        <?php foreach ($countryCodes as $value => $label): ?>
-                            <option value="<?php echo htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $old('clinic_fax_code', '60') === (string) $value ? 'selected' : ''; ?>><?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?></option>
+                        <?php foreach ($countryCodes as $country): ?>
+                            <?php $code = (string) ($country['code'] ?? '+60'); ?>
+                            <option value="<?php echo htmlspecialchars($code, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $normalizeCountryCode($old('clinic_fax_code', '+60')) === $code ? 'selected' : ''; ?>><?php echo htmlspecialchars($code, ENT_QUOTES, 'UTF-8'); ?></option>
                         <?php endforeach; ?>
                     </select>
                     <input id="clinic_fax_number" name="clinic_fax_number" type="tel" value="<?php echo htmlspecialchars($old('clinic_fax_number'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="Fax number" <?php echo $isReadOnly ? 'readonly' : ''; ?>>

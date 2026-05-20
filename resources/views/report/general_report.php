@@ -147,7 +147,6 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
 <div class="report-shell">
     <section class="report-head">
         <h2>Manage Reports</h2>
-        <p>For surveillance, All shows the full report list, while USECHH 1 shows employee records.</p>
     </section>
 
     <section class="manage-card">
@@ -215,7 +214,7 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
             <thead>
                 <tr>
                     <th class="check-col"><input type="checkbox" id="selectAllRows" aria-label="Select all visible rows"></th>
-                    <th class="col-employee">Employee Name</th>
+                    <th class="col-employee">Patient Name</th>
                     <th class="col-company">Company Name</th>
                     <th class="col-usechh1-extra">No Phone</th>
                     <th class="col-usechh1-extra">IC / Passport No</th>

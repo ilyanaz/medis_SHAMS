@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -75,7 +76,586 @@ class PanelController extends Controller
             return redirect()->route('admin.dashboard');
         }
 
-        return view('panel.dashboard', $this->buildViewData($request, $user));
+        $viewData = $this->buildViewData($request, $user);
+        $clinicId = (int) $request->session()->get('active_clinic_id', 0);
+
+        return view('panel.dashboard', array_merge($viewData, $this->dashboardContext($clinicId)));
+    }
+
+    public function companyList(Request $request): View|RedirectResponse
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        if ($this->isInAdminMode($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($this->requiresClinicSelection($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        return view('company.company_list', $this->buildViewData($request, $user));
+    }
+
+    public function companyNew(Request $request): View|RedirectResponse
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        if ($this->isInAdminMode($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($this->requiresClinicSelection($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        return view('company.new_company', $this->buildViewData($request, $user));
+    }
+
+    public function surveillanceCompanyList(Request $request): View|RedirectResponse
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        if ($this->isInAdminMode($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($this->requiresClinicSelection($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        return view('surveillance.surveillance_listComp', $this->buildViewData($request, $user));
+    }
+
+    public function surveillancePatientList(Request $request): View|RedirectResponse
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        if ($this->isInAdminMode($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($this->requiresClinicSelection($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        return view('surveillance.surveillance_patient', $this->buildViewData($request, $user));
+    }
+
+    public function surveillancePatientNew(Request $request): View|RedirectResponse
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        if ($this->isInAdminMode($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($this->requiresClinicSelection($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        return view('surveillance.new_surveillancePatient', $this->buildViewData($request, $user));
+    }
+
+    public function surveillanceList(Request $request): View|RedirectResponse
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        if ($this->isInAdminMode($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($this->requiresClinicSelection($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        return view('surveillance.surveillance_list', $this->buildViewData($request, $user));
+    }
+
+    public function surveillancePatientView(Request $request, int $employee): View|RedirectResponse
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        if ($this->isInAdminMode($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($this->requiresClinicSelection($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        $context = $this->surveillancePatientPageContext($request, $employee);
+        if ($context === null) {
+            return redirect()->route('surveillance.patient')->withErrors(['patient' => 'The selected patient could not be found.']);
+        }
+
+        return view('surveillance.survPatient_view', array_merge($this->buildViewData($request, $user), $context));
+    }
+
+    public function surveillancePatientEdit(Request $request, int $employee): View|RedirectResponse
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        if ($this->isInAdminMode($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($this->requiresClinicSelection($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        $context = $this->surveillancePatientPageContext($request, $employee);
+        if ($context === null) {
+            return redirect()->route('surveillance.patient')->withErrors(['patient' => 'The selected patient could not be found.']);
+        }
+
+        return view('surveillance.survPatient_edit', array_merge($this->buildViewData($request, $user), $context));
+    }
+
+    public function surveillancePatientDelete(Request $request, int $employee): View|RedirectResponse
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        if ($this->isInAdminMode($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($this->requiresClinicSelection($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        $context = $this->surveillancePatientPageContext($request, $employee);
+        if ($context === null) {
+            return redirect()->route('surveillance.patient')->withErrors(['patient' => 'The selected patient could not be found.']);
+        }
+
+        return view('surveillance.survPatient_delete', array_merge($this->buildViewData($request, $user), $context));
+    }
+
+    public function updateSurveillancePatient(Request $request, int $employee): RedirectResponse
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        if ($this->isInAdminMode($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($this->requiresClinicSelection($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        $context = $this->surveillancePatientPageContext($request, $employee);
+        if ($context === null) {
+            return redirect()->route('surveillance.patient')->withErrors(['patient' => 'The selected patient could not be found.']);
+        }
+
+        $validated = $this->validateSurveillancePatientRequest($request);
+        $selectedCompany = $context['selectedCompany'];
+        $selectedCompanyId = (int) ($validated['company_id'] ?? ($selectedCompany->company_id ?? 0));
+
+        if ($selectedCompanyId > 0 && $selectedCompany === null) {
+            return back()->withErrors(['company_id' => 'The selected company does not belong to the active clinic.'])->withInput();
+        }
+
+        $employeePayload = $this->surveillancePatientEmployeePayload($validated, $request, $selectedCompany);
+
+        DB::table('employee')
+            ->where('employee_id', $employee)
+            ->update($employeePayload);
+
+        $this->syncSurveillancePatientSupportingData($employee, $validated, $selectedCompany);
+
+        return redirect()
+            ->to($this->surveillancePatientReturnUrl($request, $selectedCompanyId))
+            ->with('status', 'Patient updated successfully.');
+    }
+
+    public function destroySurveillancePatient(Request $request, int $employee): RedirectResponse
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        if ($this->isInAdminMode($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($this->requiresClinicSelection($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        $context = $this->surveillancePatientPageContext($request, $employee);
+        if ($context === null) {
+            return redirect()->route('surveillance.patient')->withErrors(['patient' => 'The selected patient could not be found.']);
+        }
+
+        $surveillanceIds = [];
+        if (Schema::hasTable('declaration')) {
+            $surveillanceIds = DB::table('declaration')
+                ->where('employee_id', $employee)
+                ->whereNotNull('surveillance_id')
+                ->pluck('surveillance_id')
+                ->filter(static fn ($value) => (int) $value > 0)
+                ->map(static fn ($value) => (int) $value)
+                ->values()
+                ->all();
+        }
+
+        foreach ($this->surveillanceRelatedTables() as $table) {
+            if (! Schema::hasTable($table)) {
+                continue;
+            }
+
+            if ($table === 'declaration') {
+                DB::table($table)->where('employee_id', $employee)->delete();
+                continue;
+            }
+
+            if ($surveillanceIds !== []) {
+                DB::table($table)->whereIn('surveillance_id', $surveillanceIds)->delete();
+            }
+        }
+
+        foreach (['medical_history', 'occupational_history', 'personal_social_history', 'training_history'] as $table) {
+            if (Schema::hasTable($table)) {
+                DB::table($table)->where('employee_id', $employee)->delete();
+            }
+        }
+
+        DB::table('employee')->where('employee_id', $employee)->delete();
+
+        return redirect()
+            ->to($this->surveillancePatientReturnUrl($request, (int) ($context['selectedCompany']->company_id ?? 0)))
+            ->with('status', 'Patient deleted successfully.');
+    }
+
+    public function surveillanceDeclaration(Request $request): View|RedirectResponse
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        if ($this->isInAdminMode($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($this->requiresClinicSelection($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        $companyId = (int) $request->query('company_id', 0);
+        $employeeId = (int) $request->query('employee_id', 0);
+        $declarationId = (int) $request->query('declaration_id', 0);
+
+        $selectedCompany = $companyId > 0 ? $this->findCompany($request, $companyId) : null;
+        if ($companyId > 0 && $selectedCompany === null) {
+            return redirect()->route('surveillance.company')->withErrors(['company' => 'The selected company could not be found.']);
+        }
+
+        $employeeQuery = DB::table('employee');
+        if ($employeeId > 0) {
+            $employeeQuery->where('employee_id', $employeeId);
+        }
+        $clinicId = (int) $request->session()->get('active_clinic_id', 0);
+        if ($clinicId > 0 && Schema::hasColumn('employee', 'clinic_id')) {
+            $employeeQuery->where('clinic_id', $clinicId);
+        }
+        $selectedEmployee = $employeeId > 0 ? $employeeQuery->first() : null;
+        if ($employeeId > 0 && $selectedEmployee === null) {
+            return redirect()
+                ->route('surveillance.patient', array_filter(['company_id' => $companyId ?: null]))
+                ->withErrors(['employee' => 'The selected employee could not be found.']);
+        }
+
+        $declaration = null;
+        if ($declarationId > 0 && Schema::hasTable('declaration')) {
+            $declaration = DB::table('declaration')
+                ->where('declaration_id', $declarationId)
+                ->first();
+        }
+
+        $doctor = $this->resolvedSurveillanceDoctorRecord($request, $user, $declaration);
+
+        $viewData = $this->buildViewData($request, $user);
+        $viewData['selectedCompany'] = $selectedCompany;
+        $viewData['selectedEmployee'] = $selectedEmployee;
+        $viewData['declaration'] = $declaration;
+        $viewData['declarationId'] = $declarationId > 0 ? $declarationId : null;
+        $viewData['doctor'] = $doctor;
+
+        return view('surveillance.surveillance_declaration', $viewData);
+    }
+
+    public function surveillanceExamination(Request $request): View|RedirectResponse
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        if ($this->isInAdminMode($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($this->requiresClinicSelection($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        $companyId = (int) $request->query('company_id', 0);
+        $employeeId = (int) $request->query('employee_id', 0);
+        $declarationId = (int) $request->query('declaration_id', 0);
+
+        $selectedCompany = $companyId > 0 ? $this->findCompany($request, $companyId) : null;
+        if ($companyId > 0 && $selectedCompany === null) {
+            return redirect()->route('surveillance.company')->withErrors(['company' => 'The selected company could not be found.']);
+        }
+
+        $employeeQuery = DB::table('employee');
+        if ($employeeId > 0) {
+            $employeeQuery->where('employee_id', $employeeId);
+        }
+        $clinicId = (int) $request->session()->get('active_clinic_id', 0);
+        if ($clinicId > 0 && Schema::hasColumn('employee', 'clinic_id')) {
+            $employeeQuery->where('clinic_id', $clinicId);
+        }
+        $selectedEmployee = $employeeId > 0 ? $employeeQuery->first() : null;
+        if ($employeeId > 0 && $selectedEmployee === null) {
+            return redirect()
+                ->route('surveillance.patient', array_filter(['company_id' => $companyId ?: null]))
+                ->withErrors(['employee' => 'The selected patient could not be found.']);
+        }
+
+        $declaration = null;
+        if ($declarationId > 0 && Schema::hasTable('declaration')) {
+            $declaration = DB::table('declaration')
+                ->where('declaration_id', $declarationId)
+                ->first();
+        }
+
+        $surveillanceId = (int) ($declaration->surveillance_id ?? 0);
+        $doctor = $this->resolvedSurveillanceDoctorRecord($request, $user, $declaration);
+
+        $context = [
+            'chemicalInfo' => $surveillanceId > 0 && Schema::hasTable('chemical_information') ? DB::table('chemical_information')->where('surveillance_id', $surveillanceId)->first() : null,
+            'historyOfHealth' => $surveillanceId > 0 && Schema::hasTable('history_of_health') ? DB::table('history_of_health')->where('surveillance_id', $surveillanceId)->first() : null,
+            'clinicalFindings' => $surveillanceId > 0 && Schema::hasTable('clinical_findings') ? DB::table('clinical_findings')->where('surveillance_id', $surveillanceId)->first() : null,
+            'physicalExam' => $surveillanceId > 0 && Schema::hasTable('physical_examination') ? DB::table('physical_examination')->where('surveillance_id', $surveillanceId)->first() : null,
+            'targetOrgan' => $surveillanceId > 0 && Schema::hasTable('target_organ') ? DB::table('target_organ')->where('surveillance_id', $surveillanceId)->first() : null,
+            'biologicalMonitoring' => $surveillanceId > 0 && Schema::hasTable('biological_monitoring') ? DB::table('biological_monitoring')->where('surveillance_id', $surveillanceId)->first() : null,
+            'fitnessRespirator' => $surveillanceId > 0 && Schema::hasTable('fitness_respirator') ? DB::table('fitness_respirator')->where('surveillance_id', $surveillanceId)->first() : null,
+            'msFindings' => $surveillanceId > 0 && Schema::hasTable('ms_findings') ? DB::table('ms_findings')->where('surveillance_id', $surveillanceId)->first() : null,
+            'recommendationData' => $surveillanceId > 0 && Schema::hasTable('recommendation') ? DB::table('recommendation')->where('surveillance_id', $surveillanceId)->first() : null,
+        ];
+
+        return view('surveillance.surveillance_examination', array_merge(
+            $this->buildViewData($request, $user),
+            $context,
+            [
+                'selectedCompany' => $selectedCompany,
+                'selectedEmployee' => $selectedEmployee,
+                'declaration' => $declaration,
+                'declarationId' => $declarationId > 0 ? $declarationId : null,
+                'surveillanceId' => $surveillanceId > 0 ? $surveillanceId : null,
+                'doctor' => $doctor,
+                'sectionStatuses' => $this->surveillanceSectionStatusesFromModels($context),
+                'pageMode' => $this->isRecommendationFinalized($context['recommendationData'] ?? null) ? 'view' : ($surveillanceId > 0 ? 'edit' : 'create'),
+                'readOnly' => $this->isRecommendationFinalized($context['recommendationData'] ?? null),
+            ]
+        ));
+    }
+
+    public function saveSurveillanceDeclaration(Request $request): RedirectResponse
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        if ($this->isInAdminMode($request, $user) || $this->requiresClinicSelection($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        $validated = $request->validate([
+            'company_id' => ['required', 'integer', 'min:1'],
+            'employee_id' => ['required', 'integer', 'min:1'],
+            'declaration_id' => ['nullable', 'integer', 'min:1'],
+            'employee_date' => ['required', 'date'],
+            'doctor_date' => ['required', 'date'],
+            'employee_signature' => ['required', 'string'],
+            'doctor_signature' => ['required', 'string'],
+        ]);
+
+        if (! Schema::hasTable('declaration')) {
+            return redirect()->back()->withErrors(['declaration' => 'The declaration table is not available.'])->withInput();
+        }
+
+        $company = $this->findCompany($request, (int) $validated['company_id']);
+        if ($company === null) {
+            return redirect()->back()->withErrors(['company' => 'The selected company could not be found.'])->withInput();
+        }
+
+        $employeeQuery = DB::table('employee')->where('employee_id', (int) $validated['employee_id']);
+        $clinicId = (int) $request->session()->get('active_clinic_id', 0);
+        if ($clinicId > 0 && Schema::hasColumn('employee', 'clinic_id')) {
+            $employeeQuery->where('clinic_id', $clinicId);
+        }
+        $employee = $employeeQuery->first();
+        if ($employee === null) {
+            return redirect()->back()->withErrors(['employee' => 'The selected employee could not be found.'])->withInput();
+        }
+
+        $existingDeclaration = !empty($validated['declaration_id'])
+            ? DB::table('declaration')->where('declaration_id', (int) $validated['declaration_id'])->first()
+            : null;
+        $doctor = $this->resolvedSurveillanceDoctorRecord($request, $user, $existingDeclaration);
+
+        $payload = [
+            'surveillance_id' => $existingDeclaration->surveillance_id ?? null,
+            'doctor_id' => $doctor->doctor_id ?? ($existingDeclaration->doctor_id ?? null),
+            'company_id' => (int) $validated['company_id'],
+            'employee_id' => (int) $validated['employee_id'],
+            'company_name' => trim((string) ($company->company_name ?? $request->input('company_name', ''))),
+            'employee_firstName' => trim((string) ($employee->employee_firstName ?? $request->input('employee_firstName', ''))),
+            'employee_lastName' => trim((string) ($employee->employee_lastName ?? $request->input('employee_lastName', ''))),
+            'employee_signature' => trim((string) $validated['employee_signature']),
+            'employee_date' => $validated['employee_date'],
+            'doctor_signature' => trim((string) $validated['doctor_signature']),
+            'doctor_date' => $validated['doctor_date'],
+        ];
+
+        if ($existingDeclaration) {
+            DB::table('declaration')
+                ->where('declaration_id', $existingDeclaration->declaration_id)
+                ->update($payload);
+            $declarationId = (int) $existingDeclaration->declaration_id;
+            $surveillanceId = (int) ($existingDeclaration->surveillance_id ?? 0);
+        } else {
+            $declarationId = (int) DB::table('declaration')->insertGetId($payload);
+            $surveillanceId = 0;
+        }
+
+        $params = array_filter([
+            'company_id' => (int) $validated['company_id'],
+            'employee_id' => (int) $validated['employee_id'],
+            'declaration_id' => $declarationId,
+            'surveillance_id' => $surveillanceId > 0 ? $surveillanceId : null,
+        ], static fn ($value) => $value !== null && $value !== '');
+
+        return redirect()
+            ->route('surveillance.examination', $params)
+            ->with('status', 'Declaration saved successfully. You can continue with the examination.');
+    }
+
+    public function companyShow(Request $request, int $company): View|RedirectResponse
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        if ($this->isInAdminMode($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($this->requiresClinicSelection($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        $record = $this->findCompany($request, $company);
+        if ($record === null) {
+            return redirect()->route('panel.company_list')->withErrors(['company' => 'The selected company could not be found.']);
+        }
+
+        $viewData = $this->buildViewData($request, $user);
+        $viewData['companyRecord'] = $record;
+        $viewData['companyFormData'] = $this->companyFormDefaults($record);
+
+        return view('company.company_view', $viewData);
+    }
+
+    public function companyEdit(Request $request, int $company): View|RedirectResponse
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        if ($this->isInAdminMode($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($this->requiresClinicSelection($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        $record = $this->findCompany($request, $company);
+        if ($record === null) {
+            return redirect()->route('panel.company_list')->withErrors(['company' => 'The selected company could not be found.']);
+        }
+
+        $viewData = $this->buildViewData($request, $user);
+        $viewData['companyRecord'] = $record;
+        $viewData['companyFormData'] = $this->companyFormDefaults($record);
+
+        return view('company.company_edit', $viewData);
+    }
+
+    public function companyDelete(Request $request, int $company): View|RedirectResponse
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        if ($this->isInAdminMode($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($this->requiresClinicSelection($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        $record = $this->findCompany($request, $company);
+        if ($record === null) {
+            return redirect()->route('panel.company_list')->withErrors(['company' => 'The selected company could not be found.']);
+        }
+
+        $viewData = $this->buildViewData($request, $user);
+        $viewData['companyRecord'] = $record;
+
+        return view('company.company_delete', $viewData);
     }
 
     public function adminDashboard(Request $request): View|RedirectResponse
@@ -568,34 +1148,60 @@ class PanelController extends Controller
         $validated = $request->validate([
             'doctor_firstName' => ['required', 'string', 'max:100'],
             'doctor_lastName' => ['required', 'string', 'max:100'],
-            'doctor_NRIC' => ['nullable', 'string', 'max:20', 'required_without:doctor_passportNo'],
-            'doctor_passportNo' => ['nullable', 'string', 'max:30', 'required_without:doctor_NRIC'],
-            'doctor_DOB' => ['required', 'date'],
-            'doctor_gender' => ['required', 'string', 'max:20'],
-            'doctor_address' => ['required', 'string', 'max:255'],
-            'doctor_postcode' => ['required', 'string', 'max:10'],
-            'doctor_district' => ['required', 'string', 'max:100'],
-            'doctor_state' => ['required', 'string', 'max:100'],
-            'doctor_phone_code' => ['required', 'string', 'max:10'],
-            'doctor_phone_number' => ['required', 'string', 'max:30'],
+            'doctor_NRIC' => ['nullable', 'string', 'max:20'],
+            'doctor_passportNo' => ['nullable', 'string', 'max:30'],
+            'doctor_DOB' => ['nullable', 'date'],
+            'doctor_gender' => ['nullable', 'string', 'max:20'],
+            'doctor_address' => ['nullable', 'string', 'max:255'],
+            'doctor_postcode' => ['nullable', 'string', 'max:10'],
+            'doctor_district' => ['nullable', 'string', 'max:100'],
+            'doctor_state' => ['nullable', 'string', 'max:100'],
+            'doctor_phone_code' => ['nullable', 'string', 'max:10'],
+            'doctor_phone_number' => ['nullable', 'string', 'max:30'],
             'doctor_fax_code' => ['nullable', 'string', 'max:10'],
             'doctor_fax_number' => ['nullable', 'string', 'max:30'],
-            'doctor_email' => ['required', 'email', 'max:150'],
-            'doctor_ethnicity' => ['required', 'string', 'max:50'],
-            'doctor_citizenship' => ['required', 'string', 'max:50'],
-            'doctor_martialStatus' => ['required', 'string', 'max:30'],
+            'doctor_email' => ['nullable', 'email', 'max:150'],
+            'doctor_ethnicity' => ['nullable', 'string', 'max:50'],
+            'doctor_citizenship' => ['nullable', 'string', 'max:50'],
+            'doctor_martialStatus' => ['nullable', 'string', 'max:30'],
             'MMC_no' => ['required', 'string', 'max:50'],
             'OHD_registrationNo' => ['required', 'string', 'max:50'],
-            'doctor_status' => ['required', 'in:active,not active'],
-            'doctor_sign_data' => ['required', 'string'],
+            'doctor_status' => ['nullable', 'in:active,not active'],
+            'doctor_sign_data' => ['nullable', 'string'],
+            'doctor_sign_upload' => ['nullable', 'image', 'max:3072'],
             'doctor_picture' => ['nullable', 'image', 'max:3072'],
         ]);
 
-        $signaturePath = $this->storeBase64Image(
-            $validated['doctor_sign_data'] ?? null,
-            'doctor-sign-',
-            'uploads/doctor-signatures'
-        );
+        $uploadedSignatureFile = $request->hasFile('doctor_sign_upload') ? $request->file('doctor_sign_upload') : null;
+        $drawnSignatureData = trim((string) $request->input('doctor_sign_data', ''));
+        $existingSignaturePath = trim((string) $request->input('doctor_sign', ''));
+        $hasDrawnSignature = $drawnSignatureData !== '' && preg_match('/^data:image\/[a-zA-Z0-9.+-]+;base64,/', $drawnSignatureData) === 1;
+
+        if (! $uploadedSignatureFile && ! $hasDrawnSignature && $existingSignaturePath === '') {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'doctor_sign_upload' => 'Please provide the doctor signature by upload or eSign.',
+            ]);
+        }
+
+        $signaturePath = null;
+        if ($uploadedSignatureFile) {
+            $file = $uploadedSignatureFile;
+            $filename = 'doctor-sign-' . Str::uuid() . '.' . $file->getClientOriginalExtension();
+            $destination = public_path('uploads/doctor-signatures');
+            if (! is_dir($destination)) {
+                mkdir($destination, 0777, true);
+            }
+            $file->move($destination, $filename);
+            $signaturePath = 'uploads/doctor-signatures/' . $filename;
+        } elseif ($hasDrawnSignature) {
+            $signaturePath = $this->storeBase64Image(
+                $drawnSignatureData,
+                'doctor-sign-',
+                'uploads/doctor-signatures'
+            );
+        } elseif ($existingSignaturePath !== '') {
+            $signaturePath = $existingSignaturePath;
+        }
 
         $picturePath = null;
         if ($request->hasFile('doctor_picture')) {
@@ -646,7 +1252,7 @@ class PanelController extends Controller
             'OHD_registrationNo' => $validated['OHD_registrationNo'] ?: null,
             'doctor_username' => $uniqueUsername,
             'doctor_password' => Hash::make(Str::random(32)),
-            'doctor_status' => $validated['doctor_status'],
+            'doctor_status' => $validated['doctor_status'] ?: 'active',
             'doctor_sign' => $signaturePath,
             'doctor_picture' => $picturePath,
         ];
@@ -678,37 +1284,59 @@ class PanelController extends Controller
         $validated = $request->validate([
             'doctor_firstName' => ['required', 'string', 'max:100'],
             'doctor_lastName' => ['required', 'string', 'max:100'],
-            'doctor_NRIC' => ['nullable', 'string', 'max:20', 'required_without:doctor_passportNo'],
-            'doctor_passportNo' => ['nullable', 'string', 'max:30', 'required_without:doctor_NRIC'],
-            'doctor_DOB' => ['required', 'date'],
-            'doctor_gender' => ['required', 'string', 'max:20'],
-            'doctor_address' => ['required', 'string', 'max:255'],
-            'doctor_postcode' => ['required', 'string', 'max:10'],
-            'doctor_district' => ['required', 'string', 'max:100'],
-            'doctor_state' => ['required', 'string', 'max:100'],
-            'doctor_phone_code' => ['required', 'string', 'max:10'],
-            'doctor_phone_number' => ['required', 'string', 'max:30'],
+            'doctor_NRIC' => ['nullable', 'string', 'max:20'],
+            'doctor_passportNo' => ['nullable', 'string', 'max:30'],
+            'doctor_DOB' => ['nullable', 'date'],
+            'doctor_gender' => ['nullable', 'string', 'max:20'],
+            'doctor_address' => ['nullable', 'string', 'max:255'],
+            'doctor_postcode' => ['nullable', 'string', 'max:10'],
+            'doctor_district' => ['nullable', 'string', 'max:100'],
+            'doctor_state' => ['nullable', 'string', 'max:100'],
+            'doctor_phone_code' => ['nullable', 'string', 'max:10'],
+            'doctor_phone_number' => ['nullable', 'string', 'max:30'],
             'doctor_fax_code' => ['nullable', 'string', 'max:10'],
             'doctor_fax_number' => ['nullable', 'string', 'max:30'],
-            'doctor_email' => ['required', 'email', 'max:150'],
-            'doctor_ethnicity' => ['required', 'string', 'max:50'],
-            'doctor_citizenship' => ['required', 'string', 'max:50'],
-            'doctor_martialStatus' => ['required', 'string', 'max:30'],
+            'doctor_email' => ['nullable', 'email', 'max:150'],
+            'doctor_ethnicity' => ['nullable', 'string', 'max:50'],
+            'doctor_citizenship' => ['nullable', 'string', 'max:50'],
+            'doctor_martialStatus' => ['nullable', 'string', 'max:30'],
             'MMC_no' => ['required', 'string', 'max:50'],
             'OHD_registrationNo' => ['required', 'string', 'max:50'],
-            'doctor_status' => ['required', 'in:active,not active'],
+            'doctor_status' => ['nullable', 'in:active,not active'],
             'doctor_sign_data' => ['nullable', 'string'],
+            'doctor_sign_upload' => ['nullable', 'image', 'max:3072'],
             'doctor_picture' => ['nullable', 'image', 'max:3072'],
         ]);
 
         $signaturePath = (string) ($record->doctor_sign ?? '');
-        if (trim((string) ($validated['doctor_sign_data'] ?? '')) !== '') {
+        $uploadedSignatureFile = $request->hasFile('doctor_sign_upload') ? $request->file('doctor_sign_upload') : null;
+        $drawnSignatureData = trim((string) $request->input('doctor_sign_data', ''));
+        $hasDrawnSignature = $drawnSignatureData !== '' && preg_match('/^data:image\/[a-zA-Z0-9.+-]+;base64,/', $drawnSignatureData) === 1;
+
+        if ($hasDrawnSignature) {
             $this->deletePublicFile($signaturePath);
             $signaturePath = (string) $this->storeBase64Image(
-                $validated['doctor_sign_data'],
+                $drawnSignatureData,
                 'doctor-sign-',
                 'uploads/doctor-signatures'
             );
+        }
+        if ($uploadedSignatureFile) {
+            $this->deletePublicFile($signaturePath);
+            $file = $uploadedSignatureFile;
+            $filename = 'doctor-sign-' . Str::uuid() . '.' . $file->getClientOriginalExtension();
+            $destination = public_path('uploads/doctor-signatures');
+            if (! is_dir($destination)) {
+                mkdir($destination, 0777, true);
+            }
+            $file->move($destination, $filename);
+            $signaturePath = 'uploads/doctor-signatures/' . $filename;
+        }
+
+        if ($signaturePath === '') {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'doctor_sign_upload' => 'Please provide the doctor signature by upload or eSign.',
+            ]);
         }
 
         $picturePath = (string) ($record->doctor_picture ?? '');
@@ -749,7 +1377,7 @@ class PanelController extends Controller
             'doctor_martialStatus' => $validated['doctor_martialStatus'] ?: null,
             'MMC_no' => $validated['MMC_no'] ?: null,
             'OHD_registrationNo' => $validated['OHD_registrationNo'] ?: null,
-            'doctor_status' => $validated['doctor_status'],
+            'doctor_status' => $validated['doctor_status'] ?: ((string) ($record->doctor_status ?? 'active')),
             'doctor_sign' => $signaturePath !== '' ? $signaturePath : null,
             'doctor_picture' => $picturePath !== '' ? $picturePath : null,
         ];
@@ -959,39 +1587,167 @@ class PanelController extends Controller
         $validated = $request->validate([
             'company_name' => ['required', 'string', 'max:150'],
             'mykpp_registration_no' => ['required', 'string', 'max:100'],
-            'company_address' => ['required', 'string', 'max:255'],
-            'company_postcode' => ['required', 'string', 'max:10'],
-            'company_district' => ['required', 'string', 'max:100'],
-            'company_state' => ['required', 'string', 'max:100'],
-            'company_phone_code' => ['required', 'string', 'max:10'],
-            'company_telephone' => ['required', 'string', 'max:20'],
-            'company_email' => ['required', 'email', 'max:150'],
-            'company_fax' => ['required', 'string', 'max:30'],
-            'total_workers' => ['required', 'integer', 'min:0'],
+            'company_module' => ['required', 'in:surveillance,audiometry'],
+            'company_address' => ['nullable', 'string', 'max:255'],
+            'company_postcode' => ['nullable', 'string', 'max:10'],
+            'company_district' => ['nullable', 'string', 'max:100'],
+            'company_state' => ['nullable', 'string', 'max:100'],
+            'company_phone_code' => ['nullable', 'string', 'max:10'],
+            'company_telephone' => ['nullable', 'string', 'max:20'],
+            'company_email' => ['nullable', 'email', 'max:150'],
+            'company_fax' => ['nullable', 'string', 'max:30'],
+            'total_workers' => ['nullable', 'integer', 'min:0'],
         ]);
 
         $payload = [
             'company_name' => trim((string) $validated['company_name']),
             'mykpp_registration_no' => trim((string) $validated['mykpp_registration_no']),
-            'company_address' => trim((string) $validated['company_address']),
-            'company_postcode' => trim((string) $validated['company_postcode']),
-            'company_district' => trim((string) $validated['company_district']),
-            'company_state' => trim((string) $validated['company_state']),
-            'company_telephone' => $this->buildCountryCodeNumber($validated['company_phone_code'], $validated['company_telephone']),
-            'company_email' => trim((string) $validated['company_email']),
-            'company_fax' => trim((string) $validated['company_fax']),
-            'total_workers' => (int) $validated['total_workers'],
+            'company_address' => $this->nullableTrim($validated['company_address'] ?? null),
+            'company_postcode' => $this->nullableTrim($validated['company_postcode'] ?? null),
+            'company_district' => $this->nullableTrim($validated['company_district'] ?? null),
+            'company_state' => $this->nullableTrim($validated['company_state'] ?? null),
+            'company_telephone' => $this->buildCountryCodeNumber($validated['company_phone_code'] ?? null, $validated['company_telephone'] ?? null),
+            'company_email' => $this->nullableTrim($validated['company_email'] ?? null),
+            'company_fax' => $this->nullableTrim($validated['company_fax'] ?? null),
+            'total_workers' => isset($validated['total_workers']) ? (int) $validated['total_workers'] : 0,
         ];
 
         if (Schema::hasColumn('company', 'clinic_id')) {
             $payload['clinic_id'] = $clinicId;
         }
 
+        if (Schema::hasColumn('company', 'company_module')) {
+            $payload['company_module'] = $validated['company_module'];
+        }
+
         DB::table('company')->insert($payload);
 
         return redirect()
-            ->route('surveillance.company')
+            ->route($validated['company_module'] === 'audiometry' ? 'audiometry.company' : 'surveillance.company')
             ->with('status', 'Company saved successfully for the active clinic.');
+    }
+
+    public function updateCompany(Request $request, int $company): RedirectResponse
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        if ($this->isInAdminMode($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($this->requiresClinicSelection($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        $record = $this->findCompany($request, $company);
+        if ($record === null) {
+            return redirect()->route('panel.company_list')->withErrors(['company' => 'The selected company could not be found.']);
+        }
+
+        $validated = $request->validate([
+            'company_name' => ['required', 'string', 'max:150'],
+            'mykpp_registration_no' => ['required', 'string', 'max:100'],
+            'company_module' => ['required', 'in:surveillance,audiometry'],
+            'company_address' => ['nullable', 'string', 'max:255'],
+            'company_postcode' => ['nullable', 'string', 'max:10'],
+            'company_district' => ['nullable', 'string', 'max:100'],
+            'company_state' => ['nullable', 'string', 'max:100'],
+            'company_phone_code' => ['nullable', 'string', 'max:10'],
+            'company_telephone' => ['nullable', 'string', 'max:20'],
+            'company_email' => ['nullable', 'email', 'max:150'],
+            'company_fax' => ['nullable', 'string', 'max:30'],
+            'total_workers' => ['nullable', 'integer', 'min:0'],
+        ]);
+
+        $payload = [
+            'company_name' => trim((string) $validated['company_name']),
+            'mykpp_registration_no' => trim((string) $validated['mykpp_registration_no']),
+            'company_address' => $this->nullableTrim($validated['company_address'] ?? null),
+            'company_postcode' => $this->nullableTrim($validated['company_postcode'] ?? null),
+            'company_district' => $this->nullableTrim($validated['company_district'] ?? null),
+            'company_state' => $this->nullableTrim($validated['company_state'] ?? null),
+            'company_telephone' => $this->buildCountryCodeNumber($validated['company_phone_code'] ?? null, $validated['company_telephone'] ?? null),
+            'company_email' => $this->nullableTrim($validated['company_email'] ?? null),
+            'company_fax' => $this->nullableTrim($validated['company_fax'] ?? null),
+            'total_workers' => isset($validated['total_workers']) ? (int) $validated['total_workers'] : 0,
+        ];
+
+        if (Schema::hasColumn('company', 'company_module')) {
+            $payload['company_module'] = $validated['company_module'];
+        }
+
+        DB::table('company')
+            ->where('company_id', $record->company_id)
+            ->update($payload);
+
+        return redirect()
+            ->route('panel.company_list')
+            ->with('status', 'Company updated successfully.');
+    }
+
+    public function destroyCompany(Request $request, int $company): RedirectResponse
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        if ($this->isInAdminMode($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($this->requiresClinicSelection($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        $record = $this->findCompany($request, $company);
+        if ($record === null) {
+            return redirect()->route('panel.company_list')->withErrors(['company' => 'The selected company could not be found.']);
+        }
+
+        DB::table('company')
+            ->where('company_id', $record->company_id)
+            ->delete();
+
+        return redirect()
+            ->to($this->companyReturnUrl($request, $record))
+            ->with('status', 'Company deleted successfully.');
+    }
+
+    public function destroyLegacyCompany(Request $request): RedirectResponse
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        if ($this->isInAdminMode($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($this->requiresClinicSelection($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        $validated = $request->validate([
+            'company_id' => ['required', 'integer', 'min:1'],
+        ]);
+
+        $record = $this->findCompany($request, (int) $validated['company_id']);
+        if ($record === null) {
+            return redirect()->route('panel.company_list')->withErrors(['company' => 'The selected company could not be found.']);
+        }
+
+        DB::table('company')
+            ->where('company_id', $record->company_id)
+            ->delete();
+
+        return redirect()
+            ->to($this->companyReturnUrl($request, $record))
+            ->with('status', 'Company deleted successfully.');
     }
 
     public function storeSurveillanceEmployee(Request $request): RedirectResponse
@@ -1014,30 +1770,30 @@ class PanelController extends Controller
             'employee_lastName' => ['required', 'string', 'max:100'],
             'employee_NRIC' => ['nullable', 'string', 'max:20', 'required_without:employee_passportNo'],
             'employee_passportNo' => ['nullable', 'string', 'max:30', 'required_without:employee_NRIC'],
-            'employee_DOB' => ['required', 'date'],
-            'employee_gender' => ['required', 'in:Male,Female'],
-            'employee_address' => ['required', 'string', 'max:255'],
-            'employee_postcode' => ['required', 'string', 'max:10'],
-            'employee_district' => ['required', 'string', 'max:100'],
-            'employee_state' => ['required', 'string', 'max:100'],
+            'employee_DOB' => ['nullable', 'date'],
+            'employee_gender' => ['nullable', 'in:Male,Female'],
+            'employee_address' => ['nullable', 'string', 'max:255'],
+            'employee_postcode' => ['nullable', 'string', 'max:10'],
+            'employee_district' => ['nullable', 'string', 'max:100'],
+            'employee_state' => ['nullable', 'string', 'max:100'],
             'employee_phone_code' => ['required', 'string', 'max:10'],
             'employee_telephone' => ['required', 'string', 'max:20'],
-            'employee_email' => ['required', 'email', 'max:150'],
-            'employee_ethnicity' => ['required', 'string', 'max:50'],
-            'employee_citizenship' => ['required', 'string', 'max:50'],
-            'employee_martialStatus' => ['required', 'string', 'max:50'],
+            'employee_email' => ['nullable', 'email', 'max:150'],
+            'employee_ethnicity' => ['nullable', 'string', 'max:50'],
+            'employee_citizenship' => ['nullable', 'string', 'max:50'],
+            'employee_martialStatus' => ['nullable', 'string', 'max:50'],
             'no_of_children' => ['nullable', 'integer', 'min:0'],
             'years_married' => ['nullable', 'integer', 'min:0'],
-            'diagnosed_history' => ['required', 'string'],
-            'medication_history' => ['required', 'string'],
-            'admitted_history' => ['required', 'string'],
-            'family_history' => ['required', 'string'],
-            'others_history' => ['required', 'string'],
-            'current_job_title' => ['required', 'string', 'max:150'],
-            'current_company_name' => ['required', 'string', 'max:150'],
-            'current_employment_duration' => ['required', 'string', 'max:100'],
-            'current_chemical_exposure_duration' => ['required', 'string', 'max:100'],
-            'current_chemical_exposure_incidents' => ['required', 'string'],
+            'diagnosed_history' => ['nullable', 'string'],
+            'medication_history' => ['nullable', 'string'],
+            'admitted_history' => ['nullable', 'string'],
+            'family_history' => ['nullable', 'string'],
+            'others_history' => ['nullable', 'string'],
+            'current_job_title' => ['nullable', 'string', 'max:150'],
+            'current_company_name' => ['nullable', 'string', 'max:150'],
+            'current_employment_duration' => ['nullable', 'string', 'max:100'],
+            'current_chemical_exposure_duration' => ['nullable', 'string', 'max:100'],
+            'current_chemical_exposure_incidents' => ['nullable', 'string'],
             'occup_job_title' => ['array'],
             'occup_job_title.*' => ['nullable', 'string', 'max:150'],
             'occup_company_name' => ['array'],
@@ -1048,22 +1804,22 @@ class PanelController extends Controller
             'chemical_exposure_duration.*' => ['nullable', 'string', 'max:100'],
             'chemical_exposure_incidents' => ['array'],
             'chemical_exposure_incidents.*' => ['nullable', 'string'],
-            'smoking_history' => ['required', 'string', 'max:50'],
+            'smoking_history' => ['nullable', 'string', 'max:50'],
             'years_of_smoking' => ['nullable', 'integer', 'min:0'],
             'no_of_cigarettes' => ['nullable', 'integer', 'min:0'],
-            'vaping_history' => ['required', 'string', 'max:10'],
+            'vaping_history' => ['nullable', 'string', 'max:10'],
             'years_of_vaping' => ['nullable', 'integer', 'min:0'],
-            'hobby' => ['required', 'string'],
-            'handling_of_chemical' => ['required', 'string', 'max:10'],
-            'chemical_comments' => ['required', 'string'],
-            'sign_symptoms' => ['required', 'string', 'max:10'],
-            'sign_comments' => ['required', 'string'],
-            'chemical_poisoning' => ['required', 'string', 'max:10'],
-            'poisoning_comments' => ['required', 'string'],
-            'proper_PPE' => ['required', 'string', 'max:10'],
-            'proper_comments' => ['required', 'string'],
-            'PPE_usage' => ['required', 'string', 'max:10'],
-            'usage_comments' => ['required', 'string'],
+            'hobby' => ['nullable', 'string'],
+            'handling_of_chemical' => ['nullable', 'string', 'max:10'],
+            'chemical_comments' => ['nullable', 'string'],
+            'sign_symptoms' => ['nullable', 'string', 'max:10'],
+            'sign_comments' => ['nullable', 'string'],
+            'chemical_poisoning' => ['nullable', 'string', 'max:10'],
+            'poisoning_comments' => ['nullable', 'string'],
+            'proper_PPE' => ['nullable', 'string', 'max:10'],
+            'proper_comments' => ['nullable', 'string'],
+            'PPE_usage' => ['nullable', 'string', 'max:10'],
+            'usage_comments' => ['nullable', 'string'],
         ]);
 
         $selectedCompany = null;
@@ -1088,19 +1844,19 @@ class PanelController extends Controller
             'employee_lastName' => trim((string) $validated['employee_lastName']),
             'employee_NRIC' => trim((string) ($validated['employee_NRIC'] ?? '')) ?: null,
             'employee_passportNo' => trim((string) ($validated['employee_passportNo'] ?? '')) ?: null,
-            'employee_DOB' => $validated['employee_DOB'],
-            'employee_gender' => $validated['employee_gender'],
-            'employee_address' => trim((string) $validated['employee_address']),
-            'employee_postcode' => trim((string) $validated['employee_postcode']),
-            'employee_district' => trim((string) $validated['employee_district']),
-            'employee_state' => trim((string) $validated['employee_state']),
+            'employee_DOB' => $validated['employee_DOB'] ?? null,
+            'employee_gender' => $validated['employee_gender'] ?? null,
+            'employee_address' => trim((string) ($validated['employee_address'] ?? '')) ?: null,
+            'employee_postcode' => trim((string) ($validated['employee_postcode'] ?? '')) ?: null,
+            'employee_district' => trim((string) ($validated['employee_district'] ?? '')) ?: null,
+            'employee_state' => trim((string) ($validated['employee_state'] ?? '')) ?: null,
             'employee_telephone' => $this->buildCountryCodeNumber($validated['employee_phone_code'], $validated['employee_telephone']),
-            'employee_email' => trim((string) $validated['employee_email']),
-            'employee_ethnicity' => $validated['employee_ethnicity'],
-            'employee_citizenship' => $validated['employee_citizenship'],
-            'employee_martialStatus' => $validated['employee_martialStatus'],
-            'no_of_children' => (int) ($validated['no_of_children'] ?? 0),
-            'years_married' => (int) ($validated['years_married'] ?? 0),
+            'employee_email' => trim((string) ($validated['employee_email'] ?? '')) ?: null,
+            'employee_ethnicity' => trim((string) ($validated['employee_ethnicity'] ?? '')) ?: null,
+            'employee_citizenship' => trim((string) ($validated['employee_citizenship'] ?? '')) ?: null,
+            'employee_martialStatus' => trim((string) ($validated['employee_martialStatus'] ?? '')) ?: null,
+            'no_of_children' => $validated['no_of_children'] ?? null,
+            'years_married' => $validated['years_married'] ?? null,
         ];
 
         if (Schema::hasColumn('employee', 'clinic_id')) {
@@ -1113,21 +1869,21 @@ class PanelController extends Controller
         $employeeId = DB::table('employee')->insertGetId($employeePayload);
 
         DB::table('medical_history')->insert([
-            'diagnosed_history' => trim((string) $validated['diagnosed_history']),
-            'medication_history' => trim((string) $validated['medication_history']),
-            'admitted_history' => trim((string) $validated['admitted_history']),
-            'family_history' => trim((string) $validated['family_history']),
-            'others_history' => trim((string) $validated['others_history']),
+            'diagnosed_history' => trim((string) ($validated['diagnosed_history'] ?? '')) ?: null,
+            'medication_history' => trim((string) ($validated['medication_history'] ?? '')) ?: null,
+            'admitted_history' => trim((string) ($validated['admitted_history'] ?? '')) ?: null,
+            'family_history' => trim((string) ($validated['family_history'] ?? '')) ?: null,
+            'others_history' => trim((string) ($validated['others_history'] ?? '')) ?: null,
             'employee_id' => $employeeId,
             'surveillance_id' => null,
         ]);
 
         DB::table('occupational_history')->insert([
-            'job_title' => trim((string) $validated['current_job_title']),
-            'company_name' => trim((string) ($selectedCompany->company_name ?? $validated['current_company_name'])),
-            'employment_duration' => trim((string) $validated['current_employment_duration']),
-            'chemical_exposure_duration' => trim((string) $validated['current_chemical_exposure_duration']),
-            'chemical_exposure_incidents' => trim((string) $validated['current_chemical_exposure_incidents']),
+            'job_title' => trim((string) ($validated['current_job_title'] ?? '')) ?: null,
+            'company_name' => trim((string) ($selectedCompany->company_name ?? ($validated['current_company_name'] ?? ''))) ?: null,
+            'employment_duration' => trim((string) ($validated['current_employment_duration'] ?? '')) ?: null,
+            'chemical_exposure_duration' => trim((string) ($validated['current_chemical_exposure_duration'] ?? '')) ?: null,
+            'chemical_exposure_incidents' => trim((string) ($validated['current_chemical_exposure_incidents'] ?? '')) ?: null,
             'employee_id' => $employeeId,
             'surveillance_id' => null,
         ]);
@@ -1166,27 +1922,27 @@ class PanelController extends Controller
         }
 
         DB::table('personal_social_history')->insert([
-            'smoking_history' => $validated['smoking_history'],
-            'years_of_smoking' => (int) ($validated['years_of_smoking'] ?? 0),
-            'no_of_cigarettes' => (int) ($validated['no_of_cigarettes'] ?? 0),
-            'vaping_history' => $validated['vaping_history'],
-            'years_of_vaping' => (int) ($validated['years_of_vaping'] ?? 0),
-            'hobby' => trim((string) $validated['hobby']),
+            'smoking_history' => trim((string) ($validated['smoking_history'] ?? '')) ?: null,
+            'years_of_smoking' => $validated['years_of_smoking'] ?? null,
+            'no_of_cigarettes' => $validated['no_of_cigarettes'] ?? null,
+            'vaping_history' => trim((string) ($validated['vaping_history'] ?? '')) ?: null,
+            'years_of_vaping' => $validated['years_of_vaping'] ?? null,
+            'hobby' => trim((string) ($validated['hobby'] ?? '')) ?: null,
             'employee_id' => $employeeId,
             'surveillance_id' => null,
         ]);
 
         DB::table('training_history')->insert([
-            'handling_of_chemical' => $validated['handling_of_chemical'],
-            'chemical_comments' => trim((string) $validated['chemical_comments']),
-            'sign_symptoms' => $validated['sign_symptoms'],
-            'sign_comments' => trim((string) $validated['sign_comments']),
-            'chemical_poisoning' => $validated['chemical_poisoning'],
-            'poisoning_comments' => trim((string) $validated['poisoning_comments']),
-            'proper_PPE' => $validated['proper_PPE'],
-            'proper_comments' => trim((string) $validated['proper_comments']),
-            'PPE_usage' => $validated['PPE_usage'],
-            'usage_comments' => trim((string) $validated['usage_comments']),
+            'handling_of_chemical' => trim((string) ($validated['handling_of_chemical'] ?? '')) ?: null,
+            'chemical_comments' => trim((string) ($validated['chemical_comments'] ?? '')) ?: null,
+            'sign_symptoms' => trim((string) ($validated['sign_symptoms'] ?? '')) ?: null,
+            'sign_comments' => trim((string) ($validated['sign_comments'] ?? '')) ?: null,
+            'chemical_poisoning' => trim((string) ($validated['chemical_poisoning'] ?? '')) ?: null,
+            'poisoning_comments' => trim((string) ($validated['poisoning_comments'] ?? '')) ?: null,
+            'proper_PPE' => trim((string) ($validated['proper_PPE'] ?? '')) ?: null,
+            'proper_comments' => trim((string) ($validated['proper_comments'] ?? '')) ?: null,
+            'PPE_usage' => trim((string) ($validated['PPE_usage'] ?? '')) ?: null,
+            'usage_comments' => trim((string) ($validated['usage_comments'] ?? '')) ?: null,
             'employee_id' => $employeeId,
             'surveillance_id' => null,
         ]);
@@ -1197,7 +1953,7 @@ class PanelController extends Controller
         }
 
         return redirect()
-            ->route('surveillance.employee', $redirectParams)
+            ->route('surveillance.patient', $redirectParams)
             ->with('status', $selectedCompany
                 ? 'Employee saved successfully for the selected company in the active clinic.'
                 : 'Employee saved successfully for the active clinic.');
@@ -1213,6 +1969,38 @@ class PanelController extends Controller
         return $this->renderSurveillanceRecordPage($request, $declaration, false);
     }
 
+    public function surveillanceRecordDelete(Request $request, int $declaration): View|RedirectResponse
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        $record = DB::table('declaration')->where('declaration_id', $declaration)->first();
+        if (! $record) {
+            return redirect()->route('surveillance.list')->withErrors(['record' => 'The selected surveillance record could not be found.']);
+        }
+
+        $employee = ! empty($record->employee_id) ? DB::table('employee')->where('employee_id', $record->employee_id)->first() : null;
+        $company = ! empty($record->company_id) ? DB::table('company')->where('company_id', $record->company_id)->first() : null;
+
+        return view('surveillance.survList_delete', array_merge(
+            $this->buildViewData($request, $user),
+            [
+                'record' => $record,
+                'selectedEmployee' => $employee,
+                'selectedCompany' => $company,
+                'declarationId' => (int) $record->declaration_id,
+                'surveillanceId' => (int) ($record->surveillance_id ?? 0),
+            ]
+        ));
+    }
+
+    protected function isRecommendationFinalized(?object $recommendationData): bool
+    {
+        return ! empty($recommendationData) && ! empty($recommendationData->is_final);
+    }
+
     public function saveSurveillanceExamination(Request $request)
     {
         $user = $this->requirePanelUser($request);
@@ -1225,6 +2013,9 @@ class PanelController extends Controller
         $surveillanceId = (int) $request->input('surveillance_id', 0);
         $declarationId = (int) $request->input('declaration_id', 0);
         $doctorId = (int) $request->input('doctor_id', 0);
+        $saveMode = trim((string) $request->input('save_mode', 'draft'));
+        $isFinalSave = $saveMode === 'final';
+        $isAutosave = (bool) $request->input('autosave');
 
         if ($employeeId <= 0 || $companyId <= 0) {
             return $this->surveillanceExamSaveResponse(
@@ -1246,11 +2037,24 @@ class PanelController extends Controller
             );
         }
 
+        $chemicalName = trim((string) $request->input('company_name', (string) $company->company_name));
+        $chemicalSelection = trim((string) $request->input('chemicals', ''));
+        $examinationType = trim((string) $request->input('examination_type', ''));
+        $examinationDate = trim((string) $request->input('examination_date', ''));
+
+        if (! $isAutosave && ($chemicalName === '' || $chemicalSelection === '' || $examinationType === '' || $examinationDate === '')) {
+            return $this->surveillanceExamSaveResponse(
+                $request,
+                false,
+                ['error' => 'Chemical Information is required before saving this examination.']
+            );
+        }
+
         $chemicalPayload = [
-            'chemicals' => trim((string) $request->input('chemicals', '')),
-            'examination_type' => trim((string) $request->input('examination_type', '')) ?: null,
-            'examination_date' => trim((string) $request->input('examination_date', '')) ?: null,
-            'company_name' => trim((string) $request->input('company_name', (string) $company->company_name)),
+            'chemicals' => $chemicalSelection,
+            'examination_type' => $examinationType !== '' ? $examinationType : null,
+            'examination_date' => $examinationDate !== '' ? $examinationDate : null,
+            'company_name' => $chemicalName,
             'employee_id' => $employeeId,
             'doctor_id' => $doctorId,
             'company_id' => $companyId,
@@ -1362,13 +2166,40 @@ class PanelController extends Controller
 
         $baselineResults = trim((string) $request->input('baseline_results', ''));
         $baselineAnnual = trim((string) $request->input('baseline_annual', ''));
+        $existingBloodResultFiles = [];
+        if (Schema::hasTable('biological_monitoring') && Schema::hasColumn('biological_monitoring', 'blood_result_files')) {
+            $existingBiologicalRecord = $surveillanceId > 0
+                ? DB::table('biological_monitoring')->where('surveillance_id', $surveillanceId)->first()
+                : null;
+
+            if ($existingBiologicalRecord && ! empty($existingBiologicalRecord->blood_result_files)) {
+                $decodedBloodResultFiles = json_decode((string) $existingBiologicalRecord->blood_result_files, true);
+                if (is_array($decodedBloodResultFiles)) {
+                    $existingBloodResultFiles = array_values(array_filter($decodedBloodResultFiles, static fn ($path) => is_string($path) && trim($path) !== ''));
+                }
+            }
+        }
+
+        $newBloodResultFiles = [];
+        foreach ((array) $request->file('blood_result_files', []) as $uploadedFile) {
+            if (! $uploadedFile || ! $uploadedFile->isValid()) {
+                continue;
+            }
+
+            $newBloodResultFiles[] = $uploadedFile->store('surveillance/blood-results', 'public');
+        }
+
+        $mergedBloodResultFiles = array_values(array_merge($existingBloodResultFiles, $newBloodResultFiles));
         $biologicalPayload = [
-            'biological_exposure' => ($baselineResults !== '' || $baselineAnnual !== '') ? 'Yes' : null,
+            'biological_exposure' => ($baselineResults !== '' || $baselineAnnual !== '' || ! empty($mergedBloodResultFiles)) ? 'Yes' : null,
             'baseline_results' => $baselineResults !== '' ? $baselineResults : null,
             'baseline_annual' => $baselineAnnual !== '' ? $baselineAnnual : null,
             'employee_id' => $employeeId,
             'surveillance_id' => $surveillanceId,
         ];
+        if (Schema::hasTable('biological_monitoring') && Schema::hasColumn('biological_monitoring', 'blood_result_files')) {
+            $biologicalPayload['blood_result_files'] = ! empty($mergedBloodResultFiles) ? json_encode($mergedBloodResultFiles) : null;
+        }
         $this->upsertSurveillanceChildRow('biological_monitoring', 'bioMonitor_id', $surveillanceId, $employeeId, $biologicalPayload);
 
         $respiratorPayload = [
@@ -1394,8 +2225,22 @@ class PanelController extends Controller
         ];
         $this->upsertSurveillanceChildRow('ms_findings', 'msFindings_id', $surveillanceId, $employeeId, $msPayload);
 
+        $selectedRecommendationTypes = array_values(array_filter(array_map(static fn ($value) => trim((string) $value), (array) $request->input('recommendation_types', [])), static fn ($value) => $value !== ''));
+        $recommendationTypeOther = trim((string) $request->input('recommendation_type_other', ''));
+        if ($recommendationTypeOther !== '') {
+            $selectedRecommendationTypes[] = 'Other: ' . $recommendationTypeOther;
+        }
+        $existingRecommendation = $surveillanceId > 0 && Schema::hasTable('recommendation')
+            ? DB::table('recommendation')->where('surveillance_id', $surveillanceId)->first()
+            : null;
+        $activeClinic = $this->activeClinic($request);
+        if (! $activeClinic && isset($company->clinic_id) && (int) $company->clinic_id > 0 && Schema::hasTable('clinic')) {
+            $activeClinic = DB::table('clinic')->where('clinic_id', (int) $company->clinic_id)->first();
+        }
+        $recommendationSignature = trim((string) $request->input('recommendation_employee_signature', ''));
+        $recommendationSignatureDate = trim((string) $request->input('recommendation_ack_date', ''));
         $recommendationPayload = [
-            'recommencation_type' => trim((string) $request->input('recommencation_type', '')) ?: null,
+            'recommencation_type' => ! empty($selectedRecommendationTypes) ? implode("\n", $selectedRecommendationTypes) : null,
             'MRPdate_start' => trim((string) $request->input('MRPdate_start', '')) ?: null,
             'MRPdate_end' => trim((string) $request->input('MRPdate_end', '')) ?: null,
             'nextReview_date' => trim((string) $request->input('nextReview_date', '')) ?: null,
@@ -1403,6 +2248,27 @@ class PanelController extends Controller
             'employee_id' => $employeeId,
             'surveillance_id' => $surveillanceId,
         ];
+        if (Schema::hasTable('recommendation')) {
+            $recommendationOptionalColumns = [
+                'doctor_id' => $doctorId > 0 ? $doctorId : null,
+                'clinic_id' => isset($activeClinic->clinic_id) ? (int) $activeClinic->clinic_id : null,
+                'employee_signature' => $recommendationSignature !== '' ? $recommendationSignature : null,
+                'employee_signature_date' => $recommendationSignatureDate !== '' ? $recommendationSignatureDate : null,
+                'doctor_name' => trim((string) (($doctor->doctor_firstName ?? '') . ' ' . ($doctor->doctor_lastName ?? ''))) ?: null,
+                'doctor_registration_no' => trim((string) ($doctor->OHD_registrationNo ?? $doctor->MMC_no ?? '')) ?: null,
+                'clinic_name' => trim((string) ($activeClinic->clinic_name ?? '')) ?: null,
+                'clinic_telephone' => trim((string) ($activeClinic->clinic_telephone ?? '')) ?: null,
+                'clinic_fax' => trim((string) ($activeClinic->clinic_fax ?? '')) ?: null,
+                'clinic_email' => trim((string) ($activeClinic->clinic_email ?? '')) ?: null,
+                'is_final' => $isFinalSave ? 1 : (! empty($existingRecommendation?->is_final) ? 1 : 0),
+                'finalized_at' => $isFinalSave ? now() : ($existingRecommendation->finalized_at ?? null),
+            ];
+            foreach ($recommendationOptionalColumns as $column => $value) {
+                if (Schema::hasColumn('recommendation', $column)) {
+                    $recommendationPayload[$column] = $value;
+                }
+            }
+        }
         $this->upsertSurveillanceChildRow('recommendation', 'recommendation_id', $surveillanceId, $employeeId, $recommendationPayload);
 
         $sectionStatuses = $this->surveillanceSectionStatusesFromRequest($request);
@@ -1416,6 +2282,8 @@ class PanelController extends Controller
                 'sectionStatuses' => $sectionStatuses,
                 'employee_id' => $employeeId,
                 'company_id' => $companyId,
+                'readOnly' => $isFinalSave || $this->isRecommendationFinalized($existingRecommendation),
+                'save_mode' => $isFinalSave ? 'final' : 'draft',
             ]
         );
     }
@@ -1695,6 +2563,291 @@ class PanelController extends Controller
         ];
     }
 
+    protected function dashboardContext(int $clinicId): array
+    {
+        try {
+            $companyCount = Schema::hasTable('company')
+                ? $this->dashboardCompaniesQuery($clinicId)->count()
+                : 0;
+
+            $patientCount = Schema::hasTable('employee')
+                ? $this->dashboardEmployeesQuery($clinicId)->count()
+                : 0;
+
+            $surveillanceCount = Schema::hasTable('declaration')
+                ? $this->dashboardDeclarationsQuery($clinicId)->count()
+                : 0;
+
+            $audiometryCount = Schema::hasTable('audiometry_test')
+                ? $this->dashboardAudiometryQuery($clinicId)->count()
+                : 0;
+
+            $pendingDeclarationCount = Schema::hasTable('declaration')
+                ? (clone $this->dashboardDeclarationsQuery($clinicId))
+                    ->where(function ($query) {
+                        $query->whereNull('declaration.employee_signature')
+                            ->orWhere('declaration.employee_signature', '')
+                            ->orWhereNull('declaration.employee_date')
+                            ->orWhereNull('declaration.doctor_signature')
+                            ->orWhere('declaration.doctor_signature', '')
+                            ->orWhereNull('declaration.doctor_date');
+                    })
+                    ->count()
+                : 0;
+
+            $incompleteExamCount = Schema::hasTable('declaration')
+                ? (clone $this->dashboardDeclarationsQuery($clinicId))
+                    ->leftJoin('chemical_information', 'chemical_information.surveillance_id', '=', 'declaration.surveillance_id')
+                    ->leftJoin('recommendation', 'recommendation.surveillance_id', '=', 'declaration.surveillance_id')
+                    ->where(function ($query) {
+                        $query->whereNull('declaration.surveillance_id')
+                            ->orWhereNull('chemical_information.surveillance_id')
+                            ->orWhereNull('recommendation.surveillance_id');
+                    })
+                    ->count()
+                : 0;
+
+            $completedSurveillanceCount = Schema::hasTable('declaration')
+                ? (clone $this->dashboardDeclarationsQuery($clinicId))
+                    ->whereNotNull('declaration.employee_signature')
+                    ->where('declaration.employee_signature', '!=', '')
+                    ->whereNotNull('declaration.doctor_signature')
+                    ->where('declaration.doctor_signature', '!=', '')
+                    ->whereNotNull('declaration.surveillance_id')
+                    ->count()
+                : 0;
+
+            $recentCompanies = Schema::hasTable('company')
+                ? $this->dashboardCompaniesQuery($clinicId)
+                    ->select([
+                        'company.company_id',
+                        'company.company_name',
+                        'company.company_module',
+                        'company.total_workers',
+                        'company.company_email',
+                    ])
+                    ->orderByDesc('company.company_id')
+                    ->limit(4)
+                    ->get()
+                : collect();
+
+            $recentPatients = Schema::hasTable('employee')
+                ? $this->dashboardEmployeesQuery($clinicId)
+                    ->select([
+                        'employee.employee_id',
+                        'employee.employee_firstName',
+                        'employee.employee_lastName',
+                        'employee.employee_NRIC',
+                        'employee.employee_passportNo',
+                        'employee.employee_telephone',
+                    ])
+                    ->orderByDesc('employee.employee_id')
+                    ->limit(4)
+                    ->get()
+                : collect();
+
+            $recentSurveillance = Schema::hasTable('declaration')
+                ? (clone $this->dashboardDeclarationsQuery($clinicId))
+                    ->select([
+                        'declaration.declaration_id',
+                        'declaration.surveillance_id',
+                        'declaration.employee_date',
+                        'declaration.doctor_date',
+                        'declaration.employee_signature',
+                        'declaration.doctor_signature',
+                        'company.company_name',
+                        'employee.employee_firstName',
+                        'employee.employee_lastName',
+                    ])
+                    ->orderByDesc('declaration.declaration_id')
+                    ->limit(4)
+                    ->get()
+                : collect();
+
+            $recentAudiometry = Schema::hasTable('audiometry_test')
+                ? (clone $this->dashboardAudiometryQuery($clinicId))
+                    ->select([
+                        'audiometry_test.audiometry_id',
+                        'audiometry_test.audioTest_date',
+                        'company.company_name',
+                        'employee.employee_firstName',
+                        'employee.employee_lastName',
+                    ])
+                    ->orderByDesc('audiometry_test.audiometry_id')
+                    ->limit(4)
+                    ->get()
+                : collect();
+
+            $incompleteRecords = Schema::hasTable('declaration')
+                ? (clone $this->dashboardDeclarationsQuery($clinicId))
+                    ->leftJoin('chemical_information', 'chemical_information.surveillance_id', '=', 'declaration.surveillance_id')
+                    ->leftJoin('recommendation', 'recommendation.surveillance_id', '=', 'declaration.surveillance_id')
+                    ->select([
+                        'declaration.declaration_id',
+                        'declaration.surveillance_id',
+                        'declaration.employee_id',
+                        'declaration.company_id',
+                        'declaration.employee_date',
+                        'declaration.doctor_date',
+                        'declaration.employee_signature',
+                        'declaration.doctor_signature',
+                        'company.company_name',
+                        'employee.employee_firstName',
+                        'employee.employee_lastName',
+                        'chemical_information.surveillance_id as has_chemical',
+                        'recommendation.surveillance_id as has_recommendation',
+                    ])
+                    ->where(function ($query) {
+                        $query->whereNull('declaration.employee_signature')
+                            ->orWhere('declaration.employee_signature', '')
+                            ->orWhereNull('declaration.doctor_signature')
+                            ->orWhere('declaration.doctor_signature', '')
+                            ->orWhereNull('declaration.surveillance_id')
+                            ->orWhereNull('chemical_information.surveillance_id')
+                            ->orWhereNull('recommendation.surveillance_id');
+                    })
+                    ->orderByDesc('declaration.declaration_id')
+                    ->limit(8)
+                    ->get()
+                    ->map(function ($row) {
+                        $patientName = trim(((string) ($row->employee_firstName ?? '')) . ' ' . ((string) ($row->employee_lastName ?? '')));
+                        $hasPatientSignature = ! empty($row->employee_signature);
+                        $hasDoctorSignature = ! empty($row->doctor_signature);
+                        $hasExam = ! empty($row->surveillance_id) && ! empty($row->has_chemical);
+                        $hasRecommendation = ! empty($row->has_recommendation);
+
+                        if (! $hasPatientSignature || ! $hasDoctorSignature) {
+                            $step = 'Declaration';
+                        } elseif (! $hasExam) {
+                            $step = 'Examination';
+                        } elseif (! $hasRecommendation) {
+                            $step = 'Recommendation';
+                        } else {
+                            $step = 'Review';
+                        }
+
+                        return [
+                            'module' => 'Surveillance',
+                            'patient_name' => $patientName !== '' ? $patientName : 'Not set',
+                            'company_name' => (string) ($row->company_name ?? '-'),
+                            'current_step' => $step,
+                            'last_updated' => (string) ($row->employee_date ?: $row->doctor_date ?: ('#SUR' . $row->declaration_id)),
+                            'action_url' => ! empty($row->declaration_id)
+                                ? route('surveillance.record.edit', ['declaration' => $row->declaration_id])
+                                : route('surveillance.declaration', array_filter([
+                                    'company_id' => $row->company_id ?? null,
+                                    'employee_id' => $row->employee_id ?? null,
+                                ])),
+                        ];
+                    })
+                : collect();
+        } catch (QueryException $exception) {
+            $companyCount = 0;
+            $patientCount = 0;
+            $surveillanceCount = 0;
+            $audiometryCount = 0;
+            $pendingDeclarationCount = 0;
+            $incompleteExamCount = 0;
+            $completedSurveillanceCount = 0;
+            $recentCompanies = collect();
+            $recentPatients = collect();
+            $recentSurveillance = collect();
+            $recentAudiometry = collect();
+            $incompleteRecords = collect();
+        }
+
+        return [
+            'dashboardStats' => [
+                'company_total' => $companyCount,
+                'patient_total' => $patientCount,
+                'surveillance_total' => $surveillanceCount,
+                'audiometry_total' => $audiometryCount,
+                'pending_total' => $pendingDeclarationCount + $incompleteExamCount,
+            ],
+            'dashboardActionItems' => [
+                [
+                    'label' => 'Pending declarations',
+                    'count' => $pendingDeclarationCount,
+                    'note' => 'Patients or doctors still need to complete signatures.',
+                ],
+                [
+                    'label' => 'Incomplete examinations',
+                    'count' => $incompleteExamCount,
+                    'note' => 'Surveillance forms started but not fully completed.',
+                ],
+                [
+                    'label' => 'Completed surveillance',
+                    'count' => $completedSurveillanceCount,
+                    'note' => 'Records ready for review and follow-up reporting.',
+                ],
+                [
+                    'label' => 'Audiometry records',
+                    'count' => $audiometryCount,
+                    'note' => 'Audiometry activity stored under this clinic.',
+                ],
+            ],
+            'recentCompanies' => $recentCompanies,
+            'recentPatients' => $recentPatients,
+            'recentSurveillance' => $recentSurveillance,
+            'recentAudiometry' => $recentAudiometry,
+            'dashboardIncompleteRecords' => $incompleteRecords,
+        ];
+    }
+
+    protected function dashboardCompaniesQuery(int $clinicId)
+    {
+        $query = DB::table('company');
+        if ($clinicId > 0 && Schema::hasColumn('company', 'clinic_id')) {
+            $query->where('company.clinic_id', $clinicId);
+        }
+
+        return $query;
+    }
+
+    protected function dashboardEmployeesQuery(int $clinicId)
+    {
+        $query = DB::table('employee');
+        if ($clinicId > 0 && Schema::hasColumn('employee', 'clinic_id')) {
+            $query->where('employee.clinic_id', $clinicId);
+        }
+
+        return $query;
+    }
+
+    protected function dashboardDeclarationsQuery(int $clinicId)
+    {
+        $query = DB::table('declaration')
+            ->leftJoin('company', 'company.company_id', '=', 'declaration.company_id')
+            ->leftJoin('employee', 'employee.employee_id', '=', 'declaration.employee_id');
+
+        if ($clinicId > 0) {
+            if (Schema::hasColumn('company', 'clinic_id')) {
+                $query->where('company.clinic_id', $clinicId);
+            } elseif (Schema::hasColumn('employee', 'clinic_id')) {
+                $query->where('employee.clinic_id', $clinicId);
+            }
+        }
+
+        return $query;
+    }
+
+    protected function dashboardAudiometryQuery(int $clinicId)
+    {
+        $query = DB::table('audiometry_test')
+            ->leftJoin('company', 'company.company_id', '=', 'audiometry_test.company_id')
+            ->leftJoin('employee', 'employee.employee_id', '=', 'audiometry_test.employee_id');
+
+        if ($clinicId > 0) {
+            if (Schema::hasColumn('company', 'clinic_id')) {
+                $query->where('company.clinic_id', $clinicId);
+            } elseif (Schema::hasColumn('employee', 'clinic_id')) {
+                $query->where('employee.clinic_id', $clinicId);
+            }
+        }
+
+        return $query;
+    }
+
     protected function requirePanelUser(Request $request): User|RedirectResponse
     {
         $user = $this->resolvePanelUser($request);
@@ -1960,6 +3113,13 @@ class PanelController extends Controller
         return '+' . $normalizedCode . $normalizedNumber;
     }
 
+    protected function nullableTrim(mixed $value): ?string
+    {
+        $trimmed = trim((string) $value);
+
+        return $trimmed !== '' ? $trimmed : null;
+    }
+
     protected function splitCountryCodeNumber(?string $value, string $defaultCode = '60'): array
     {
         $value = trim((string) $value);
@@ -1983,10 +3143,68 @@ class PanelController extends Controller
 
     protected function linkedDoctorRecord(User $user): ?object
     {
-        return DB::table('doctor')
+        $query = DB::table('doctor')
             ->where('doctor_email', (string) $user->email)
-            ->orWhere('doctor_username', (string) $user->username)
-            ->first();
+            ->orWhere('doctor_username', (string) $user->username);
+
+        if (Schema::hasColumn('doctor', 'doctor_status')) {
+            $query->where('doctor_status', 'active');
+        }
+
+        return $query->first();
+    }
+
+    protected function resolvedSurveillanceDoctorRecord(Request $request, ?User $user, ?object $declaration = null): ?object
+    {
+        if (! Schema::hasTable('doctor')) {
+            return null;
+        }
+
+        if (! empty($declaration?->doctor_id)) {
+            $doctor = $this->findDoctor((int) $declaration->doctor_id);
+            if ($doctor && (! Schema::hasColumn('doctor', 'doctor_status') || (string) ($doctor->doctor_status ?? '') === 'active')) {
+                return $doctor;
+            }
+        }
+
+        if ($user) {
+            $doctor = $this->linkedDoctorRecord($user);
+            if ($doctor) {
+                return $doctor;
+            }
+        }
+
+        $activeClinicId = (int) $request->session()->get('active_clinic_id', 0);
+        if ($activeClinicId > 0 && Schema::hasTable('clinic') && Schema::hasColumn('clinic', 'doctor_id')) {
+            $doctorId = (int) DB::table('clinic')
+                ->where('clinic_id', $activeClinicId)
+                ->value('doctor_id');
+
+            if ($doctorId > 0) {
+                $doctor = $this->findDoctor($doctorId);
+                if ($doctor) {
+                    return $doctor;
+                }
+            }
+        }
+
+        if (Schema::hasColumn('doctor', 'doctor_sign')) {
+            $activeSignedDoctor = DB::table('doctor')
+                ->when(
+                    Schema::hasColumn('doctor', 'doctor_status'),
+                    static fn ($query) => $query->where('doctor_status', 'active')
+                )
+                ->whereNotNull('doctor_sign')
+                ->where('doctor_sign', '!=', '')
+                ->orderByDesc('doctor_id')
+                ->first();
+
+            if ($activeSignedDoctor) {
+                return $activeSignedDoctor;
+            }
+        }
+
+        return null;
     }
 
     protected function findClinic(int $clinicId): ?object
@@ -2032,6 +3250,498 @@ class PanelController extends Controller
             ->select($columns)
             ->where('doctor_id', $doctorId)
             ->first();
+    }
+
+    protected function findCompany(Request $request, int $companyId): ?object
+    {
+        if (! Schema::hasTable('company')) {
+            return null;
+        }
+
+        $columns = [
+            'company_id',
+            'company_name',
+            'mykpp_registration_no',
+            'company_address',
+            'company_postcode',
+            'company_district',
+            'company_state',
+            'company_telephone',
+            'company_email',
+            'company_fax',
+            'total_workers',
+        ];
+
+        if (Schema::hasColumn('company', 'clinic_id')) {
+            $columns[] = 'clinic_id';
+        }
+
+        if (Schema::hasColumn('company', 'company_module')) {
+            $columns[] = 'company_module';
+        }
+
+        $query = DB::table('company')
+            ->select($columns)
+            ->where('company_id', $companyId);
+
+        $clinicId = (int) $request->session()->get('active_clinic_id', 0);
+        if ($clinicId > 0 && Schema::hasColumn('company', 'clinic_id')) {
+            $query->where('clinic_id', $clinicId);
+        }
+
+        return $query->first();
+    }
+
+    protected function findSurveillancePatient(Request $request, int $employeeId, ?object $selectedCompany = null): ?object
+    {
+        if ($employeeId <= 0 || ! Schema::hasTable('employee')) {
+            return null;
+        }
+
+        $query = DB::table('employee')->where('employee_id', $employeeId);
+
+        $clinicId = (int) $request->session()->get('active_clinic_id', 0);
+        if ($clinicId > 0 && Schema::hasColumn('employee', 'clinic_id')) {
+            $query->where('clinic_id', $clinicId);
+        }
+
+        $patient = $query->first();
+        if (! $patient) {
+            return null;
+        }
+
+        if ($selectedCompany === null) {
+            return $patient;
+        }
+
+        if (Schema::hasColumn('employee', 'company_id') && (int) ($patient->company_id ?? 0) === (int) $selectedCompany->company_id) {
+            return $patient;
+        }
+
+        if (Schema::hasTable('occupational_history')) {
+            $belongsToCompany = DB::table('occupational_history')
+                ->where('employee_id', $employeeId)
+                ->where('company_name', (string) $selectedCompany->company_name)
+                ->exists();
+
+            if ($belongsToCompany) {
+                return $patient;
+            }
+        }
+
+        return null;
+    }
+
+    protected function surveillancePatientPageContext(Request $request, int $employeeId): ?array
+    {
+        $companyId = (int) $request->input('company_id', $request->query('company_id', 0));
+        $selectedCompany = $companyId > 0 ? $this->findCompany($request, $companyId) : null;
+        $patientRecord = $this->findSurveillancePatient($request, $employeeId, $selectedCompany);
+
+        if (! $patientRecord) {
+            return null;
+        }
+
+        if ($selectedCompany === null && Schema::hasColumn('employee', 'company_id') && (int) ($patientRecord->company_id ?? 0) > 0) {
+            $selectedCompany = $this->findCompany($request, (int) $patientRecord->company_id);
+        }
+
+        $occupationalRows = collect();
+        if (Schema::hasTable('occupational_history')) {
+            $occupationalQuery = DB::table('occupational_history')
+                ->where('employee_id', $employeeId);
+
+            if (Schema::hasColumn('occupational_history', 'surveillance_id')) {
+                $occupationalQuery->whereNull('surveillance_id');
+            }
+
+            if (Schema::hasColumn('occupational_history', 'occupHistory_id')) {
+                $occupationalQuery->orderBy('occupHistory_id');
+            }
+
+            $occupationalRows = $occupationalQuery->get();
+        }
+
+        $currentOccupational = $occupationalRows->first(function ($row) use ($selectedCompany) {
+            return $selectedCompany
+                && strcasecmp(trim((string) ($row->company_name ?? '')), trim((string) ($selectedCompany->company_name ?? ''))) === 0;
+        }) ?: $occupationalRows->first();
+
+        $pastOccupationalRows = $occupationalRows->values();
+        if ($currentOccupational) {
+            $pastOccupationalRows = $occupationalRows
+                ->reject(static fn ($row) => (int) ($row->occupHistory_id ?? 0) === (int) ($currentOccupational->occupHistory_id ?? 0))
+                ->values();
+        }
+
+        $medicalHistory = null;
+        if (Schema::hasTable('medical_history')) {
+            $medicalHistoryQuery = DB::table('medical_history')->where('employee_id', $employeeId);
+            if (Schema::hasColumn('medical_history', 'surveillance_id')) {
+                $medicalHistoryQuery->whereNull('surveillance_id');
+            }
+            if (Schema::hasColumn('medical_history', 'medHistory_id')) {
+                $medicalHistoryQuery->orderByDesc('medHistory_id');
+            }
+            $medicalHistory = $medicalHistoryQuery->first();
+        }
+
+        $personalHistory = null;
+        if (Schema::hasTable('personal_social_history')) {
+            $personalHistoryQuery = DB::table('personal_social_history')->where('employee_id', $employeeId);
+            if (Schema::hasColumn('personal_social_history', 'surveillance_id')) {
+                $personalHistoryQuery->whereNull('surveillance_id');
+            }
+            if (Schema::hasColumn('personal_social_history', 'perSocHistory_id')) {
+                $personalHistoryQuery->orderByDesc('perSocHistory_id');
+            }
+            $personalHistory = $personalHistoryQuery->first();
+        }
+
+        $trainingHistory = null;
+        if (Schema::hasTable('training_history')) {
+            $trainingHistoryQuery = DB::table('training_history')->where('employee_id', $employeeId);
+            if (Schema::hasColumn('training_history', 'surveillance_id')) {
+                $trainingHistoryQuery->whereNull('surveillance_id');
+            }
+            if (Schema::hasColumn('training_history', 'trainingHistory_id')) {
+                $trainingHistoryQuery->orderByDesc('trainingHistory_id');
+            }
+            $trainingHistory = $trainingHistoryQuery->first();
+        }
+
+        return [
+            'selectedCompany' => $selectedCompany,
+            'patientRecord' => $patientRecord,
+            'patientFormData' => $this->surveillancePatientFormDefaults($patientRecord, $selectedCompany, $medicalHistory, $currentOccupational, $pastOccupationalRows, $personalHistory, $trainingHistory),
+            'returnTo' => $this->surveillancePatientReturnUrl($request, (int) ($selectedCompany->company_id ?? 0)),
+        ];
+    }
+
+    protected function surveillancePatientReturnUrl(Request $request, int $companyId = 0): string
+    {
+        $returnTo = trim((string) $request->input('return_to', $request->query('return_to', '')));
+        if ($returnTo !== '') {
+            $parts = parse_url($returnTo);
+            $host = strtolower((string) ($parts['host'] ?? ''));
+            $requestHost = strtolower((string) $request->getHost());
+
+            if ($host === '' || $host === $requestHost) {
+                return $returnTo;
+            }
+        }
+
+        return route('surveillance.patient', array_filter(['company_id' => $companyId > 0 ? $companyId : null]));
+    }
+
+    protected function surveillancePatientFormDefaults(?object $patient, ?object $selectedCompany, ?object $medicalHistory, ?object $currentOccupational, $pastOccupationalRows, ?object $personalHistory, ?object $trainingHistory): array
+    {
+        [$phoneCode, $phoneNumber] = $this->splitCountryCodeNumber((string) ($patient->employee_telephone ?? ''), '60');
+
+        $pastRows = collect($pastOccupationalRows)->values();
+
+        return [
+            'company_id' => (string) ($selectedCompany->company_id ?? ''),
+            'employee_firstName' => (string) ($patient->employee_firstName ?? ''),
+            'employee_lastName' => (string) ($patient->employee_lastName ?? ''),
+            'employee_NRIC' => (string) ($patient->employee_NRIC ?? ''),
+            'employee_passportNo' => (string) ($patient->employee_passportNo ?? ''),
+            'employee_DOB' => (string) ($patient->employee_DOB ?? ''),
+            'employee_gender' => (string) ($patient->employee_gender ?? ''),
+            'employee_address' => (string) ($patient->employee_address ?? ''),
+            'employee_postcode' => (string) ($patient->employee_postcode ?? ''),
+            'employee_district' => (string) ($patient->employee_district ?? ''),
+            'employee_state' => (string) ($patient->employee_state ?? ''),
+            'employee_phone_code' => '+' . ltrim((string) $phoneCode, '+'),
+            'employee_telephone' => (string) $phoneNumber,
+            'employee_email' => (string) ($patient->employee_email ?? ''),
+            'employee_ethnicity' => (string) ($patient->employee_ethnicity ?? ''),
+            'employee_citizenship' => (string) ($patient->employee_citizenship ?? ''),
+            'employee_martialStatus' => (string) ($patient->employee_martialStatus ?? ''),
+            'employee_ethnicity_other' => '',
+            'employee_citizenship_other' => '',
+            'employee_martial_other' => '',
+            'no_of_children' => (string) ($patient->no_of_children ?? ''),
+            'years_married' => (string) ($patient->years_married ?? ''),
+            'diagnosed_history' => (string) ($medicalHistory->diagnosed_history ?? ''),
+            'medication_history' => (string) ($medicalHistory->medication_history ?? ''),
+            'admitted_history' => (string) ($medicalHistory->admitted_history ?? ''),
+            'family_history' => (string) ($medicalHistory->family_history ?? ''),
+            'others_history' => (string) ($medicalHistory->others_history ?? ''),
+            'current_job_title' => (string) ($currentOccupational->job_title ?? ''),
+            'current_company_name' => (string) ($selectedCompany->company_name ?? ($currentOccupational->company_name ?? '')),
+            'current_employment_duration' => (string) ($currentOccupational->employment_duration ?? ''),
+            'current_chemical_exposure_duration' => (string) ($currentOccupational->chemical_exposure_duration ?? ''),
+            'current_chemical_exposure_incidents' => (string) ($currentOccupational->chemical_exposure_incidents ?? ''),
+            'occup_job_title' => $pastRows->pluck('job_title')->map(static fn ($value) => (string) $value)->all(),
+            'occup_company_name' => $pastRows->pluck('company_name')->map(static fn ($value) => (string) $value)->all(),
+            'employment_duration' => $pastRows->pluck('employment_duration')->map(static fn ($value) => (string) $value)->all(),
+            'chemical_exposure_duration' => $pastRows->pluck('chemical_exposure_duration')->map(static fn ($value) => (string) $value)->all(),
+            'chemical_exposure_incidents' => $pastRows->pluck('chemical_exposure_incidents')->map(static fn ($value) => (string) $value)->all(),
+            'smoking_history' => (string) ($personalHistory->smoking_history ?? ''),
+            'years_of_smoking' => (string) ($personalHistory->years_of_smoking ?? ''),
+            'no_of_cigarettes' => (string) ($personalHistory->no_of_cigarettes ?? ''),
+            'vaping_history' => (string) ($personalHistory->vaping_history ?? ''),
+            'years_of_vaping' => (string) ($personalHistory->years_of_vaping ?? ''),
+            'hobby' => (string) ($personalHistory->hobby ?? ''),
+            'handling_of_chemical' => (string) ($trainingHistory->handling_of_chemical ?? ''),
+            'chemical_comments' => (string) ($trainingHistory->chemical_comments ?? ''),
+            'sign_symptoms' => (string) ($trainingHistory->sign_symptoms ?? ''),
+            'sign_comments' => (string) ($trainingHistory->sign_comments ?? ''),
+            'chemical_poisoning' => (string) ($trainingHistory->chemical_poisoning ?? ''),
+            'poisoning_comments' => (string) ($trainingHistory->poisoning_comments ?? ''),
+            'proper_PPE' => (string) ($trainingHistory->proper_PPE ?? ''),
+            'proper_comments' => (string) ($trainingHistory->proper_comments ?? ''),
+            'PPE_usage' => (string) ($trainingHistory->PPE_usage ?? ''),
+            'usage_comments' => (string) ($trainingHistory->usage_comments ?? ''),
+        ];
+    }
+
+    protected function validateSurveillancePatientRequest(Request $request): array
+    {
+        return $request->validate([
+            'company_id' => ['nullable', 'integer'],
+            'employee_firstName' => ['required', 'string', 'max:100'],
+            'employee_lastName' => ['required', 'string', 'max:100'],
+            'employee_NRIC' => ['nullable', 'string', 'max:20', 'required_without:employee_passportNo'],
+            'employee_passportNo' => ['nullable', 'string', 'max:30', 'required_without:employee_NRIC'],
+            'employee_DOB' => ['nullable', 'date'],
+            'employee_gender' => ['nullable', 'in:Male,Female'],
+            'employee_address' => ['nullable', 'string', 'max:255'],
+            'employee_postcode' => ['nullable', 'string', 'max:10'],
+            'employee_district' => ['nullable', 'string', 'max:100'],
+            'employee_state' => ['nullable', 'string', 'max:100'],
+            'employee_phone_code' => ['required', 'string', 'max:10'],
+            'employee_telephone' => ['required', 'string', 'max:20'],
+            'employee_email' => ['nullable', 'email', 'max:150'],
+            'employee_ethnicity' => ['nullable', 'string', 'max:50'],
+            'employee_citizenship' => ['nullable', 'string', 'max:50'],
+            'employee_martialStatus' => ['nullable', 'string', 'max:50'],
+            'no_of_children' => ['nullable', 'integer', 'min:0'],
+            'years_married' => ['nullable', 'integer', 'min:0'],
+            'diagnosed_history' => ['nullable', 'string'],
+            'medication_history' => ['nullable', 'string'],
+            'admitted_history' => ['nullable', 'string'],
+            'family_history' => ['nullable', 'string'],
+            'others_history' => ['nullable', 'string'],
+            'current_job_title' => ['nullable', 'string', 'max:150'],
+            'current_company_name' => ['nullable', 'string', 'max:150'],
+            'current_employment_duration' => ['nullable', 'string', 'max:100'],
+            'current_chemical_exposure_duration' => ['nullable', 'string', 'max:100'],
+            'current_chemical_exposure_incidents' => ['nullable', 'string'],
+            'occup_job_title' => ['array'],
+            'occup_job_title.*' => ['nullable', 'string', 'max:150'],
+            'occup_company_name' => ['array'],
+            'occup_company_name.*' => ['nullable', 'string', 'max:150'],
+            'employment_duration' => ['array'],
+            'employment_duration.*' => ['nullable', 'string', 'max:100'],
+            'chemical_exposure_duration' => ['array'],
+            'chemical_exposure_duration.*' => ['nullable', 'string', 'max:100'],
+            'chemical_exposure_incidents' => ['array'],
+            'chemical_exposure_incidents.*' => ['nullable', 'string'],
+            'smoking_history' => ['nullable', 'string', 'max:50'],
+            'years_of_smoking' => ['nullable', 'integer', 'min:0'],
+            'no_of_cigarettes' => ['nullable', 'integer', 'min:0'],
+            'vaping_history' => ['nullable', 'string', 'max:10'],
+            'years_of_vaping' => ['nullable', 'integer', 'min:0'],
+            'hobby' => ['nullable', 'string'],
+            'handling_of_chemical' => ['nullable', 'string', 'max:10'],
+            'chemical_comments' => ['nullable', 'string'],
+            'sign_symptoms' => ['nullable', 'string', 'max:10'],
+            'sign_comments' => ['nullable', 'string'],
+            'chemical_poisoning' => ['nullable', 'string', 'max:10'],
+            'poisoning_comments' => ['nullable', 'string'],
+            'proper_PPE' => ['nullable', 'string', 'max:10'],
+            'proper_comments' => ['nullable', 'string'],
+            'PPE_usage' => ['nullable', 'string', 'max:10'],
+            'usage_comments' => ['nullable', 'string'],
+        ]);
+    }
+
+    protected function surveillancePatientEmployeePayload(array $validated, Request $request, ?object $selectedCompany = null): array
+    {
+        $clinicId = (int) $request->session()->get('active_clinic_id', 0);
+
+        $payload = [
+            'employee_firstName' => trim((string) $validated['employee_firstName']),
+            'employee_lastName' => trim((string) $validated['employee_lastName']),
+            'employee_NRIC' => $this->nullableTrim($validated['employee_NRIC'] ?? null),
+            'employee_passportNo' => $this->nullableTrim($validated['employee_passportNo'] ?? null),
+            'employee_DOB' => $validated['employee_DOB'] ?? null,
+            'employee_gender' => $validated['employee_gender'] ?? null,
+            'employee_address' => $this->nullableTrim($validated['employee_address'] ?? null),
+            'employee_postcode' => $this->nullableTrim($validated['employee_postcode'] ?? null),
+            'employee_district' => $this->nullableTrim($validated['employee_district'] ?? null),
+            'employee_state' => $this->nullableTrim($validated['employee_state'] ?? null),
+            'employee_telephone' => $this->buildCountryCodeNumber($validated['employee_phone_code'] ?? null, $validated['employee_telephone'] ?? null),
+            'employee_email' => $this->nullableTrim($validated['employee_email'] ?? null),
+            'employee_ethnicity' => $this->nullableTrim($validated['employee_ethnicity'] ?? null),
+            'employee_citizenship' => $this->nullableTrim($validated['employee_citizenship'] ?? null),
+            'employee_martialStatus' => $this->nullableTrim($validated['employee_martialStatus'] ?? null),
+            'no_of_children' => $validated['no_of_children'] ?? null,
+            'years_married' => $validated['years_married'] ?? null,
+        ];
+
+        if ($clinicId > 0 && Schema::hasColumn('employee', 'clinic_id')) {
+            $payload['clinic_id'] = $clinicId;
+        }
+
+        if (Schema::hasColumn('employee', 'company_id')) {
+            $payload['company_id'] = $selectedCompany ? (int) $selectedCompany->company_id : null;
+        }
+
+        return $payload;
+    }
+
+    protected function syncSurveillancePatientSupportingData(int $employeeId, array $validated, ?object $selectedCompany = null): void
+    {
+        if (Schema::hasTable('medical_history')) {
+            DB::table('medical_history')
+                ->where('employee_id', $employeeId)
+                ->when(Schema::hasColumn('medical_history', 'surveillance_id'), fn ($query) => $query->whereNull('surveillance_id'))
+                ->delete();
+
+            DB::table('medical_history')->insert([
+                'diagnosed_history' => $this->nullableTrim($validated['diagnosed_history'] ?? null),
+                'medication_history' => $this->nullableTrim($validated['medication_history'] ?? null),
+                'admitted_history' => $this->nullableTrim($validated['admitted_history'] ?? null),
+                'family_history' => $this->nullableTrim($validated['family_history'] ?? null),
+                'others_history' => $this->nullableTrim($validated['others_history'] ?? null),
+                'employee_id' => $employeeId,
+                'surveillance_id' => null,
+            ]);
+        }
+
+        if (Schema::hasTable('occupational_history')) {
+            DB::table('occupational_history')
+                ->where('employee_id', $employeeId)
+                ->when(Schema::hasColumn('occupational_history', 'surveillance_id'), fn ($query) => $query->whereNull('surveillance_id'))
+                ->delete();
+
+            $currentPayload = [
+                'job_title' => $this->nullableTrim($validated['current_job_title'] ?? null),
+                'company_name' => $this->nullableTrim($selectedCompany->company_name ?? ($validated['current_company_name'] ?? null)),
+                'employment_duration' => $this->nullableTrim($validated['current_employment_duration'] ?? null),
+                'chemical_exposure_duration' => $this->nullableTrim($validated['current_chemical_exposure_duration'] ?? null),
+                'chemical_exposure_incidents' => $this->nullableTrim($validated['current_chemical_exposure_incidents'] ?? null),
+                'employee_id' => $employeeId,
+                'surveillance_id' => null,
+            ];
+
+            if (implode('', array_map(static fn ($value) => (string) ($value ?? ''), $currentPayload)) !== '') {
+                DB::table('occupational_history')->insert($currentPayload);
+            }
+
+            $jobTitles = $validated['occup_job_title'] ?? [];
+            $companyNames = $validated['occup_company_name'] ?? [];
+            $employmentDurations = $validated['employment_duration'] ?? [];
+            $exposureDurations = $validated['chemical_exposure_duration'] ?? [];
+            $exposureIncidents = $validated['chemical_exposure_incidents'] ?? [];
+
+            $rowCount = max(count($jobTitles), count($companyNames), count($employmentDurations), count($exposureDurations), count($exposureIncidents));
+
+            for ($index = 0; $index < $rowCount; $index++) {
+                $payload = [
+                    'job_title' => $this->nullableTrim($jobTitles[$index] ?? null),
+                    'company_name' => $this->nullableTrim($companyNames[$index] ?? null),
+                    'employment_duration' => $this->nullableTrim($employmentDurations[$index] ?? null),
+                    'chemical_exposure_duration' => $this->nullableTrim($exposureDurations[$index] ?? null),
+                    'chemical_exposure_incidents' => $this->nullableTrim($exposureIncidents[$index] ?? null),
+                ];
+
+                if (implode('', array_map(static fn ($value) => (string) ($value ?? ''), $payload)) === '') {
+                    continue;
+                }
+
+                DB::table('occupational_history')->insert($payload + [
+                    'employee_id' => $employeeId,
+                    'surveillance_id' => null,
+                ]);
+            }
+        }
+
+        if (Schema::hasTable('personal_social_history')) {
+            DB::table('personal_social_history')
+                ->where('employee_id', $employeeId)
+                ->when(Schema::hasColumn('personal_social_history', 'surveillance_id'), fn ($query) => $query->whereNull('surveillance_id'))
+                ->delete();
+
+            DB::table('personal_social_history')->insert([
+                'smoking_history' => $this->nullableTrim($validated['smoking_history'] ?? null),
+                'years_of_smoking' => $validated['years_of_smoking'] ?? null,
+                'no_of_cigarettes' => $validated['no_of_cigarettes'] ?? null,
+                'vaping_history' => $this->nullableTrim($validated['vaping_history'] ?? null),
+                'years_of_vaping' => $validated['years_of_vaping'] ?? null,
+                'hobby' => $this->nullableTrim($validated['hobby'] ?? null),
+                'employee_id' => $employeeId,
+                'surveillance_id' => null,
+            ]);
+        }
+
+        if (Schema::hasTable('training_history')) {
+            DB::table('training_history')
+                ->where('employee_id', $employeeId)
+                ->when(Schema::hasColumn('training_history', 'surveillance_id'), fn ($query) => $query->whereNull('surveillance_id'))
+                ->delete();
+
+            DB::table('training_history')->insert([
+                'handling_of_chemical' => $this->nullableTrim($validated['handling_of_chemical'] ?? null),
+                'chemical_comments' => $this->nullableTrim($validated['chemical_comments'] ?? null),
+                'sign_symptoms' => $this->nullableTrim($validated['sign_symptoms'] ?? null),
+                'sign_comments' => $this->nullableTrim($validated['sign_comments'] ?? null),
+                'chemical_poisoning' => $this->nullableTrim($validated['chemical_poisoning'] ?? null),
+                'poisoning_comments' => $this->nullableTrim($validated['poisoning_comments'] ?? null),
+                'proper_PPE' => $this->nullableTrim($validated['proper_PPE'] ?? null),
+                'proper_comments' => $this->nullableTrim($validated['proper_comments'] ?? null),
+                'PPE_usage' => $this->nullableTrim($validated['PPE_usage'] ?? null),
+                'usage_comments' => $this->nullableTrim($validated['usage_comments'] ?? null),
+                'employee_id' => $employeeId,
+                'surveillance_id' => null,
+            ]);
+        }
+    }
+
+    protected function companyReturnUrl(Request $request, ?object $record = null): string
+    {
+        $returnTo = trim((string) $request->input('return_to', $request->query('return_to', '')));
+        if ($returnTo !== '') {
+            $parts = parse_url($returnTo);
+            $host = strtolower((string) ($parts['host'] ?? ''));
+            $requestHost = strtolower((string) $request->getHost());
+
+            if ($host === '' || $host === $requestHost) {
+                return $returnTo;
+            }
+        }
+
+        $module = strtolower((string) ($record->company_module ?? ''));
+
+        if ($module === 'audiometry' && \Illuminate\Support\Facades\Route::has('audiometry.company')) {
+            return route('audiometry.company');
+        }
+
+        if ($module === 'surveillance' && \Illuminate\Support\Facades\Route::has('surveillance.company')) {
+            return route('surveillance.company');
+        }
+
+        return route('panel.company_list');
+    }
+
+    protected function companyFormDefaults(?object $record = null): array
+    {
+        return [
+            'company_name' => (string) ($record->company_name ?? ''),
+            'mykpp_registration_no' => (string) ($record->mykpp_registration_no ?? ''),
+            'company_address' => (string) ($record->company_address ?? ''),
+            'company_postcode' => (string) ($record->company_postcode ?? ''),
+            'company_district' => (string) ($record->company_district ?? ''),
+            'company_state' => (string) ($record->company_state ?? ''),
+            'company_telephone' => (string) ($record->company_telephone ?? ''),
+            'company_email' => (string) ($record->company_email ?? ''),
+            'company_fax' => (string) ($record->company_fax ?? ''),
+            'total_workers' => (string) ($record->total_workers ?? '0'),
+            'company_module' => (string) ($record->company_module ?? 'surveillance'),
+        ];
     }
 
     protected function doctorReferenceSummary(int $doctorId): array
@@ -2134,7 +3844,7 @@ class PanelController extends Controller
             'recommendationData' => $surveillanceId > 0 && Schema::hasTable('recommendation') ? DB::table('recommendation')->where('surveillance_id', $surveillanceId)->first() : null,
         ];
 
-        return view('surveillance.surveillance_examination', array_merge(
+        return view($readOnly ? 'surveillance.survList_view' : 'surveillance.survList_edit', array_merge(
             $this->buildViewData($request, $user),
             $context,
             [
@@ -2145,8 +3855,10 @@ class PanelController extends Controller
                 'surveillanceId' => $surveillanceId,
                 'doctor' => $doctor,
                 'sectionStatuses' => $this->surveillanceSectionStatusesFromModels($context),
-                'pageMode' => $readOnly ? 'view' : 'edit',
-                'readOnly' => $readOnly,
+                'pageMode' => ($readOnly || $this->isRecommendationFinalized($context['recommendationData'] ?? null)) ? 'view' : 'edit',
+                'readOnly' => $readOnly || $this->isRecommendationFinalized($context['recommendationData'] ?? null),
+                'showRecordTabs' => true,
+                'recordTabActive' => 'examination',
             ]
         ));
     }
@@ -2162,8 +3874,13 @@ class PanelController extends Controller
             return back()->withErrors(['surveillance' => (string) ($payload['error'] ?? 'Unable to save the surveillance examination.')])->withInput();
         }
 
+        if (($payload['save_mode'] ?? 'draft') === 'final') {
+            return redirect()->route('surveillance.record.view', ['declaration' => $payload['declaration_id']])
+                ->with('status', 'Surveillance examination saved and locked successfully.');
+        }
+
         return redirect()->route('surveillance.record.edit', ['declaration' => $payload['declaration_id']])
-            ->with('status', 'Surveillance examination saved successfully.');
+            ->with('status', 'Surveillance examination saved as draft successfully.');
     }
 
     protected function upsertSurveillanceRow(string $table, string $primaryKey, int $id, array $lookup, array $payload): int
@@ -2213,6 +3930,10 @@ class PanelController extends Controller
         $baselineLines = array_values(array_filter(preg_split('/\r\n|\r|\n/', trim((string) $request->input('baseline_results', ''))) ?: [], static fn ($line) => trim((string) $line) !== ''));
         $annualLines = array_values(array_filter(preg_split('/\r\n|\r|\n/', trim((string) $request->input('baseline_annual', ''))) ?: [], static fn ($line) => trim((string) $line) !== ''));
         $biologicalDone = ! empty($baselineLines) && count($baselineLines) === count($annualLines);
+        if (! $biologicalDone) {
+            $bloodResultFiles = (array) $request->file('blood_result_files', []);
+            $biologicalDone = count(array_filter($bloodResultFiles)) > 0;
+        }
 
         return [
             'chemical' => trim((string) $request->input('company_name', '')) !== '' && trim((string) $request->input('chemicals', '')) !== '' && trim((string) $request->input('examination_type', '')) !== '' && trim((string) $request->input('examination_date', '')) !== '',
@@ -2223,7 +3944,7 @@ class PanelController extends Controller
             'biological' => $biologicalDone,
             'respirator' => trim((string) $request->input('fitness_result', '')) !== '',
             'findings' => trim((string) $request->input('history_of_health', '')) !== '' && trim((string) $request->input('conclusion_fitness', '')) !== '',
-            'recommendation' => trim((string) $request->input('recommencation_type', '')) !== '' && trim((string) $request->input('MRPdate_start', '')) !== '' && trim((string) $request->input('MRPdate_end', '')) !== '' && trim((string) $request->input('nextReview_date', '')) !== '',
+            'recommendation' => (! empty(array_filter((array) $request->input('recommendation_types', []))) || trim((string) $request->input('recommendation_type_other', '')) !== '') && trim((string) $request->input('MRPdate_start', '')) !== '' && trim((string) $request->input('MRPdate_end', '')) !== '' && trim((string) $request->input('nextReview_date', '')) !== '',
         ];
     }
 
@@ -2235,10 +3956,13 @@ class PanelController extends Controller
             'clinical' => ! empty($context['clinicalFindings']) && trim((string) ($context['clinicalFindings']->result_clinical_findings ?? '')) !== '',
             'physical' => ! empty($context['physicalExam']) && ($context['physicalExam']->weight ?? null) !== null && ($context['physicalExam']->height ?? null) !== null,
             'target' => ! empty($context['targetOrgan']) && trim((string) ($context['targetOrgan']->blood_count ?? '')) !== '',
-            'biological' => ! empty($context['biologicalMonitoring']) && (trim((string) ($context['biologicalMonitoring']->baseline_results ?? '')) !== '' || trim((string) ($context['biologicalMonitoring']->baseline_annual ?? '')) !== ''),
+            'biological' => ! empty($context['biologicalMonitoring']) && (trim((string) ($context['biologicalMonitoring']->baseline_results ?? '')) !== '' || trim((string) ($context['biologicalMonitoring']->baseline_annual ?? '')) !== '' || trim((string) ($context['biologicalMonitoring']->blood_result_files ?? '')) !== ''),
             'respirator' => ! empty($context['fitnessRespirator']) && trim((string) ($context['fitnessRespirator']->fitness_result ?? '')) !== '',
             'findings' => ! empty($context['msFindings']) && trim((string) ($context['msFindings']->history_of_health ?? '')) !== '',
-            'recommendation' => ! empty($context['recommendationData']) && trim((string) ($context['recommendationData']->recommencation_type ?? '')) !== '',
+            'recommendation' => ! empty($context['recommendationData'])
+                && trim((string) ($context['recommendationData']->recommencation_type ?? '')) !== ''
+                && trim((string) ($context['recommendationData']->employee_signature ?? '')) !== ''
+                && trim((string) ($context['recommendationData']->employee_signature_date ?? '')) !== '',
         ];
     }
 

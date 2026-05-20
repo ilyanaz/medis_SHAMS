@@ -14,7 +14,7 @@ h1{margin:0 0 6px;font-size:2.1rem}.muted{margin:0;color:var(--muted)}
 .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.field{display:block;font-size:.9rem;color:#1f2937}
 .field input,.field select,.field textarea,.field .phone-group{margin-top:6px}
 input,select,textarea{width:100%;border:1px solid #d7dce7;border-radius:10px;padding:11px 12px;font:inherit}
-textarea{min-height:90px;resize:vertical}.full{grid-column:1/-1}.phone-group{display:grid;grid-template-columns:130px 1fr;gap:8px}
+textarea{min-height:90px;resize:vertical}.full{grid-column:1/-1}.phone-group{display:grid;grid-template-columns:92px 1fr;gap:8px}
 .hidden{display:none}.actions{margin-top:18px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
 .btn{border:1px solid #d1d5db;border-radius:10px;padding:10px 14px;background:#fff;color:#374151;text-decoration:none;font-size:.92rem;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
 .btn.primary{background:var(--green);border-color:var(--green);color:#fff;font-weight:600}.btn.danger{color:var(--red);border-color:#fecaca;background:#fff}.btn.small{padding:8px 12px;font-size:.85rem}
@@ -33,7 +33,8 @@ $selectedCompany = $selectedCompany ?? null;
 $selectedCompanyId = $selectedCompany->company_id ?? request()->query('company_id') ?? '';
 $selectedCompanyName = $selectedCompany->company_name ?? old('current_company_name', '');
 $hasSelectedCompany = $selectedCompanyId !== '' && $selectedCompanyId !== null;
-$backUrl = function_exists('route') ? route('surveillance.employee', array_filter(['company_id' => $selectedCompanyId])) : '#';
+$backUrl = function_exists('route') ? route('surveillance.patient', array_filter(['company_id' => $selectedCompanyId])) : '#';
+$countryCodes = config('country_codes', []);
 $occupationalRows = old('occup_company_name', null);
 $occupationalRows = is_array($occupationalRows) ? count($occupationalRows) : 1;
 $occupationalRows = max(1, (int) $occupationalRows);
@@ -64,7 +65,7 @@ $occupationalRows = max(1, (int) $occupationalRows);
 <label class="field">Postcode <span class="req">*</span><input name="employee_postcode" type="text" value="<?php echo $esc(old('employee_postcode')); ?>" placeholder="Enter postcode" pattern="^[0-9]{4,10}$" required></label>
 <label class="field">District <span class="req">*</span><input name="employee_district" type="text" value="<?php echo $esc(old('employee_district')); ?>" placeholder="Enter district" required></label>
 <label class="field">State <span class="req">*</span><input name="employee_state" type="text" value="<?php echo $esc(old('employee_state')); ?>" placeholder="Enter state" required></label>
-<label class="field">Telephone <span class="req">*</span><div class="phone-group"><select name="employee_phone_code" required><option value="">Code</option><?php foreach (['+60','+65','+62','+66','+1','+44'] as $code): ?><option value="<?php echo $esc($code); ?>"<?php echo old('employee_phone_code', '+60') === $code ? ' selected' : ''; ?>><?php echo $esc($code); ?></option><?php endforeach; ?></select><input name="employee_telephone" type="tel" value="<?php echo $esc(old('employee_telephone')); ?>" inputmode="numeric" placeholder="Phone number" pattern="^[0-9]{7,12}$" required></div></label>
+<label class="field">Telephone <span class="req">*</span><div class="phone-group"><select name="employee_phone_code" required><option value="">Code</option><?php foreach ($countryCodes as $country): $code = (string) ($country['code'] ?? '+60'); ?><option value="<?php echo $esc($code); ?>"<?php echo old('employee_phone_code', '+60') === $code ? ' selected' : ''; ?>><?php echo $esc($code); ?></option><?php endforeach; ?></select><input name="employee_telephone" type="tel" value="<?php echo $esc(old('employee_telephone')); ?>" inputmode="numeric" placeholder="Phone number" pattern="^[0-9]{7,12}$" required></div></label>
 <label class="field">Email <span class="req">*</span><input name="employee_email" type="email" value="<?php echo $esc(old('employee_email')); ?>" placeholder="Enter email" required></label>
 <label class="field">Ethnicity <span class="req">*</span><select name="employee_ethnicity" id="employee_ethnicity" required><option value="">Select</option><?php foreach(['Malay','Chinese','Indian','Orang Asli','Others'] as $option): ?><option value="<?php echo $esc($option); ?>"<?php echo old('employee_ethnicity') === $option ? ' selected' : ''; ?>><?php echo $esc($option); ?></option><?php endforeach; ?></select></label>
 <label class="field hidden" id="employee_ethnicity_other_wrap">Ethnicity (Please justify) <span class="req">*</span><textarea id="employee_ethnicity_other" name="employee_ethnicity_other" placeholder="Write your justification"><?php echo $esc(old('employee_ethnicity_other')); ?></textarea></label>

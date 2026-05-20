@@ -57,10 +57,9 @@ medis_render_admin_navigation_start([
     <div class="head">
         <div>
             <h2>Doctor List</h2>
-            <p>Review doctors added to the system and manage their setup records.</p>
         </div>
         <div class="top-actions">
-            <a class="btn" href="#">Import</a>
+            <!--<a class="btn" href="#">Import</a>-->
             <a class="next" href="<?php echo $esc($doctorSetupRoute); ?>">+ Add Doctor</a>
         </div>
     </div>
