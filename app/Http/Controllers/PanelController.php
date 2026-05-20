@@ -931,14 +931,11 @@ class PanelController extends Controller
 
         $headerPath = null;
         if ($request->hasFile('header_upload')) {
-            $file = $request->file('header_upload');
-            $filename = 'clinic-header-' . Str::uuid() . '.' . $file->getClientOriginalExtension();
-            $destination = public_path('uploads/clinic-headers');
-            if (! is_dir($destination)) {
-                mkdir($destination, 0777, true);
-            }
-            $file->move($destination, $filename);
-            $headerPath = 'uploads/clinic-headers/' . $filename;
+            $headerPath = $this->storeUploadedFile(
+                $request->file('header_upload'),
+                'clinic-header-',
+                'uploads/clinic-headers'
+            );
         }
 
         $usernameBase = Str::slug($validated['clinic_name'], '');
@@ -1025,14 +1022,11 @@ class PanelController extends Controller
         $headerPath = (string) ($record->clinic_header_path ?? '');
         if ($request->hasFile('header_upload')) {
             $this->deletePublicFile($headerPath);
-            $file = $request->file('header_upload');
-            $filename = 'clinic-header-' . Str::uuid() . '.' . $file->getClientOriginalExtension();
-            $destination = public_path('uploads/clinic-headers');
-            if (! is_dir($destination)) {
-                mkdir($destination, 0777, true);
-            }
-            $file->move($destination, $filename);
-            $headerPath = 'uploads/clinic-headers/' . $filename;
+            $headerPath = (string) $this->storeUploadedFile(
+                $request->file('header_upload'),
+                'clinic-header-',
+                'uploads/clinic-headers'
+            );
         }
 
         $payload = [
@@ -1185,14 +1179,11 @@ class PanelController extends Controller
 
         $signaturePath = null;
         if ($uploadedSignatureFile) {
-            $file = $uploadedSignatureFile;
-            $filename = 'doctor-sign-' . Str::uuid() . '.' . $file->getClientOriginalExtension();
-            $destination = public_path('uploads/doctor-signatures');
-            if (! is_dir($destination)) {
-                mkdir($destination, 0777, true);
-            }
-            $file->move($destination, $filename);
-            $signaturePath = 'uploads/doctor-signatures/' . $filename;
+            $signaturePath = $this->storeUploadedFile(
+                $uploadedSignatureFile,
+                'doctor-sign-',
+                'uploads/doctor-signatures'
+            );
         } elseif ($hasDrawnSignature) {
             $signaturePath = $this->storeBase64Image(
                 $drawnSignatureData,
@@ -1205,14 +1196,11 @@ class PanelController extends Controller
 
         $picturePath = null;
         if ($request->hasFile('doctor_picture')) {
-            $file = $request->file('doctor_picture');
-            $filename = 'doctor-picture-' . Str::uuid() . '.' . $file->getClientOriginalExtension();
-            $destination = public_path('uploads/doctor-pictures');
-            if (! is_dir($destination)) {
-                mkdir($destination, 0777, true);
-            }
-            $file->move($destination, $filename);
-            $picturePath = 'uploads/doctor-pictures/' . $filename;
+            $picturePath = $this->storeUploadedFile(
+                $request->file('doctor_picture'),
+                'doctor-picture-',
+                'uploads/doctor-pictures'
+            );
         }
 
         $usernameBase = Str::slug(trim($validated['doctor_firstName'] . $validated['doctor_lastName']), '');
@@ -1323,14 +1311,11 @@ class PanelController extends Controller
         }
         if ($uploadedSignatureFile) {
             $this->deletePublicFile($signaturePath);
-            $file = $uploadedSignatureFile;
-            $filename = 'doctor-sign-' . Str::uuid() . '.' . $file->getClientOriginalExtension();
-            $destination = public_path('uploads/doctor-signatures');
-            if (! is_dir($destination)) {
-                mkdir($destination, 0777, true);
-            }
-            $file->move($destination, $filename);
-            $signaturePath = 'uploads/doctor-signatures/' . $filename;
+            $signaturePath = (string) $this->storeUploadedFile(
+                $uploadedSignatureFile,
+                'doctor-sign-',
+                'uploads/doctor-signatures'
+            );
         }
 
         if ($signaturePath === '') {
@@ -1342,14 +1327,11 @@ class PanelController extends Controller
         $picturePath = (string) ($record->doctor_picture ?? '');
         if ($request->hasFile('doctor_picture')) {
             $this->deletePublicFile($picturePath);
-            $file = $request->file('doctor_picture');
-            $filename = 'doctor-picture-' . Str::uuid() . '.' . $file->getClientOriginalExtension();
-            $destination = public_path('uploads/doctor-pictures');
-            if (! is_dir($destination)) {
-                mkdir($destination, 0777, true);
-            }
-            $file->move($destination, $filename);
-            $picturePath = 'uploads/doctor-pictures/' . $filename;
+            $picturePath = (string) $this->storeUploadedFile(
+                $request->file('doctor_picture'),
+                'doctor-picture-',
+                'uploads/doctor-pictures'
+            );
         }
 
         $payload = [
@@ -3842,15 +3824,26 @@ class PanelController extends Controller
 
         $extension = strtolower($matches['type']) === 'jpeg' ? 'jpg' : strtolower($matches['type']);
         $filename = $prefix . Str::uuid() . '.' . $extension;
-        $destination = public_path($directory);
+        $directory = trim($directory, '/\\');
 
-        if (! is_dir($destination)) {
-            mkdir($destination, 0777, true);
+        Storage::disk('public')->put($directory . '/' . $filename, $binary);
+
+        return 'storage/' . $directory . '/' . $filename;
+    }
+
+    protected function storeUploadedFile($file, string $prefix, string $directory): ?string
+    {
+        if (! $file) {
+            return null;
         }
 
-        file_put_contents($destination . DIRECTORY_SEPARATOR . $filename, $binary);
+        $directory = trim($directory, '/\\');
+        $extension = strtolower((string) $file->getClientOriginalExtension());
+        $filename = $prefix . Str::uuid() . ($extension !== '' ? '.' . $extension : '');
 
-        return trim($directory, '/\\') . '/' . $filename;
+        Storage::disk('public')->putFileAs($directory, $file, $filename);
+
+        return 'storage/' . $directory . '/' . $filename;
     }
 
     protected function deletePublicFile(?string $path): void
@@ -3858,6 +3851,16 @@ class PanelController extends Controller
         $path = trim((string) $path);
         if ($path === '') {
             return;
+        }
+
+        $normalizedPath = str_replace('\\', '/', $path);
+        if (Str::startsWith($normalizedPath, 'storage/')) {
+            $storagePath = substr($normalizedPath, strlen('storage/'));
+            if ($storagePath !== '' && Storage::disk('public')->exists($storagePath)) {
+                Storage::disk('public')->delete($storagePath);
+            }
+        } elseif (Storage::disk('public')->exists($normalizedPath)) {
+            Storage::disk('public')->delete($normalizedPath);
         }
 
         $fullPath = public_path($path);
