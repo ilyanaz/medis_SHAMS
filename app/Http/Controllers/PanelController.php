@@ -35,7 +35,7 @@ class PanelController extends Controller
             ->where('username', $credentials['username'])
             ->first();
 
-        if (! $user || ! Hash::check($credentials['password'], $user->password)) {
+        if (! $user || ! $this->passwordMatches($user, $credentials['password'])) {
             return back()
                 ->withErrors(['username' => 'The provided login details are incorrect.'])
                 ->onlyInput('username');
@@ -2868,6 +2868,36 @@ class PanelController extends Controller
         }
 
         return User::query()->find($userId);
+    }
+
+    protected function passwordMatches(User $user, string $plainPassword): bool
+    {
+        $storedPassword = (string) ($user->password ?? '');
+
+        if ($storedPassword === '') {
+            return false;
+        }
+
+        if (Hash::check($plainPassword, $storedPassword)) {
+            return true;
+        }
+
+        $normalizedStored = strtolower($storedPassword);
+        $matchesLegacyPlain = hash_equals($storedPassword, $plainPassword);
+        $matchesLegacyMd5 = preg_match('/^[a-f0-9]{32}$/i', $storedPassword) === 1
+            && hash_equals($normalizedStored, md5($plainPassword));
+        $matchesLegacySha1 = preg_match('/^[a-f0-9]{40}$/i', $storedPassword) === 1
+            && hash_equals($normalizedStored, sha1($plainPassword));
+
+        if (! $matchesLegacyPlain && ! $matchesLegacyMd5 && ! $matchesLegacySha1) {
+            return false;
+        }
+
+        $user->forceFill([
+            'password' => Hash::make($plainPassword),
+        ])->save();
+
+        return true;
     }
 
     protected function activeClinic(Request $request): ?object
