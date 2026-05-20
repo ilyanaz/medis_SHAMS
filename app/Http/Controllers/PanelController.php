@@ -82,6 +82,48 @@ class PanelController extends Controller
         return view('panel.dashboard', array_merge($viewData, $this->dashboardContext($clinicId)));
     }
 
+    public function generalReport(Request $request): View|RedirectResponse
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        if ($this->isInAdminMode($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($this->requiresClinicSelection($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        $viewData = $this->buildViewData($request, $user);
+        $viewData['companies'] = $this->reportCompanies($request);
+
+        return view('report.general_report', $viewData);
+    }
+
+    public function generalExamination(Request $request): View|RedirectResponse
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        if ($this->isInAdminMode($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($this->requiresClinicSelection($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        $viewData = $this->buildViewData($request, $user);
+        $viewData['companies'] = $this->reportCompanies($request);
+
+        return view('report.general_examination', $viewData);
+    }
+
     public function companyList(Request $request): View|RedirectResponse
     {
         $user = $this->requirePanelUser($request);
@@ -1750,16 +1792,16 @@ class PanelController extends Controller
             'company_id' => ['nullable', 'integer'],
             'employee_firstName' => ['required', 'string', 'max:100'],
             'employee_lastName' => ['required', 'string', 'max:100'],
-            'employee_NRIC' => ['nullable', 'string', 'max:20', 'required_without:employee_passportNo'],
-            'employee_passportNo' => ['nullable', 'string', 'max:30', 'required_without:employee_NRIC'],
+            'employee_NRIC' => ['nullable', 'string', 'max:20'],
+            'employee_passportNo' => ['nullable', 'string', 'max:30'],
             'employee_DOB' => ['nullable', 'date'],
             'employee_gender' => ['nullable', 'in:Male,Female'],
             'employee_address' => ['nullable', 'string', 'max:255'],
             'employee_postcode' => ['nullable', 'string', 'max:10'],
             'employee_district' => ['nullable', 'string', 'max:100'],
             'employee_state' => ['nullable', 'string', 'max:100'],
-            'employee_phone_code' => ['required', 'string', 'max:10'],
-            'employee_telephone' => ['required', 'string', 'max:20'],
+            'employee_phone_code' => ['nullable', 'string', 'max:10'],
+            'employee_telephone' => ['nullable', 'string', 'max:20'],
             'employee_email' => ['nullable', 'email', 'max:150'],
             'employee_ethnicity' => ['nullable', 'string', 'max:50'],
             'employee_citizenship' => ['nullable', 'string', 'max:50'],
@@ -2435,6 +2477,9 @@ class PanelController extends Controller
             'company_id' => ['nullable', 'integer', 'min:1'],
             'declaration_id' => ['nullable', 'integer', 'min:1'],
             'removal_type' => ['nullable', 'string'],
+            'recommendation_reasons' => ['nullable', 'array'],
+            'recommendation_reasons.*' => ['nullable', 'string'],
+            'recommendation_reason_other' => ['nullable', 'string'],
         ]);
 
         if (! Schema::hasTable('removal_report')) {
@@ -2456,12 +2501,33 @@ class PanelController extends Controller
             ? DB::table('fitness_report')->where('surveillance_id', $surveillanceId)->first()
             : null;
 
+        $allowedReasonKeys = [
+            'pregnancy',
+            'breastfeeding',
+            'abnormal_bm_bem',
+            'adverse_clinical_findings',
+            'target_organ_abnormality',
+            'other',
+        ];
+        $selectedReasons = array_values(array_filter(
+            array_map(static fn ($value) => trim((string) $value), (array) ($validated['recommendation_reasons'] ?? [])),
+            static fn ($value) => $value !== '' && in_array($value, $allowedReasonKeys, true)
+        ));
+        $reasonOther = trim((string) ($validated['recommendation_reason_other'] ?? ''));
+        $serializedReasons = null;
+        if ($selectedReasons !== [] || $reasonOther !== '') {
+            $serializedReasons = json_encode([
+                'selected' => $selectedReasons,
+                'other' => $reasonOther,
+            ], JSON_UNESCAPED_UNICODE);
+        }
+
         $payload = [
             'employee_id' => $employeeId ?? ($record->employee_id ?? null),
             'company_id' => $companyId ?? ($record->company_id ?? null),
             'surveillance_id' => $surveillanceId,
             'removal_type' => trim((string) ($validated['removal_type'] ?? ($record->removal_type ?? ''))),
-            'reasons_recommendations' => trim((string) ($record->reasons_recommendations ?? '')),
+            'reasons_recommendations' => $serializedReasons,
             'doctor_id' => $record->doctor_id ?? ($declaration->doctor_id ?? null),
             'fitnessReport_id' => $record->fitnessReport_id ?? ($fitnessRecord->fitnessReport_id ?? null),
         ];
@@ -2828,6 +2894,20 @@ class PanelController extends Controller
         }
 
         return $query;
+    }
+
+    protected function reportCompanies(Request $request)
+    {
+        if (! Schema::hasTable('company')) {
+            return collect();
+        }
+
+        $clinicId = (int) $request->session()->get('active_clinic_id', 0);
+
+        return $this->dashboardCompaniesQuery($clinicId)
+            ->select(['company.company_id', 'company.company_name'])
+            ->orderBy('company.company_name')
+            ->get();
     }
 
     protected function requirePanelUser(Request $request): User|RedirectResponse
@@ -3539,16 +3619,16 @@ class PanelController extends Controller
             'company_id' => ['nullable', 'integer'],
             'employee_firstName' => ['required', 'string', 'max:100'],
             'employee_lastName' => ['required', 'string', 'max:100'],
-            'employee_NRIC' => ['nullable', 'string', 'max:20', 'required_without:employee_passportNo'],
-            'employee_passportNo' => ['nullable', 'string', 'max:30', 'required_without:employee_NRIC'],
+            'employee_NRIC' => ['nullable', 'string', 'max:20'],
+            'employee_passportNo' => ['nullable', 'string', 'max:30'],
             'employee_DOB' => ['nullable', 'date'],
             'employee_gender' => ['nullable', 'in:Male,Female'],
             'employee_address' => ['nullable', 'string', 'max:255'],
             'employee_postcode' => ['nullable', 'string', 'max:10'],
             'employee_district' => ['nullable', 'string', 'max:100'],
             'employee_state' => ['nullable', 'string', 'max:100'],
-            'employee_phone_code' => ['required', 'string', 'max:10'],
-            'employee_telephone' => ['required', 'string', 'max:20'],
+            'employee_phone_code' => ['nullable', 'string', 'max:10'],
+            'employee_telephone' => ['nullable', 'string', 'max:20'],
             'employee_email' => ['nullable', 'email', 'max:150'],
             'employee_ethnicity' => ['nullable', 'string', 'max:50'],
             'employee_citizenship' => ['nullable', 'string', 'max:50'],
