@@ -297,9 +297,9 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
         <div class="media-grid">
             <div class="field">
                 <label for="doctor_sign_upload">Signature<span class="required-note">*</span></label>
+                 <p style="margin:8px 0 0;color:#6b7280;font-size:.88rem;">Upload a signature file or draw an eSign below.</p>
                 <?php if (! $isReadOnly && $hasDoctorSignature): ?>
                     <input id="doctor_sign_upload" name="doctor_sign_upload" type="file" accept="image/*">
-                    <p style="margin:8px 0 0;color:#6b7280;font-size:.88rem;">Upload a signature file or draw an eSign below.</p>
                     <div class="signature-box" style="margin-top:14px;">
                         <div class="signature-pad-wrap">
                             <canvas id="signature-pad" class="signature-pad"></canvas>
@@ -308,7 +308,6 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
                             <!--<button id="save-signature" class="signature-save" type="button">Save eSign</button>-->
                             <button id="clear-signature" class="signature-clear" type="button">Clear</button>
                         </div>
-                        <div id="signature-status" class="signature-status">Draw your eSign, then click Save eSign.</div>
                     </div>
                 <?php endif; ?>
 
