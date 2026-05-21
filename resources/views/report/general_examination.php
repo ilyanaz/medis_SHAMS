@@ -106,18 +106,20 @@ $audioRows = [
 $rows = array_merge(!empty($surveillanceRows) ? $surveillanceRows : ($surveillanceExamRows ?? []), $audioRows);
 ?>
 <style>
-.exam-shell{display:grid;gap:18px}
+.flow{height:calc(100dvh - 204px);min-height:calc(100dvh - 204px);display:flex}
+.content{padding:4px 6px;height:100%;width:100%;margin-top:0;border:0;background:transparent;border-radius:0;display:flex;flex-direction:column;overflow:hidden}
+.exam-shell{display:grid;gap:12px;height:100%;min-height:0}
 .exam-head h2{margin:0;font-size:1.9rem}
 .exam-head p{margin:8px 0 0;color:#6b7280}
-.manage-card{border:1px solid #e5e7eb;border-radius:20px;background:#fff;padding:0;overflow:hidden;display:flex;flex-direction:column}
-.module-bar{display:flex;gap:12px;padding:18px;border-bottom:1px solid #edf0f2;flex-wrap:wrap}
+.manage-card{border:1px solid #e5e7eb;border-radius:20px;background:#fff;padding:0;overflow:hidden;display:flex;flex-direction:column;min-height:0;flex:1}
+.module-bar{display:flex;gap:12px;padding:14px 18px;border-bottom:1px solid #edf0f2;flex-wrap:wrap}
 .module-btn{appearance:none;border:1px solid #d1d5db;background:#fff;border-radius:12px;padding:12px 20px;font:inherit;font-weight:700;color:#374151;cursor:pointer;min-width:150px}
 .module-btn.active{background:#eef7f0;border-color:#b8d8c4;color:#166534}
 .subfilter-bar{display:flex;gap:18px;align-items:center;padding:0 18px;border-bottom:1px solid #edf0f2;flex-wrap:wrap}
-.subfilter-btn{appearance:none;border:0;background:transparent;padding:14px 0 12px;font:inherit;font-weight:600;color:#4b5563;cursor:pointer;position:relative;text-transform:uppercase;font-size:.82rem}
+.subfilter-btn{appearance:none;border:0;background:transparent;padding:12px 0 10px;font:inherit;font-weight:600;color:#4b5563;cursor:pointer;position:relative;text-transform:uppercase;font-size:.82rem}
 .subfilter-btn.active{color:#166534}
 .subfilter-btn.active::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:#389B5B;border-radius:999px}
-.toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid #edf0f2;flex-wrap:wrap}
+.toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid #edf0f2;flex-wrap:wrap}
 .toolbar-left,.toolbar-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .toolbar-btn{display:inline-flex;align-items:center;gap:8px;border:1px solid #d1d5db;border-radius:10px;background:#fff;color:#374151;padding:9px 12px;text-decoration:none;font:inherit;cursor:pointer}
 .toolbar-btn.is-active{background:#eef7f0;border-color:#b8d8c4;color:#166534}
@@ -138,11 +140,11 @@ $rows = array_merge(!empty($surveillanceRows) ? $surveillanceRows : ($surveillan
 .clear-btn,.apply-btn{display:inline-flex;align-items:center;justify-content:center;border-radius:12px;padding:10px 14px;font:inherit;cursor:pointer;text-decoration:none}
 .clear-btn{border:1px solid #d1d5db;background:#fff;color:#374151}
 .apply-btn{border:1px solid #389B5B;background:#389B5B;color:#fff}
-.manage-card-body{display:flex;flex-direction:column;flex:1}
+.manage-card-body{display:flex;flex-direction:column;flex:1;min-height:0}
 .exam-table{width:100%;border-collapse:collapse}
-.exam-table th,.exam-table td{padding:16px 18px;text-align:left;border-top:1px solid #edf0f2;vertical-align:top}
+.exam-table th,.exam-table td{padding:13px 18px;text-align:left;border-top:1px solid #edf0f2;vertical-align:top}
 .exam-table th{font-size:.78rem;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;background:#fafafa}
-.filler-row td{height:56px;color:transparent;user-select:none}
+.filler-row td{height:46px;color:transparent;user-select:none}
 .status{display:inline-flex;align-items:center;border-radius:999px;padding:5px 10px;font-weight:700;font-size:.76rem}
 .status.completed{background:#dcfce7;color:#166534}
 .status.pending,.status.incomplete{background:#fef3c7;color:#92400e}
@@ -150,7 +152,7 @@ $rows = array_merge(!empty($surveillanceRows) ? $surveillanceRows : ($surveillan
 .icon-btn{display:inline-flex;align-items:center;justify-content:center;background:transparent;border:0;padding:0;color:#111827;cursor:pointer;text-decoration:none}
 .icon-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8}
 .icon-btn.delete{color:#ef4444}
-.table-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 18px;border-top:1px solid #edf0f2;flex-wrap:wrap;margin-top:auto}
+.table-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 18px;border-top:1px solid #edf0f2;flex-wrap:wrap;margin-top:auto}
 .pager{color:#6b7280;font-size:.84rem}
 .pager-group{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .page-btn{display:inline-flex;align-items:center;gap:8px;text-decoration:none;border:1px solid #d1d5db;border-radius:12px;padding:8px 12px;background:#fff;color:#374151;cursor:pointer}
@@ -158,10 +160,11 @@ $rows = array_merge(!empty($surveillanceRows) ? $surveillanceRows : ($surveillan
 .page-btn.is-active{background:#389B5B;border-color:#389B5B;color:#fff}
 .page-numbers{display:flex;gap:8px;flex-wrap:wrap}
 .empty-row td{text-align:center;color:#6b7280}
+@media(max-width:1180px){.flow{height:auto;min-height:auto}.content{height:auto;min-height:auto}}
 @media(max-width:980px){.toolbar{align-items:stretch}.toolbar-left,.toolbar-right{width:100%}.toolbar-right{justify-content:flex-start}.search{width:100%}.subfilter-bar{gap:14px}.filter-panel{top:96px;right:16px}}
 @media(max-width:640px){.filter-grid{grid-template-columns:1fr}.filter-panel{top:88px;width:calc(100vw - 24px);right:12px}}
 </style>
-<div class="exam-shell">
+<div class="flow"><div class="content"><div class="exam-shell">
     <section class="exam-head">
         <h2>Manage Examinations</h2>
     </section>
@@ -265,7 +268,7 @@ $rows = array_merge(!empty($surveillanceRows) ? $surveillanceRows : ($surveillan
             </div>
         </div>
     </section>
-</div>
+</div></div></div>
 <script>
 (function(){
     const moduleButtons = Array.prototype.slice.call(document.querySelectorAll('.module-btn'));
