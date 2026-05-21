@@ -532,8 +532,8 @@ class PanelController extends Controller
                 'surveillanceId' => $surveillanceId > 0 ? $surveillanceId : null,
                 'doctor' => $doctor,
                 'sectionStatuses' => $this->surveillanceSectionStatusesFromModels($context),
-                'pageMode' => $this->isRecommendationFinalized($context['recommendationData'] ?? null) ? 'view' : ($surveillanceId > 0 ? 'edit' : 'create'),
-                'readOnly' => $this->isRecommendationFinalized($context['recommendationData'] ?? null),
+                'pageMode' => $surveillanceId > 0 ? 'edit' : 'create',
+                'readOnly' => false,
             ]
         ));
     }
@@ -2306,7 +2306,7 @@ class PanelController extends Controller
                 'sectionStatuses' => $sectionStatuses,
                 'employee_id' => $employeeId,
                 'company_id' => $companyId,
-                'readOnly' => $isFinalSave || $this->isRecommendationFinalized($existingRecommendation),
+                'readOnly' => false,
                 'save_mode' => $isFinalSave ? 'final' : 'draft',
             ]
         );
@@ -3992,8 +3992,8 @@ class PanelController extends Controller
                 'surveillanceId' => $surveillanceId,
                 'doctor' => $doctor,
                 'sectionStatuses' => $this->surveillanceSectionStatusesFromModels($context),
-                'pageMode' => ($readOnly || $this->isRecommendationFinalized($context['recommendationData'] ?? null)) ? 'view' : 'edit',
-                'readOnly' => $readOnly || $this->isRecommendationFinalized($context['recommendationData'] ?? null),
+                'pageMode' => $readOnly ? 'view' : 'edit',
+                'readOnly' => $readOnly,
                 'showRecordTabs' => true,
                 'recordTabActive' => 'examination',
             ]
@@ -4012,8 +4012,8 @@ class PanelController extends Controller
         }
 
         if (($payload['save_mode'] ?? 'draft') === 'final') {
-            return redirect()->route('surveillance.record.view', ['declaration' => $payload['declaration_id']])
-                ->with('status', 'Surveillance examination saved and locked successfully.');
+            return redirect()->route('surveillance.record.edit', ['declaration' => $payload['declaration_id']])
+                ->with('status', 'Surveillance examination saved successfully.');
         }
 
         return redirect()->route('surveillance.record.edit', ['declaration' => $payload['declaration_id']])
