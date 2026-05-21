@@ -108,11 +108,10 @@ $rows = array_merge(!empty($surveillanceRows) ? $surveillanceRows : ($surveillan
 <style>
 .exam-shell{display:grid;gap:18px}.exam-head h2{margin:0;font-size:1.9rem}.exam-head p{margin:8px 0 0;color:#6b7280}.manage-card{border:1px solid #e5e7eb;border-radius:20px;background:#fff;padding:0;overflow:hidden}.module-bar{display:flex;gap:12px;padding:18px;border-bottom:1px solid #edf0f2;flex-wrap:wrap}.module-btn{appearance:none;border:1px solid #d1d5db;background:#fff;border-radius:12px;padding:12px 20px;font:inherit;font-weight:700;color:#374151;cursor:pointer;min-width:150px}.module-btn.active{background:#eef7f0;border-color:#b8d8c4;color:#166534}.subfilter-bar{display:flex;gap:18px;align-items:center;padding:0 18px;border-bottom:1px solid #edf0f2;flex-wrap:wrap}.subfilter-btn{appearance:none;border:0;background:transparent;padding:14px 0 12px;font:inherit;font-weight:600;color:#4b5563;cursor:pointer;position:relative;text-transform:uppercase;font-size:.82rem}.subfilter-btn.active{color:#166534}.subfilter-btn.active::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:#389B5B;border-radius:999px}.toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid #edf0f2;flex-wrap:wrap}.toolbar-left,.toolbar-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.toolbar-btn{display:inline-flex;align-items:center;gap:8px;border:1px solid #d1d5db;border-radius:10px;background:#fff;color:#374151;padding:9px 12px;text-decoration:none;font:inherit;cursor:pointer}.toolbar-btn.is-active{background:#eef7f0;border-color:#b8d8c4;color:#166534}.search{width:min(420px,100%);border:1px solid #d1d5db;border-radius:10px;padding:10px 12px;font:inherit}.filter-backdrop{display:none;position:fixed;inset:0;background:rgba(15,23,42,.18);z-index:120}.filter-backdrop.is-open{display:block}.filter-panel{display:none;position:fixed;top:110px;right:36px;width:min(520px,calc(100vw - 32px));padding:18px;border:1px solid #dbe3ea;border-radius:18px;background:#fff;box-shadow:0 26px 60px rgba(15,23,42,.16);z-index:121}.filter-panel.is-open{display:block}.filter-panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}.filter-panel-head h3{margin:0;font-size:1rem}.filter-close{border:0;background:transparent;color:#6b7280;font-size:1.35rem;line-height:1;cursor:pointer;padding:0 4px}.filter-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:end}.field{display:grid;gap:8px}.field label{font-size:.86rem;font-weight:600;color:#374151}.field input,.field select{width:100%;border:1px solid #d1d5db;border-radius:12px;padding:10px 12px;font:inherit;background:#fff}.field.full{grid-column:1/-1}.field-actions{display:flex;gap:10px;align-items:center;justify-content:flex-end;grid-column:1/-1}.clear-btn,.apply-btn{display:inline-flex;align-items:center;justify-content:center;border-radius:12px;padding:10px 14px;font:inherit;cursor:pointer;text-decoration:none}.clear-btn{border:1px solid #d1d5db;background:#fff;color:#374151}.apply-btn{border:1px solid #389B5B;background:#389B5B;color:#fff}.exam-table{width:100%;border-collapse:collapse}.exam-table th,.exam-table td{padding:16px 18px;text-align:left;border-top:1px solid #edf0f2;vertical-align:top}.exam-table th{font-size:.78rem;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;background:#fafafa}.status{display:inline-flex;align-items:center;border-radius:999px;padding:5px 10px;font-weight:700;font-size:.76rem}.status.completed{background:#dcfce7;color:#166534}.status.pending,.status.incomplete{background:#fef3c7;color:#92400e}.action-icons{display:flex;gap:10px;align-items:center}.icon-btn{display:inline-flex;align-items:center;justify-content:center;background:transparent;border:0;padding:0;color:#111827;cursor:pointer;text-decoration:none}.icon-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8}.icon-btn.delete{color:#ef4444}.table-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 18px;border-top:1px solid #edf0f2;flex-wrap:wrap}.pager{color:#6b7280;font-size:.84rem}.empty-row td{text-align:center;color:#6b7280}@media(max-width:980px){.toolbar{align-items:stretch}.toolbar-left,.toolbar-right{width:100%}.toolbar-right{justify-content:flex-start}.search{width:100%}.subfilter-bar{gap:14px}.filter-panel{top:96px;right:16px}}@media(max-width:640px){.filter-grid{grid-template-columns:1fr}.filter-panel{top:88px;width:calc(100vw - 24px);right:12px}}
 </style>
-<style>.exam-shell{min-height:calc(100dvh - 204px);align-content:start;gap:24px}.manage-card{min-height:clamp(500px,calc(100dvh - 294px),780px);display:flex;flex-direction:column}.table-foot{margin-top:auto}@media(max-width:980px){.exam-shell{min-height:auto}.manage-card{min-height:auto}}@media(max-width:640px){.manage-card{min-height:auto}}</style>
+<style>.exam-shell{min-height:calc(100dvh - 204px);align-content:start;gap:24px}.manage-card{min-height:clamp(500px,calc(100dvh - 294px),780px);display:flex;flex-direction:column}.manage-card-body{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column}.manage-card-body .table-foot{margin-top:0;position:sticky;bottom:0;background:#fff}.table-foot{margin-top:auto}@media(max-width:980px){.exam-shell{min-height:auto}.manage-card{min-height:auto}.manage-card-body{overflow:visible}}@media(max-width:640px){.manage-card{min-height:auto}.manage-card-body{overflow:visible}}</style>
 <div class="exam-shell">
     <section class="exam-head">
         <h2>Manage Examinations</h2>
-        <p>Open and continue examination pages by module and step.</p>
     </section>
 
     <section class="manage-card">
@@ -173,38 +172,40 @@ $rows = array_merge(!empty($surveillanceRows) ? $surveillanceRows : ($surveillan
             </div>
         </div>
 
-        <table class="exam-table">
-            <thead>
-                <tr>
-                    <th>Employee Name</th>
-                    <th>Company Name</th>
-                    <th>Step</th>
-                    <th>Date Examined</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody id="examTableBody">
-                <?php foreach ($rows as $row): ?>
-                    <tr data-module="<?php echo $esc($row['module']); ?>" data-filter="<?php echo $esc($row['filter']); ?>" data-company="<?php echo $esc(strtolower($row['company'])); ?>" data-status="<?php echo $esc($row['status_key']); ?>" data-date="<?php echo $esc($row['date_examined']); ?>">
-                        <td><?php echo $esc($row['employee_name']); ?></td>
-                        <td><?php echo $esc($row['company']); ?></td>
-                        <td><?php echo $esc($row['stage']); ?></td>
-                        <td><?php echo $esc(date('d M Y', strtotime($row['date_examined']))); ?></td>
-                        <td><span class="status <?php echo $esc($row['status_key']); ?>"><?php echo $esc($row['status']); ?></span></td>
-                        <td>
-                            <div class="action-icons"><a class="icon-btn" href="<?php echo $esc($row['href']); ?>" title="View"><svg viewBox="0 0 24 24"><path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6-10-6-10-6z"></path><circle cx="12" cy="12" r="3"></circle></svg></a><a class="icon-btn" href="<?php echo $esc($row['href']); ?>" title="Edit"><svg viewBox="0 0 24 24"><path d="M4 20h4l10-10-4-4L4 16v4z"></path><path d="M13 7l4 4"></path></svg></a><button class="icon-btn delete" type="button" data-name="<?php echo $esc($row['employee_name']); ?>" title="Delete"><svg viewBox="0 0 24 24"><path d="M4 7h16"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M6 7l1 13h10l1-13"></path><path d="M9 7V4h6v3"></path></svg></button></div>
-                        </td>
+        <div class="manage-card-body">
+            <table class="exam-table">
+                <thead>
+                    <tr>
+                        <th>Employee Name</th>
+                        <th>Company Name</th>
+                        <th>Step</th>
+                        <th>Date Examined</th>
+                        <th>Status</th>
+                        <th>Action</th>
                     </tr>
-                <?php endforeach; ?>
-                <tr class="empty-row" id="examEmptyRow" style="display:none;">
-                    <td colspan="6">No examination records match the selected filter.</td>
-                </tr>
-            </tbody>
-        </table>
+                </thead>
+                <tbody id="examTableBody">
+                    <?php foreach ($rows as $row): ?>
+                        <tr data-module="<?php echo $esc($row['module']); ?>" data-filter="<?php echo $esc($row['filter']); ?>" data-company="<?php echo $esc(strtolower($row['company'])); ?>" data-status="<?php echo $esc($row['status_key']); ?>" data-date="<?php echo $esc($row['date_examined']); ?>">
+                            <td><?php echo $esc($row['employee_name']); ?></td>
+                            <td><?php echo $esc($row['company']); ?></td>
+                            <td><?php echo $esc($row['stage']); ?></td>
+                            <td><?php echo $esc(date('d M Y', strtotime($row['date_examined']))); ?></td>
+                            <td><span class="status <?php echo $esc($row['status_key']); ?>"><?php echo $esc($row['status']); ?></span></td>
+                            <td>
+                                <div class="action-icons"><a class="icon-btn" href="<?php echo $esc($row['href']); ?>" title="View"><svg viewBox="0 0 24 24"><path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6-10-6-10-6z"></path><circle cx="12" cy="12" r="3"></circle></svg></a><a class="icon-btn" href="<?php echo $esc($row['href']); ?>" title="Edit"><svg viewBox="0 0 24 24"><path d="M4 20h4l10-10-4-4L4 16v4z"></path><path d="M13 7l4 4"></path></svg></a><button class="icon-btn delete" type="button" data-name="<?php echo $esc($row['employee_name']); ?>" title="Delete"><svg viewBox="0 0 24 24"><path d="M4 7h16"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M6 7l1 13h10l1-13"></path><path d="M9 7V4h6v3"></path></svg></button></div>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                    <tr class="empty-row" id="examEmptyRow" style="display:none;">
+                        <td colspan="6">No examination records match the selected filter.</td>
+                    </tr>
+                </tbody>
+            </table>
 
-        <div class="table-foot">
-            <span class="pager" id="examPager">Showing 0 records</span>
+            <div class="table-foot">
+                <span class="pager" id="examPager">Showing 0 records</span>
+            </div>
         </div>
     </section>
 </div>
