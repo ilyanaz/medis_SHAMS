@@ -37,7 +37,7 @@ medis_render_navigation_start(['clinicName'=>$clinicName ?? 'Medis SHAMS','clini
     var filterButtons = Array.prototype.slice.call(section.querySelectorAll('[data-status-filter]'));
     var activeStatus = '';
     var currentPage = 1;
-    var perPage = 10;
+    var perPage = 8;
     function getFilteredRows() {
         var query = (searchInput.value || '').trim().toLowerCase();
         return rows.filter(function (row) {

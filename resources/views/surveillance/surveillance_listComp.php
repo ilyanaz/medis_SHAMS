@@ -46,8 +46,9 @@ medis_render_navigation_start([
     .toolbar input{border:1px solid #d1d5db;border-radius:12px;padding:10px 12px;min-width:280px}
     .table-wrap{margin-top:14px;flex:1;min-height:0;display:flex;align-items:flex-start}
     .table{width:100%;border-collapse:collapse}
-    .table th,.table td{padding:14px 10px;text-align:left;border-top:1px solid #edf0f2}
+    .table th,.table td{padding:14px 10px;text-align:left;border-top:0}
     .table th{font-size:.8rem;color:#6b7280;text-transform:uppercase;letter-spacing:.05em}
+    .table thead tr{border-top:1px solid #edf0f2;border-bottom:1px solid #edf0f2}
     .table-name-link{color:#0f172a;text-decoration:none;font-weight:600}
     .table-name-link:hover{color:#389B5B;text-decoration:underline}
     .filler-row td{height:56px;color:transparent;user-select:none}
