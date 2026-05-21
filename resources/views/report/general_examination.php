@@ -106,9 +106,61 @@ $audioRows = [
 $rows = array_merge(!empty($surveillanceRows) ? $surveillanceRows : ($surveillanceExamRows ?? []), $audioRows);
 ?>
 <style>
-.exam-shell{display:grid;gap:18px}.exam-head h2{margin:0;font-size:1.9rem}.exam-head p{margin:8px 0 0;color:#6b7280}.manage-card{border:1px solid #e5e7eb;border-radius:20px;background:#fff;padding:0;overflow:hidden}.module-bar{display:flex;gap:12px;padding:18px;border-bottom:1px solid #edf0f2;flex-wrap:wrap}.module-btn{appearance:none;border:1px solid #d1d5db;background:#fff;border-radius:12px;padding:12px 20px;font:inherit;font-weight:700;color:#374151;cursor:pointer;min-width:150px}.module-btn.active{background:#eef7f0;border-color:#b8d8c4;color:#166534}.subfilter-bar{display:flex;gap:18px;align-items:center;padding:0 18px;border-bottom:1px solid #edf0f2;flex-wrap:wrap}.subfilter-btn{appearance:none;border:0;background:transparent;padding:14px 0 12px;font:inherit;font-weight:600;color:#4b5563;cursor:pointer;position:relative;text-transform:uppercase;font-size:.82rem}.subfilter-btn.active{color:#166534}.subfilter-btn.active::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:#389B5B;border-radius:999px}.toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid #edf0f2;flex-wrap:wrap}.toolbar-left,.toolbar-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.toolbar-btn{display:inline-flex;align-items:center;gap:8px;border:1px solid #d1d5db;border-radius:10px;background:#fff;color:#374151;padding:9px 12px;text-decoration:none;font:inherit;cursor:pointer}.toolbar-btn.is-active{background:#eef7f0;border-color:#b8d8c4;color:#166534}.search{width:min(420px,100%);border:1px solid #d1d5db;border-radius:10px;padding:10px 12px;font:inherit}.filter-backdrop{display:none;position:fixed;inset:0;background:rgba(15,23,42,.18);z-index:120}.filter-backdrop.is-open{display:block}.filter-panel{display:none;position:fixed;top:110px;right:36px;width:min(520px,calc(100vw - 32px));padding:18px;border:1px solid #dbe3ea;border-radius:18px;background:#fff;box-shadow:0 26px 60px rgba(15,23,42,.16);z-index:121}.filter-panel.is-open{display:block}.filter-panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}.filter-panel-head h3{margin:0;font-size:1rem}.filter-close{border:0;background:transparent;color:#6b7280;font-size:1.35rem;line-height:1;cursor:pointer;padding:0 4px}.filter-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:end}.field{display:grid;gap:8px}.field label{font-size:.86rem;font-weight:600;color:#374151}.field input,.field select{width:100%;border:1px solid #d1d5db;border-radius:12px;padding:10px 12px;font:inherit;background:#fff}.field.full{grid-column:1/-1}.field-actions{display:flex;gap:10px;align-items:center;justify-content:flex-end;grid-column:1/-1}.clear-btn,.apply-btn{display:inline-flex;align-items:center;justify-content:center;border-radius:12px;padding:10px 14px;font:inherit;cursor:pointer;text-decoration:none}.clear-btn{border:1px solid #d1d5db;background:#fff;color:#374151}.apply-btn{border:1px solid #389B5B;background:#389B5B;color:#fff}.exam-table{width:100%;border-collapse:collapse}.exam-table th,.exam-table td{padding:16px 18px;text-align:left;border-top:1px solid #edf0f2;vertical-align:top}.exam-table th{font-size:.78rem;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;background:#fafafa}.status{display:inline-flex;align-items:center;border-radius:999px;padding:5px 10px;font-weight:700;font-size:.76rem}.status.completed{background:#dcfce7;color:#166534}.status.pending,.status.incomplete{background:#fef3c7;color:#92400e}.action-icons{display:flex;gap:10px;align-items:center}.icon-btn{display:inline-flex;align-items:center;justify-content:center;background:transparent;border:0;padding:0;color:#111827;cursor:pointer;text-decoration:none}.icon-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8}.icon-btn.delete{color:#ef4444}.table-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 18px;border-top:1px solid #edf0f2;flex-wrap:wrap}.pager{color:#6b7280;font-size:.84rem}.empty-row td{text-align:center;color:#6b7280}@media(max-width:980px){.toolbar{align-items:stretch}.toolbar-left,.toolbar-right{width:100%}.toolbar-right{justify-content:flex-start}.search{width:100%}.subfilter-bar{gap:14px}.filter-panel{top:96px;right:16px}}@media(max-width:640px){.filter-grid{grid-template-columns:1fr}.filter-panel{top:88px;width:calc(100vw - 24px);right:12px}}
+.exam-shell{display:grid;gap:18px}
+.exam-head h2{margin:0;font-size:1.9rem}
+.exam-head p{margin:8px 0 0;color:#6b7280}
+.manage-card{border:1px solid #e5e7eb;border-radius:20px;background:#fff;padding:0;overflow:hidden;display:flex;flex-direction:column}
+.module-bar{display:flex;gap:12px;padding:18px;border-bottom:1px solid #edf0f2;flex-wrap:wrap}
+.module-btn{appearance:none;border:1px solid #d1d5db;background:#fff;border-radius:12px;padding:12px 20px;font:inherit;font-weight:700;color:#374151;cursor:pointer;min-width:150px}
+.module-btn.active{background:#eef7f0;border-color:#b8d8c4;color:#166534}
+.subfilter-bar{display:flex;gap:18px;align-items:center;padding:0 18px;border-bottom:1px solid #edf0f2;flex-wrap:wrap}
+.subfilter-btn{appearance:none;border:0;background:transparent;padding:14px 0 12px;font:inherit;font-weight:600;color:#4b5563;cursor:pointer;position:relative;text-transform:uppercase;font-size:.82rem}
+.subfilter-btn.active{color:#166534}
+.subfilter-btn.active::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:#389B5B;border-radius:999px}
+.toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid #edf0f2;flex-wrap:wrap}
+.toolbar-left,.toolbar-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.toolbar-btn{display:inline-flex;align-items:center;gap:8px;border:1px solid #d1d5db;border-radius:10px;background:#fff;color:#374151;padding:9px 12px;text-decoration:none;font:inherit;cursor:pointer}
+.toolbar-btn.is-active{background:#eef7f0;border-color:#b8d8c4;color:#166534}
+.search{width:min(420px,100%);border:1px solid #d1d5db;border-radius:10px;padding:10px 12px;font:inherit}
+.filter-backdrop{display:none;position:fixed;inset:0;background:rgba(15,23,42,.18);z-index:120}
+.filter-backdrop.is-open{display:block}
+.filter-panel{display:none;position:fixed;top:110px;right:36px;width:min(520px,calc(100vw - 32px));padding:18px;border:1px solid #dbe3ea;border-radius:18px;background:#fff;box-shadow:0 26px 60px rgba(15,23,42,.16);z-index:121}
+.filter-panel.is-open{display:block}
+.filter-panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.filter-panel-head h3{margin:0;font-size:1rem}
+.filter-close{border:0;background:transparent;color:#6b7280;font-size:1.35rem;line-height:1;cursor:pointer;padding:0 4px}
+.filter-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:end}
+.field{display:grid;gap:8px}
+.field label{font-size:.86rem;font-weight:600;color:#374151}
+.field input,.field select{width:100%;border:1px solid #d1d5db;border-radius:12px;padding:10px 12px;font:inherit;background:#fff}
+.field.full{grid-column:1/-1}
+.field-actions{display:flex;gap:10px;align-items:center;justify-content:flex-end;grid-column:1/-1}
+.clear-btn,.apply-btn{display:inline-flex;align-items:center;justify-content:center;border-radius:12px;padding:10px 14px;font:inherit;cursor:pointer;text-decoration:none}
+.clear-btn{border:1px solid #d1d5db;background:#fff;color:#374151}
+.apply-btn{border:1px solid #389B5B;background:#389B5B;color:#fff}
+.manage-card-body{display:flex;flex-direction:column;flex:1}
+.exam-table{width:100%;border-collapse:collapse}
+.exam-table th,.exam-table td{padding:16px 18px;text-align:left;border-top:1px solid #edf0f2;vertical-align:top}
+.exam-table th{font-size:.78rem;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;background:#fafafa}
+.filler-row td{height:56px;color:transparent;user-select:none}
+.status{display:inline-flex;align-items:center;border-radius:999px;padding:5px 10px;font-weight:700;font-size:.76rem}
+.status.completed{background:#dcfce7;color:#166534}
+.status.pending,.status.incomplete{background:#fef3c7;color:#92400e}
+.action-icons{display:flex;gap:10px;align-items:center}
+.icon-btn{display:inline-flex;align-items:center;justify-content:center;background:transparent;border:0;padding:0;color:#111827;cursor:pointer;text-decoration:none}
+.icon-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8}
+.icon-btn.delete{color:#ef4444}
+.table-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 18px;border-top:1px solid #edf0f2;flex-wrap:wrap;margin-top:auto}
+.pager{color:#6b7280;font-size:.84rem}
+.pager-group{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.page-btn{display:inline-flex;align-items:center;gap:8px;text-decoration:none;border:1px solid #d1d5db;border-radius:12px;padding:8px 12px;background:#fff;color:#374151;cursor:pointer}
+.page-btn[disabled]{opacity:.45;cursor:not-allowed}
+.page-btn.is-active{background:#389B5B;border-color:#389B5B;color:#fff}
+.page-numbers{display:flex;gap:8px;flex-wrap:wrap}
+.empty-row td{text-align:center;color:#6b7280}
+@media(max-width:980px){.toolbar{align-items:stretch}.toolbar-left,.toolbar-right{width:100%}.toolbar-right{justify-content:flex-start}.search{width:100%}.subfilter-bar{gap:14px}.filter-panel{top:96px;right:16px}}
+@media(max-width:640px){.filter-grid{grid-template-columns:1fr}.filter-panel{top:88px;width:calc(100vw - 24px);right:12px}}
 </style>
-<style>.exam-shell{min-height:calc(100dvh - 204px);align-content:start;gap:24px}.manage-card{min-height:clamp(500px,calc(100dvh - 294px),780px);display:flex;flex-direction:column}.manage-card-body{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column}.manage-card-body .table-foot{margin-top:0;position:sticky;bottom:0;background:#fff}.table-foot{margin-top:auto}@media(max-width:980px){.exam-shell{min-height:auto}.manage-card{min-height:auto}.manage-card-body{overflow:visible}}@media(max-width:640px){.manage-card{min-height:auto}.manage-card-body{overflow:visible}}</style>
 <div class="exam-shell">
     <section class="exam-head">
         <h2>Manage Examinations</h2>
@@ -205,6 +257,11 @@ $rows = array_merge(!empty($surveillanceRows) ? $surveillanceRows : ($surveillan
 
             <div class="table-foot">
                 <span class="pager" id="examPager">Showing 0 records</span>
+                <div class="pager-group">
+                    <button class="page-btn" id="examPrevBtn" type="button">Previous</button>
+                    <div class="page-numbers" id="examPageNumbers"></div>
+                    <button class="page-btn" id="examNextBtn" type="button">Next</button>
+                </div>
             </div>
         </div>
     </section>
@@ -227,6 +284,9 @@ $rows = array_merge(!empty($surveillanceRows) ? $surveillanceRows : ($surveillan
     const rows = Array.prototype.slice.call(document.querySelectorAll('#examTableBody tr[data-module]'));
     const pager = document.getElementById('examPager');
     const emptyRow = document.getElementById('examEmptyRow');
+    const prevBtn = document.getElementById('examPrevBtn');
+    const nextBtn = document.getElementById('examNextBtn');
+    const pageNumbers = document.getElementById('examPageNumbers');
     const deleteButtons = Array.prototype.slice.call(document.querySelectorAll('.icon-btn.delete'));
     const filtersByModule = {
         surveillance: ['all','declaration','examination'],
@@ -234,6 +294,9 @@ $rows = array_merge(!empty($surveillanceRows) ? $surveillanceRows : ($surveillan
     };
     let activeModule = 'surveillance';
     let activeFilter = 'all';
+    let currentPage = 1;
+    const perPage = 5;
+    const fillerClass = 'filler-row';
 
     const titleCase = function(value){
         return value.split(' ').map(function(part){
@@ -272,14 +335,12 @@ $rows = array_merge(!empty($surveillanceRows) ? $surveillanceRows : ($surveillan
         });
     };
 
-    const renderRows = function(){
+    const getFilteredRows = function(){
         const query = getMergedSearch();
         const companyValue = (filterCompany.value || '').trim().toLowerCase();
         const statusValue = (filterStatus.value || '').trim().toLowerCase();
         const dateValue = (filterDate.value || '').trim();
-        let visible = 0;
-
-        rows.forEach(function(row){
+        return rows.filter(function(row){
             const moduleMatch = row.getAttribute('data-module') === activeModule;
             const filterMatch = activeFilter === 'all' || row.getAttribute('data-filter') === activeFilter;
             const companyMatch = !companyValue || row.getAttribute('data-company') === companyValue;
@@ -287,16 +348,72 @@ $rows = array_merge(!empty($surveillanceRows) ? $surveillanceRows : ($surveillan
             const dateMatch = !dateValue || row.getAttribute('data-date') === dateValue;
             const text = row.textContent.toLowerCase();
             const searchMatch = !query || text.indexOf(query) !== -1;
-            const show = moduleMatch && filterMatch && companyMatch && statusMatch && dateMatch && searchMatch;
-            row.style.display = show ? '' : 'none';
-            if (show) { visible++; }
+            return moduleMatch && filterMatch && companyMatch && statusMatch && dateMatch && searchMatch;
+        });
+    };
+
+    const clearFillers = function(){
+        Array.prototype.slice.call(document.querySelectorAll('#examTableBody .' + fillerClass)).forEach(function(row){
+            row.remove();
+        });
+    };
+
+    const appendFillers = function(count){
+        for (let i = 0; i < count; i += 1) {
+            const filler = document.createElement('tr');
+            filler.className = fillerClass;
+            for (let col = 0; col < 6; col += 1) {
+                const cell = document.createElement('td');
+                cell.innerHTML = '&nbsp;';
+                filler.appendChild(cell);
+            }
+            document.getElementById('examTableBody').appendChild(filler);
+        }
+    };
+
+    const renderRows = function(){
+        clearFillers();
+        const filteredRows = getFilteredRows();
+        const total = filteredRows.length;
+        const totalPages = Math.max(1, Math.ceil(total / perPage));
+        if (currentPage > totalPages) { currentPage = totalPages; }
+        if (currentPage < 1) { currentPage = 1; }
+        const start = (currentPage - 1) * perPage;
+        const end = Math.min(start + perPage, total);
+
+        rows.forEach(function(row){
+            row.style.display = 'none';
+        });
+        const visibleRows = filteredRows.slice(start, end);
+        visibleRows.forEach(function(row){
+            row.style.display = '';
         });
 
+        if (total > 0 && visibleRows.length < perPage) {
+            appendFillers(perPage - visibleRows.length);
+        }
+
         if (pager) {
-            pager.textContent = 'Showing ' + visible + ' record' + (visible === 1 ? '' : 's');
+            pager.textContent = total === 0 ? 'Showing 0 records' : 'Showing ' + (start + 1) + '-' + end + ' of ' + total + ' records';
         }
         if (emptyRow) {
-            emptyRow.style.display = visible ? 'none' : '';
+            emptyRow.style.display = total ? 'none' : '';
+        }
+        if (prevBtn) { prevBtn.disabled = currentPage === 1 || total === 0; }
+        if (nextBtn) { nextBtn.disabled = currentPage === totalPages || total === 0; }
+        if (pageNumbers) {
+            pageNumbers.innerHTML = '';
+            for (let page = 1; page <= totalPages; page += 1) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'page-btn' + (page === currentPage ? ' is-active' : '');
+                button.textContent = String(page);
+                button.addEventListener('click', function(){
+                    currentPage = page;
+                    renderRows();
+                });
+                pageNumbers.appendChild(button);
+            }
         }
     };
 
@@ -307,19 +424,22 @@ $rows = array_merge(!empty($surveillanceRows) ? $surveillanceRows : ($surveillan
             activeModule = button.getAttribute('data-module') || 'surveillance';
             activeFilter = 'all';
             renderSubfilters();
+            currentPage = 1;
             renderRows();
         });
     });
 
-    if (search) { search.addEventListener('input', renderRows); }
-    if (filterSearch) { filterSearch.addEventListener('input', renderRows); }
-    if (filterCompany) { filterCompany.addEventListener('change', renderRows); }
-    if (filterStatus) { filterStatus.addEventListener('change', renderRows); }
-    if (filterDate) { filterDate.addEventListener('change', renderRows); }
+    if (search) { search.addEventListener('input', function(){ currentPage = 1; renderRows(); }); }
+    if (filterSearch) { filterSearch.addEventListener('input', function(){ currentPage = 1; renderRows(); }); }
+    if (filterCompany) { filterCompany.addEventListener('change', function(){ currentPage = 1; renderRows(); }); }
+    if (filterStatus) { filterStatus.addEventListener('change', function(){ currentPage = 1; renderRows(); }); }
+    if (filterDate) { filterDate.addEventListener('change', function(){ currentPage = 1; renderRows(); }); }
     if (filterToggleBtn) { filterToggleBtn.addEventListener('click', function(){ setFilterOpen(!filterPanel.classList.contains('is-open')); }); }
     if (filterCloseBtn) { filterCloseBtn.addEventListener('click', function(){ setFilterOpen(false); }); }
     if (filterBackdrop) { filterBackdrop.addEventListener('click', function(){ setFilterOpen(false); }); }
-    if (filterApplyBtn) { filterApplyBtn.addEventListener('click', function(){ renderRows(); setFilterOpen(false); }); }
+    if (filterApplyBtn) { filterApplyBtn.addEventListener('click', function(){ currentPage = 1; renderRows(); setFilterOpen(false); }); }
+    if (prevBtn) { prevBtn.addEventListener('click', function(){ if (currentPage > 1) { currentPage -= 1; renderRows(); } }); }
+    if (nextBtn) { nextBtn.addEventListener('click', function(){ if (currentPage < Math.max(1, Math.ceil(getFilteredRows().length / perPage))) { currentPage += 1; renderRows(); } }); }
     if (filterClearBtn) {
         filterClearBtn.addEventListener('click', function(){
             if (search) { search.value = ''; }
@@ -327,6 +447,7 @@ $rows = array_merge(!empty($surveillanceRows) ? $surveillanceRows : ($surveillan
             if (filterCompany) { filterCompany.value = ''; }
             if (filterStatus) { filterStatus.value = ''; }
             if (filterDate) { filterDate.value = ''; }
+            currentPage = 1;
             renderRows();
         });
     }
