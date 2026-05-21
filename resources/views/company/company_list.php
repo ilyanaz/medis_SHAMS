@@ -26,7 +26,7 @@ medis_render_navigation_start([
 ]);
 ?>
 <style>
-    .content{border:1px solid #e5e7eb;border-radius:20px;background:#fff;padding:18px;min-height:clamp(500px,calc(100dvh - 314px),780px);display:flex;flex-direction:column;overflow:hidden}
+    .content{border:1px solid #e5e7eb;border-radius:20px;background:#fff;padding:18px;height:clamp(500px,calc(100dvh - 314px),780px);display:flex;flex-direction:column;overflow:hidden;min-height:0}
     .head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
     .head h2{margin:0 0 12px;font-size:1.8rem}
     .head p{margin:6px 0 0;color:#6b7280}
@@ -59,7 +59,7 @@ medis_render_navigation_start([
     .page-numbers{display:flex;gap:8px;flex-wrap:wrap}
     .stack{display:grid;gap:4px}
     .muted{color:#6b7280;font-size:.92rem;line-height:1.45}
-    @media(max-width:760px){.content{padding:16px}.toolbar input{min-width:100%}.bottom{align-items:flex-start;flex-direction:column}}
+    @media(max-width:760px){.content{padding:16px;height:auto}.toolbar input{min-width:100%}.bottom{align-items:flex-start;flex-direction:column}}
 </style>
 
 <section class="content">
