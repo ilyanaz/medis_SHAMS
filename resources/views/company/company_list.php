@@ -26,7 +26,7 @@ medis_render_navigation_start([
 ]);
 ?>
 <style>
-    .content{border:1px solid #e5e7eb;border-radius:20px;background:#fff;padding:18px;min-height:clamp(500px,calc(100dvh - 314px),780px);display:flex;flex-direction:column}
+    .content{border:1px solid #e5e7eb;border-radius:20px;background:#fff;padding:18px;min-height:clamp(500px,calc(100dvh - 314px),780px);display:flex;flex-direction:column;overflow:hidden}
     .head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
     .head h2{margin:0 0 12px;font-size:1.8rem}
     .head p{margin:6px 0 0;color:#6b7280}
@@ -39,9 +39,10 @@ medis_render_navigation_start([
     .toolbar input{border:1px solid #d1d5db;border-radius:12px;padding:10px 12px;min-width:280px}
     .filter-btn{display:inline-flex;align-items:center;gap:8px;text-decoration:none;border:1px solid #d1d5db;border-radius:10px;padding:9px 12px;background:#fff;color:#374151;font:inherit;cursor:pointer}
     .filter-btn.is-active{background:#eef7f0;border-color:#b8d8c4;color:#166534}
-    .table{width:100%;border-collapse:collapse;margin-top:14px}
+    .table-wrap{margin-top:14px;flex:1;min-height:0;overflow:auto}
+    .table{width:100%;border-collapse:collapse}
     .table th,.table td{padding:14px 10px;text-align:left;border-top:1px solid #edf0f2;vertical-align:top}
-    .table th{font-size:.8rem;color:#6b7280;text-transform:uppercase;letter-spacing:.05em}
+    .table th{font-size:.8rem;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;position:sticky;top:0;background:#fff;z-index:1}
     .table-name{color:#0f172a;font-weight:600}
     .empty{padding:22px 10px;color:#6b7280;text-align:center}
     .action-icons{display:flex;gap:14px;flex-wrap:wrap;align-items:center}.action-icons form{margin:0}
@@ -51,9 +52,14 @@ medis_render_navigation_start([
     .notice{margin-top:18px;padding:12px 14px;border-radius:14px;border:1px solid #a7f3d0;background:#ecfdf3;color:#065f46}
     .bottom{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:18px}
     .pager{color:#6b7280;font-size:.84rem}
+    .pager-group{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .page-btn{display:inline-flex;align-items:center;gap:8px;text-decoration:none;border:1px solid #d1d5db;border-radius:12px;padding:8px 12px;background:#fff;color:#374151;font:inherit;cursor:pointer}
+    .page-btn[disabled]{opacity:.45;cursor:not-allowed}
+    .page-btn.is-active{background:#389B5B;border-color:#389B5B;color:#fff}
+    .page-numbers{display:flex;gap:8px;flex-wrap:wrap}
     .stack{display:grid;gap:4px}
     .muted{color:#6b7280;font-size:.92rem;line-height:1.45}
-    @media(max-width:760px){.content{padding:16px}.toolbar input{min-width:100%}}
+    @media(max-width:760px){.content{padding:16px}.toolbar input{min-width:100%}.bottom{align-items:flex-start;flex-direction:column}}
 </style>
 
 <section class="content">
@@ -73,7 +79,7 @@ medis_render_navigation_start([
 
     <div class="toolbar">
         <div class="toolbar-left">
-            <input type="text" placeholder="Search record">
+            <input id="companySearch" type="text" placeholder="Search record">
         </div>
         <div class="toolbar-right">
             <button type="button" class="filter-btn" data-company-filter="surveillance">Surveillance</button>
@@ -81,6 +87,7 @@ medis_render_navigation_start([
         </div>
     </div>
 
+    <div class="table-wrap">
     <table class="table">
         <thead>
             <tr>
@@ -91,11 +98,11 @@ medis_render_navigation_start([
                 <th>Action</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="companyTableBody">
             <?php if ($totalCompanies > 0): ?>
                 <?php foreach ($companies as $company): ?>
                     <?php $companyModule = (string) ($company->company_module ?? ''); ?>
-                    <tr data-company-module="<?php echo $esc($companyModule !== '' ? $companyModule : 'shared'); ?>">
+                    <tr data-company-row="1" data-company-module="<?php echo $esc($companyModule !== '' ? $companyModule : 'shared'); ?>">
                         
                         <td>
                             <div class="stack">
@@ -127,15 +134,20 @@ medis_render_navigation_start([
                     </tr>
                 <?php endforeach; ?>
             <?php else: ?>
-                <tr><td class="empty" colspan="6">No company records found for the currently selected clinic.</td></tr>
+                <tr id="companyEmptyRow"><td class="empty" colspan="6">No company records found for the currently selected clinic.</td></tr>
             <?php endif; ?>
         </tbody>
     </table>
+    </div>
 
     <div class="bottom">
-        <span class="pager"><?php echo $totalCompanies > 0 ? 'Showing 1-' . number_format($totalCompanies) . ' of ' . number_format($totalCompanies) . ' records' : 'Showing 0 of 0 records'; ?></span>
-        <div>
-           
+        <span class="pager" id="companyPager"><?php echo $totalCompanies > 0 ? 'Showing 1-' . number_format($totalCompanies) . ' of ' . number_format($totalCompanies) . ' records' : 'Showing 0 of 0 records'; ?></span>
+        <div class="pager-group">
+            <?php if ($totalCompanies > 0): ?>
+                <button class="page-btn" id="companyPrevBtn" type="button">Previous</button>
+                <div class="page-numbers" id="companyPageNumbers"></div>
+                <button class="page-btn" id="companyNextBtn" type="button">Next</button>
+            <?php endif; ?>
             <a class="next" href="<?php echo $esc($setupUrl); ?>">Next</a>
         </div>
     </div>
@@ -143,24 +155,94 @@ medis_render_navigation_start([
 
 <script>
 (function () {
+    var searchInput = document.getElementById('companySearch');
     var filterButtons = Array.prototype.slice.call(document.querySelectorAll('[data-company-filter]'));
     var rows = Array.prototype.slice.call(document.querySelectorAll('tbody tr[data-company-module]'));
+    var pager = document.getElementById('companyPager');
+    var prevBtn = document.getElementById('companyPrevBtn');
+    var nextBtn = document.getElementById('companyNextBtn');
+    var pageNumbers = document.getElementById('companyPageNumbers');
+    var emptyRow = document.getElementById('companyEmptyRow');
     var activeFilter = '';
+    var currentPage = 1;
+    var perPage = 10;
+
+    function getFilteredRows() {
+        var query = (searchInput && searchInput.value ? searchInput.value : '').trim().toLowerCase();
+        return rows.filter(function (row) {
+            var module = row.getAttribute('data-company-module') || '';
+            var matchesFilter = activeFilter === '' || module === activeFilter || module === 'shared';
+            var matchesSearch = query === '' || (row.textContent || '').toLowerCase().indexOf(query) !== -1;
+            return matchesFilter && matchesSearch;
+        });
+    }
+
+    function render() {
+        var filtered = getFilteredRows();
+        var total = filtered.length;
+        var totalPages = Math.max(1, Math.ceil(total / perPage));
+        if (currentPage > totalPages) { currentPage = totalPages; }
+        if (currentPage < 1) { currentPage = 1; }
+        rows.forEach(function (row) { row.style.display = 'none'; });
+        var start = (currentPage - 1) * perPage;
+        var end = Math.min(start + perPage, total);
+        filtered.slice(start, end).forEach(function (row) { row.style.display = ''; });
+        if (emptyRow) { emptyRow.style.display = total ? 'none' : ''; }
+        if (pager) {
+            pager.textContent = total ? ('Showing ' + (start + 1) + '-' + end + ' of ' + total + ' records') : 'Showing 0 of 0 records';
+        }
+        if (prevBtn) { prevBtn.disabled = currentPage === 1 || total === 0; }
+        if (nextBtn) { nextBtn.disabled = currentPage === totalPages || total === 0; }
+        if (pageNumbers) {
+            pageNumbers.innerHTML = '';
+            for (var page = 1; page <= totalPages; page += 1) {
+                var button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'page-btn' + (page === currentPage ? ' is-active' : '');
+                button.textContent = String(page);
+                button.addEventListener('click', (function (targetPage) {
+                    return function () {
+                        currentPage = targetPage;
+                        render();
+                    };
+                }(page)));
+                pageNumbers.appendChild(button);
+            }
+        }
+    }
 
     filterButtons.forEach(function (button) {
         button.addEventListener('click', function () {
             var filter = button.getAttribute('data-company-filter') || '';
             activeFilter = activeFilter === filter ? '' : filter;
+            currentPage = 1;
             filterButtons.forEach(function (item) {
                 item.classList.toggle('is-active', item === button && activeFilter !== '');
             });
-            rows.forEach(function (row) {
-                var module = row.getAttribute('data-company-module') || '';
-                var shouldShow = activeFilter === '' || module === activeFilter || module === 'shared';
-                row.style.display = shouldShow ? '' : 'none';
-            });
+            render();
         });
     });
+    if (searchInput) {
+        searchInput.addEventListener('input', function () {
+            currentPage = 1;
+            render();
+        });
+    }
+    if (prevBtn) {
+        prevBtn.addEventListener('click', function () {
+            if (currentPage > 1) {
+                currentPage -= 1;
+                render();
+            }
+        });
+    }
+    if (nextBtn) {
+        nextBtn.addEventListener('click', function () {
+            currentPage += 1;
+            render();
+        });
+    }
+    render();
 })();
 </script>
 
