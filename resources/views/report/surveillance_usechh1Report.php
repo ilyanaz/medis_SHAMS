@@ -76,11 +76,12 @@ medis_render_navigation_start([
 .pdf-page-break{page-break-before:always;break-before:page}
 .toolbar-hide .app-card{padding:0;border:0;background:transparent;box-shadow:none}
 .toolbar-hide .app-page{padding:18px;background:#f3f6f8}
-@media print{body{background:#fff}.app-topbar,.app-sidebar,.report-actions{display:none!important}.app-shell{display:block}.app-main,.app-page,.app-card{display:block;height:auto;overflow:visible;padding:0!important;border:0!important;background:#fff!important}.sheet{padding:0;border:0;box-shadow:none}}
+.print-only{display:none}
+@media print{body{background:#fff}.app-topbar,.app-sidebar,.report-actions{display:none!important}.app-shell{display:block}.app-main,.app-page,.app-card{display:block;height:auto;overflow:visible;padding:0!important;border:0!important;background:#fff!important}.sheet{padding:0;border:0;box-shadow:none}.print-only{display:block}}
 </style>
 <div class="report-page toolbar-hide">
     <section class="sheet">
-        <?php require __DIR__ . '/partials/clinic_header.php'; ?>
+        <div class="print-only"><?php require __DIR__ . '/partials/clinic_header.php'; ?></div>
         <div class="sheet-top">
             <span class="center-title">Occupational Safety and Health Act 1994 (Act 514)</span>
             <span class="right-code">USECHH 1</span>
@@ -246,4 +247,3 @@ medis_render_navigation_start([
 <?php medis_render_navigation_end(); ?>
 </body>
 </html>
-

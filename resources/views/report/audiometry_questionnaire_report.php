@@ -74,10 +74,11 @@ body{margin:0;padding:16px;background:#fff;color:#0f172a;font-family:"Poppins","
 .test-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:16px}
 .section-title{margin:0;font-size:14px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
 .mini-note{font-size:11px;color:#64748b}
-@media print{body{padding:0}.report-card{break-inside:avoid}}
+ .print-only{display:none}
+@media print{body{padding:0}.report-card{break-inside:avoid}.print-only{display:block}}
 </style>
 <div class="sheet">
-    <?php require __DIR__ . '/partials/clinic_header.php'; ?>
+    <div class="print-only"><?php require __DIR__ . '/partials/clinic_header.php'; ?></div>
     <section class="report-card">
         <div class="report-head">
             <div class="report-head-top">

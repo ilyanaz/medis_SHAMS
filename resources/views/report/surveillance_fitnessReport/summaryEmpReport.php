@@ -127,6 +127,7 @@ td{min-height:100px;word-wrap:break-word;white-space:pre-wrap}
 .conclusion-col{width:10%}
 .mrp-col{width:10%}
 .doctor-col{width:13%}
+.print-only{display:none}
 @media print{
   body{padding:0;background:#fff}
   .sheet{gap:10px}
@@ -138,10 +139,11 @@ td{min-height:100px;word-wrap:break-word;white-space:pre-wrap}
   .usechh-head__title{font-size:16px}
   .usechh-head__subtitle{font-size:14px;margin-bottom:8px}
   .meta{padding:0 10px 6px;font-size:13px}
+  .print-only{display:block}
 }
 </style>
 <div class="sheet">
-    <?php require dirname(__DIR__) . '/partials/clinic_header.php'; ?>
+    <div class="print-only"><?php require dirname(__DIR__) . '/partials/clinic_header.php'; ?></div>
 
     <section class="report-shell">
         <div class="usechh-head">

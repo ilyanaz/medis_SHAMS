@@ -226,17 +226,19 @@ body{margin:0;padding:18px;background:#fff;color:#0f172a;font-family:"Poppins","
 .reason-table tr:first-child td{border-top:0}
 .reason-status{width:120px;font-weight:700;color:#1f5f35}
 .reason-status.no{color:#64756b}
-.signature-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:22px;align-items:start}
-.sign-box{padding:8px 0 0;min-height:150px;text-align:center}
-.sign-box img{display:block;max-width:220px;max-height:72px;object-fit:contain;margin:0 auto 12px}
-.doctor-meta{display:grid;gap:10px}
-.meta-row{padding:6px 0}
+.signature-section{display:flex;justify-content:flex-end}
+.signature-stack{display:grid;gap:12px;max-width:320px;text-align:right}
+.sign-box{padding:0;min-height:0;text-align:right}
+.sign-box img{display:block;max-width:220px;max-height:72px;object-fit:contain;margin:0 0 10px auto}
+.doctor-meta{display:grid;gap:8px}
+.meta-row{padding:2px 0}
 .meta-row strong{display:block;font-size:.8rem;letter-spacing:.04em;text-transform:uppercase;color:#6b7d71;margin-bottom:4px}
 .muted{color:#64756b}
 .flash{margin:0 0 8px;padding:10px 14px;border:1px solid #cfe7d4;border-radius:12px;background:#f3fbf4;color:#1f5f35;font-size:.9rem}
 .save-actions{display:flex;justify-content:flex-end}
 .save-btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 18px;border:1px solid #2f9e44;border-radius:999px;background:#2f9e44;color:#fff;font:inherit;font-weight:700;cursor:pointer}
 .screen-only{display:block}
+.print-only{display:none}
 @media print{
 body{padding:0;font-size:12px}
 .sheet{gap:8px}
@@ -260,10 +262,11 @@ body{padding:0;font-size:12px}
 .meta-row strong{font-size:.72rem;margin-bottom:2px}
 .report-card{break-inside:avoid}
 .screen-only{display:none!important}
+.print-only{display:block}
 }
 </style>
 <div class="sheet">
-    <?php require __DIR__ . '/partials/clinic_header.php'; ?>
+    <div class="print-only"><?php require __DIR__ . '/partials/clinic_header.php'; ?></div>
 
     <section class="report-card">
         <div class="report-head">
@@ -349,21 +352,21 @@ body{padding:0;font-size:12px}
             </div>
         </div>
 
-        <div class="section">
-            <div class="signature-grid">
-                <div class="doctor-meta">
-                    <div class="meta-row"><strong>Name of OHD</strong><?php echo $esc($doctorName); ?></div>
-                    <div class="meta-row"><strong>Address of Practice</strong><?php echo $esc($showValue($doctorAddress, '-')); ?></div>
-                    <div class="meta-row"><strong>Email Address</strong><?php echo $esc($showValue($doctor->doctor_email ?? null)); ?></div>
-                    <div class="meta-row"><strong>H/P / Tel / Fax</strong><?php echo $esc(trim((string) (($doctor->doctor_telephone ?? '-') . ' / ' . ($doctor->doctor_fax ?? '-')))); ?></div>
-                </div>
-                <div class="sign-box">
-                    <?php if ($doctorSignature !== ''): ?>
-                        <img src="<?php echo $esc($doctorSignature); ?>" alt="Doctor signature">
-                    <?php endif; ?>
-                    <div><strong>OHD Signature</strong></div>
-                    <div class="muted"><?php echo $esc($formatDate((string) ($declaration->doctor_date ?? $examDateRaw))); ?></div>
-                    <div class="muted" style="margin-top:10px;"><?php echo $esc($doctorName); ?></div>
+        <div class="section print-only">
+            <div class="signature-section">
+                <div class="signature-stack">
+                    <div class="sign-box">
+                        <?php if ($doctorSignature !== ''): ?>
+                            <img src="<?php echo $esc($doctorSignature); ?>" alt="Doctor signature">
+                        <?php endif; ?>
+                    </div>
+                    <div class="doctor-meta">
+                        <div class="meta-row"><strong>Name of OHD</strong><?php echo $esc($doctorName); ?></div>
+                        <div class="meta-row"><strong>OHD Signature Date</strong><?php echo $esc($formatDate((string) ($declaration->doctor_date ?? $examDateRaw))); ?></div>
+                        <div class="meta-row"><strong>Address of Practice</strong><?php echo $esc($showValue($doctorAddress, '-')); ?></div>
+                        <div class="meta-row"><strong>Telephone</strong><?php echo $esc($showValue($doctor->doctor_telephone ?? null)); ?></div>
+                        <div class="meta-row"><strong>Email</strong><?php echo $esc($showValue($doctor->doctor_email ?? null)); ?></div>
+                    </div>
                 </div>
             </div>
         </div>

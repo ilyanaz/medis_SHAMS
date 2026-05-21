@@ -82,11 +82,12 @@ body{margin:0;padding:18px;background:#fff;color:#0f172a;font-family:"Poppins","
 .detail-value{font-size:1rem;font-weight:500}
 .narrative{line-height:1.8}
 .narrative strong{font-weight:700}
-.signature-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:22px;align-items:start}
-.sign-box{padding:8px 0 0;min-height:150px;text-align:center}
-.sign-box img{display:block;max-width:220px;max-height:72px;object-fit:contain;margin:0 auto 12px}
-.doctor-meta{display:grid;gap:10px}
-.meta-row{padding:6px 0}
+.signature-section{display:flex;justify-content:flex-end}
+.signature-stack{display:grid;gap:12px;max-width:320px;text-align:right}
+.sign-box{padding:0;min-height:0;text-align:right}
+.sign-box img{display:block;max-width:220px;max-height:72px;object-fit:contain;margin:0 0 10px auto}
+.doctor-meta{display:grid;gap:8px}
+.meta-row{padding:2px 0}
 .meta-row strong{display:block;font-size:.8rem;letter-spacing:.04em;text-transform:uppercase;color:#6b7d71;margin-bottom:4px}
 .muted{color:#64756b}
 .flash{margin:0 0 8px;padding:10px 14px;border:1px solid #cfe7d4;border-radius:12px;background:#f3fbf4;color:#1f5f35;font-size:.9rem}
@@ -94,11 +95,12 @@ body{margin:0;padding:18px;background:#fff;color:#0f172a;font-family:"Poppins","
 .remarks-textarea{width:100%;min-height:120px;padding:12px 14px;border:1px solid #cbd5e1;border-radius:14px;font:inherit;resize:vertical;background:#fff;color:#0f172a}
 .remarks-actions{display:flex;justify-content:flex-end}
 .save-btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 18px;border:1px solid #2f9e44;border-radius:999px;background:#2f9e44;color:#fff;font:inherit;font-weight:700;cursor:pointer}
+.screen-only{display:block}
 .print-only{display:none}
 @media print{body{padding:0}.report-card{break-inside:avoid}.clinic-report-header{padding-bottom:4px}.report-head{padding-top:0}.screen-only{display:none!important}.print-only{display:block}.remarks-print{white-space:pre-wrap}}
 </style>
 <div class="sheet">
-    <?php require __DIR__ . '/partials/clinic_header.php'; ?>
+    <div class="print-only"><?php require __DIR__ . '/partials/clinic_header.php'; ?></div>
 
     <section class="report-card">
         <div class="report-head">
@@ -153,21 +155,22 @@ body{margin:0;padding:18px;background:#fff;color:#0f172a;font-family:"Poppins","
             </form>
         </div>
 
-        <div class="section">
-            <div class="signature-grid">
-                <div class="sign-box">
-                    <?php if ($doctorSignature !== ''): ?>
-                        <img src="<?php echo $esc($doctorSignature); ?>" alt="Doctor signature">
-                    <?php endif; ?>
-                    <div><strong><?php echo $esc($doctorName); ?></strong></div>
-                    <div class="muted">Occupational Health Doctor</div>
-                    <div class="muted"><?php echo $esc((string) ($doctor->OHD_registrationNo ?? $doctor->MMC_no ?? '-')); ?></div>
-                </div>
-                <div class="doctor-meta">
-                    <div class="meta-row"><strong>Signature Date</strong><?php echo $esc((string) ($declaration->doctor_date ?? '-')); ?></div>
-                    <div class="meta-row"><strong>Address of Practice</strong><?php echo $esc(trim((string) (($doctor->doctor_address ?? '') . ', ' . ($doctor->doctor_postcode ?? '') . ' ' . ($doctor->doctor_district ?? '') . ', ' . ($doctor->doctor_state ?? '')))); ?></div>
-                    <div class="meta-row"><strong>Telephone</strong><?php echo $esc((string) ($doctor->doctor_telephone ?? '-')); ?></div>
-                    <div class="meta-row"><strong>Email</strong><?php echo $esc((string) ($doctor->doctor_email ?? '-')); ?></div>
+        <div class="section print-only">
+            <div class="signature-section">
+                <div class="signature-stack">
+                    <div class="sign-box">
+                        <?php if ($doctorSignature !== ''): ?>
+                            <img src="<?php echo $esc($doctorSignature); ?>" alt="Doctor signature">
+                        <?php endif; ?>
+                    </div>
+                    <div class="doctor-meta">
+                        <div class="meta-row"><strong>Name of OHD</strong><?php echo $esc($doctorName); ?></div>
+                        <div class="meta-row"><strong>OHD Signature Date</strong><?php echo $esc((string) ($declaration->doctor_date ?? '-')); ?></div>
+                        <div class="meta-row"><strong>Address of Practice</strong><?php echo $esc(trim((string) (($doctor->doctor_address ?? '') . ', ' . ($doctor->doctor_postcode ?? '') . ' ' . ($doctor->doctor_district ?? '') . ', ' . ($doctor->doctor_state ?? '')))); ?></div>
+                        <div class="meta-row"><strong>Telephone</strong><?php echo $esc((string) ($doctor->doctor_telephone ?? '-')); ?></div>
+                        <div class="meta-row"><strong>Email</strong><?php echo $esc((string) ($doctor->doctor_email ?? '-')); ?></div>
+                        <div class="meta-row"><strong>Registration No.</strong><?php echo $esc((string) ($doctor->OHD_registrationNo ?? $doctor->MMC_no ?? '-')); ?></div>
+                    </div>
                 </div>
             </div>
         </div>

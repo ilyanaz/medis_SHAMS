@@ -152,7 +152,7 @@ body{margin:0;padding:18px;background:#fff;color:#0f172a;font-family:"Poppins","
 @media print{body{padding:0}.report-card{break-inside:avoid}.screen-only{display:none!important}.print-only{display:block}}
 </style>
 <div class="sheet">
-    <?php require __DIR__ . '/partials/clinic_header.php'; ?>
+    <div class="print-only"><?php require __DIR__ . '/partials/clinic_header.php'; ?></div>
     <section class="report-card">
         <div class="report-head">
             <div class="report-head-top">

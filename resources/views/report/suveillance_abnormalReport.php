@@ -103,10 +103,11 @@ body{margin:0;padding:16px;background:#fff;color:#0f172a;font-family:"Poppins","
 .abnormal-table th{background:#fff;color:#0f172a;font-weight:700}
 .foot-note{padding:14px 0 0;color:#5f6f65;font-size:.84rem;line-height:1.5}
 .empty-state{padding:24px 0 8px;color:#5f6f65;font-size:.95rem;line-height:1.6}
-@media print{body{padding:0}.report-card{break-inside:avoid}}
+.print-only{display:none}
+@media print{body{padding:0}.report-card{break-inside:avoid}.print-only{display:block}}
 </style>
 <div class="sheet">
-    <?php require __DIR__ . '/partials/clinic_header.php'; ?>
+    <div class="print-only"><?php require __DIR__ . '/partials/clinic_header.php'; ?></div>
     <section class="report-card">
         <div class="report-head">
             <div class="report-head-top">

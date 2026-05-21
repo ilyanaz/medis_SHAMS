@@ -26,7 +26,7 @@ medis_render_navigation_start([
 ]);
 ?>
 <style>
-    .content{border:1px solid #e5e7eb;border-radius:20px;background:#fff;padding:18px;height:clamp(500px,calc(100dvh - 314px),780px);display:flex;flex-direction:column;overflow:hidden;min-height:0}
+    .content{border:1px solid #e5e7eb;border-radius:20px;background:#fff;padding:18px;min-height:clamp(640px,calc(100dvh - 250px),940px);display:flex;flex-direction:column}
     .head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
     .head h2{margin:0 0 12px;font-size:1.8rem}
     .head p{margin:6px 0 0;color:#6b7280}
@@ -39,10 +39,10 @@ medis_render_navigation_start([
     .toolbar input{border:1px solid #d1d5db;border-radius:12px;padding:10px 12px;min-width:280px}
     .filter-btn{display:inline-flex;align-items:center;gap:8px;text-decoration:none;border:1px solid #d1d5db;border-radius:10px;padding:9px 12px;background:#fff;color:#374151;font:inherit;cursor:pointer}
     .filter-btn.is-active{background:#eef7f0;border-color:#b8d8c4;color:#166534}
-    .table-wrap{margin-top:14px;flex:1;min-height:0;overflow:auto}
+    .table-wrap{margin-top:14px;overflow:visible}
     .table{width:100%;border-collapse:collapse}
     .table th,.table td{padding:14px 10px;text-align:left;border-top:1px solid #edf0f2;vertical-align:top}
-    .table th{font-size:.8rem;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;position:sticky;top:0;background:#fff;z-index:1}
+    .table th{font-size:.8rem;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;background:#fff}
     .table-name{color:#0f172a;font-weight:600}
     .empty{padding:22px 10px;color:#6b7280;text-align:center}
     .action-icons{display:flex;gap:14px;flex-wrap:wrap;align-items:center}.action-icons form{margin:0}
@@ -59,7 +59,7 @@ medis_render_navigation_start([
     .page-numbers{display:flex;gap:8px;flex-wrap:wrap}
     .stack{display:grid;gap:4px}
     .muted{color:#6b7280;font-size:.92rem;line-height:1.45}
-    @media(max-width:760px){.content{padding:16px;height:auto}.toolbar input{min-width:100%}.bottom{align-items:flex-start;flex-direction:column}}
+    @media(max-width:760px){.content{padding:16px;min-height:auto}.toolbar input{min-width:100%}.bottom{align-items:flex-start;flex-direction:column}}
 </style>
 
 <section class="content">

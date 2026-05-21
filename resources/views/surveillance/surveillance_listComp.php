@@ -59,10 +59,10 @@ medis_render_navigation_start([
     @media(max-width:1100px){.stepper{padding:14px}.step-list{grid-template-columns:repeat(3,minmax(0,1fr))}.step-label{max-width:none}}
 </style>
 <style>
-    .flow{min-height:calc(100dvh - 204px)}
-    .content{margin-top:0;overflow:visible;min-height:clamp(500px,calc(100dvh - 314px),780px);display:flex;flex-direction:column}
+    .flow{height:calc(100dvh - 204px);min-height:calc(100dvh - 204px);display:flex}
+    .content{margin-top:0;overflow:hidden;height:100%;width:100%;display:flex;flex-direction:column}
     .bottom{margin-top:auto;padding-top:18px}
-    @media(max-width:1180px){.flow{min-height:auto}.content{min-height:auto}}
+    @media(max-width:1180px){.flow{height:auto;min-height:auto}.content{height:auto;min-height:auto}}
     @media(max-width:760px){.content{padding:0}}
 </style>
 
