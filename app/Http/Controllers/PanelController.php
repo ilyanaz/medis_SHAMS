@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
@@ -2190,7 +2191,17 @@ class PanelController extends Controller
 
         $baselineResults = trim((string) $request->input('baseline_results', ''));
         $baselineAnnual = trim((string) $request->input('baseline_annual', ''));
+        $employeeRecord = $employeeId > 0
+            ? DB::table('employee')->where('employee_id', $employeeId)->first()
+            : null;
+        $patientNameForFile = trim(
+            ((string) ($employeeRecord->employee_firstName ?? '')) . ' ' . ((string) ($employeeRecord->employee_lastName ?? ''))
+        );
         $existingBloodResultFiles = [];
+        $removedBloodResultFiles = array_values(array_filter(array_map(
+            static fn ($path) => trim((string) $path),
+            preg_split('/\r\n|\r|\n/', (string) $request->input('removed_blood_result_files', '')) ?: []
+        ), static fn ($path) => $path !== ''));
         if (Schema::hasTable('biological_monitoring') && Schema::hasColumn('biological_monitoring', 'blood_result_files')) {
             $existingBiologicalRecord = $surveillanceId > 0
                 ? DB::table('biological_monitoring')->where('surveillance_id', $surveillanceId)->first()
@@ -2204,16 +2215,50 @@ class PanelController extends Controller
             }
         }
 
-        $newBloodResultFiles = [];
-        foreach ((array) $request->file('blood_result_files', []) as $uploadedFile) {
-            if (! $uploadedFile || ! $uploadedFile->isValid()) {
+        if (! empty($removedBloodResultFiles)) {
+            foreach ($removedBloodResultFiles as $removedBloodResultFile) {
+                if (in_array($removedBloodResultFile, $existingBloodResultFiles, true)) {
+                    $this->deletePublicFile($removedBloodResultFile);
+                }
+            }
+
+            $existingBloodResultFiles = array_values(array_filter(
+                $existingBloodResultFiles,
+                static fn ($path) => ! in_array($path, $removedBloodResultFiles, true)
+            ));
+        }
+
+        $uploadedBloodResultInputs = $request->file('blood_result_files', []);
+        $uploadedBloodResultFiles = is_array($uploadedBloodResultInputs)
+            ? array_values($uploadedBloodResultInputs)
+            : [$uploadedBloodResultInputs];
+        $normalizedBloodResultFiles = [];
+        while ($uploadedBloodResultFiles !== []) {
+            $candidate = array_shift($uploadedBloodResultFiles);
+            if (is_array($candidate)) {
+                foreach ($candidate as $nestedCandidate) {
+                    $uploadedBloodResultFiles[] = $nestedCandidate;
+                }
                 continue;
             }
 
-            $newBloodResultFiles[] = $uploadedFile->store('surveillance/blood-results', 'public');
+            if ($candidate instanceof UploadedFile) {
+                $normalizedBloodResultFiles[] = $candidate;
+            }
         }
 
-        $mergedBloodResultFiles = array_values(array_merge($existingBloodResultFiles, $newBloodResultFiles));
+        $newBloodResultFiles = [];
+        foreach ($normalizedBloodResultFiles as $uploadedFile) {
+            if (! $uploadedFile->isValid()) {
+                continue;
+            }
+
+            $storedFilename = $this->buildBloodResultStoredFilename($uploadedFile, $patientNameForFile, 'surveillance/blood-results');
+            Storage::disk('public')->putFileAs('surveillance/blood-results', $uploadedFile, $storedFilename);
+            $newBloodResultFiles[] = 'surveillance/blood-results/' . $storedFilename;
+        }
+
+        $mergedBloodResultFiles = array_values(array_unique(array_merge($existingBloodResultFiles, $newBloodResultFiles)));
         $biologicalPayload = [
             'biological_exposure' => ($baselineResults !== '' || $baselineAnnual !== '' || ! empty($mergedBloodResultFiles)) ? 'Yes' : null,
             'baseline_results' => $baselineResults !== '' ? $baselineResults : null,
@@ -3924,6 +3969,38 @@ class PanelController extends Controller
         Storage::disk('public')->putFileAs($directory, $file, $filename);
 
         return 'storage/' . $directory . '/' . $filename;
+    }
+
+    protected function sanitizeStoredFilenamePart(string $value, string $fallback): string
+    {
+        $value = trim($value);
+        $value = preg_replace('/[\\\\\/:*?"<>|]+/', ' ', $value) ?? '';
+        $value = preg_replace('/\s+/', ' ', $value) ?? '';
+        $value = trim($value, " .\t\n\r\0\x0B");
+
+        return $value !== '' ? $value : $fallback;
+    }
+
+    protected function buildBloodResultStoredFilename(UploadedFile $file, string $patientName, string $directory): string
+    {
+        $directory = trim($directory, '/\\');
+        $originalName = pathinfo((string) $file->getClientOriginalName(), PATHINFO_FILENAME);
+        $extension = strtolower((string) $file->getClientOriginalExtension());
+
+        $baseName = $this->sanitizeStoredFilenamePart($originalName, 'blood-result');
+        $patientName = $this->sanitizeStoredFilenamePart($patientName, 'patient');
+        $combinedName = $baseName . '_' . $patientName;
+        $combinedName = mb_substr($combinedName, 0, 180);
+
+        $filename = $combinedName . ($extension !== '' ? '.' . $extension : '');
+        $counter = 2;
+
+        while (Storage::disk('public')->exists($directory . '/' . $filename)) {
+            $filename = $combinedName . '_' . $counter . ($extension !== '' ? '.' . $extension : '');
+            $counter++;
+        }
+
+        return $filename;
     }
 
     protected function deletePublicFile(?string $path): void
