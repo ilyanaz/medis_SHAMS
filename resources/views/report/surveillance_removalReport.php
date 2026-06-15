@@ -149,6 +149,19 @@ foreach ([
 if (! empty($targetOrgan->spirometry_comments) || (! empty($targetOrgan->spirometry_FEV1) || ! empty($targetOrgan->spirometry_FVC) || ! empty($targetOrgan->spirometry_FEV_FVC))) {
     $targetOrganNotes[] = 'Spirometry';
 }
+if (! empty($targetOrgan->other_tests ?? null)) {
+    $decodedOtherTargetTests = json_decode((string) $targetOrgan->other_tests, true);
+    if (is_array($decodedOtherTargetTests)) {
+        foreach ($decodedOtherTargetTests as $otherTargetTest) {
+            $testName = trim((string) ($otherTargetTest['name'] ?? ''));
+            $testResult = trim((string) ($otherTargetTest['result'] ?? ''));
+            if ($testName !== '' && $testResult === 'Abnormal') {
+                $targetOrganAbnormal = true;
+                $targetOrganNotes[] = $testName;
+            }
+        }
+    }
+}
 
 $recommendationReasons = [];
 if (($findings->pregnancy_breastFeding ?? null) === 'Yes') {

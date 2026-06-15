@@ -2062,6 +2062,9 @@ class PanelController extends Controller
             );
         }
 
+        $patientSupportingData = $this->validateSurveillancePatientSupportingRequest($request);
+        $this->syncSurveillancePatientSupportingData($employeeId, $patientSupportingData, $company);
+
         $chemicalName = trim((string) $request->input('company_name', (string) $company->company_name));
         $chemicalSelection = trim((string) $request->input('chemicals', ''));
         $examinationType = trim((string) $request->input('examination_type', ''));
@@ -2186,6 +2189,28 @@ class PanelController extends Controller
         foreach ($targetColumns as $column) {
             $value = $request->input($column);
             $targetPayload[$column] = is_string($value) ? (trim($value) !== '' ? trim($value) : null) : $value;
+        }
+        if (Schema::hasTable('target_organ') && Schema::hasColumn('target_organ', 'other_tests')) {
+            $otherTargetTestNames = (array) $request->input('other_target_test_name', []);
+            $otherTargetTestResults = (array) $request->input('other_target_test_result', []);
+            $otherTargetTestComments = (array) $request->input('other_target_test_comments', []);
+            $otherTargetTests = [];
+            $otherTargetTestCount = max(count($otherTargetTestNames), count($otherTargetTestResults), count($otherTargetTestComments));
+            for ($index = 0; $index < $otherTargetTestCount; $index++) {
+                $name = trim((string) ($otherTargetTestNames[$index] ?? ''));
+                $result = trim((string) ($otherTargetTestResults[$index] ?? ''));
+                $comments = trim((string) ($otherTargetTestComments[$index] ?? ''));
+                if ($name === '' && $result === '' && $comments === '') {
+                    continue;
+                }
+
+                $otherTargetTests[] = [
+                    'name' => $name,
+                    'result' => $result,
+                    'comments' => $comments,
+                ];
+            }
+            $targetPayload['other_tests'] = $otherTargetTests !== [] ? json_encode($otherTargetTests) : null;
         }
         $this->upsertSurveillanceChildRow('target_organ', 'target_id', $surveillanceId, $employeeId, $targetPayload);
 
@@ -3506,6 +3531,19 @@ class PanelController extends Controller
         if ($selectedCompany === null && Schema::hasColumn('employee', 'company_id') && (int) ($patientRecord->company_id ?? 0) > 0) {
             $selectedCompany = $this->findCompany($request, (int) $patientRecord->company_id);
         }
+        $supportingContext = $this->surveillancePatientSupportingContext($employeeId, $selectedCompany, $patientRecord);
+
+        return [
+            'selectedCompany' => $selectedCompany,
+            'patientRecord' => $patientRecord,
+            'patientFormData' => $supportingContext['patientFormData'],
+            'returnTo' => $this->surveillancePatientReturnUrl($request, (int) ($selectedCompany->company_id ?? 0)),
+        ];
+    }
+
+    protected function surveillancePatientSupportingContext(int $employeeId, ?object $selectedCompany = null, ?object $patientRecord = null): array
+    {
+        $patientRecord = $patientRecord ?? ($employeeId > 0 ? DB::table('employee')->where('employee_id', $employeeId)->first() : null);
 
         $occupationalRows = collect();
         if (Schema::hasTable('occupational_history')) {
@@ -3572,10 +3610,20 @@ class PanelController extends Controller
         }
 
         return [
-            'selectedCompany' => $selectedCompany,
-            'patientRecord' => $patientRecord,
-            'patientFormData' => $this->surveillancePatientFormDefaults($patientRecord, $selectedCompany, $medicalHistory, $currentOccupational, $pastOccupationalRows, $personalHistory, $trainingHistory),
-            'returnTo' => $this->surveillancePatientReturnUrl($request, (int) ($selectedCompany->company_id ?? 0)),
+            'medicalHistory' => $medicalHistory,
+            'currentOccupational' => $currentOccupational,
+            'pastOccupationalRows' => $pastOccupationalRows,
+            'personalHistory' => $personalHistory,
+            'trainingHistory' => $trainingHistory,
+            'patientFormData' => $this->surveillancePatientFormDefaults(
+                $patientRecord,
+                $selectedCompany,
+                $medicalHistory,
+                $currentOccupational,
+                $pastOccupationalRows,
+                $personalHistory,
+                $trainingHistory
+            ),
         ];
     }
 
@@ -3680,6 +3728,48 @@ class PanelController extends Controller
             'employee_martialStatus' => ['nullable', 'string', 'max:50'],
             'no_of_children' => ['nullable', 'integer', 'min:0'],
             'years_married' => ['nullable', 'integer', 'min:0'],
+            'diagnosed_history' => ['nullable', 'string'],
+            'medication_history' => ['nullable', 'string'],
+            'admitted_history' => ['nullable', 'string'],
+            'family_history' => ['nullable', 'string'],
+            'others_history' => ['nullable', 'string'],
+            'current_job_title' => ['nullable', 'string', 'max:150'],
+            'current_company_name' => ['nullable', 'string', 'max:150'],
+            'current_employment_duration' => ['nullable', 'string', 'max:100'],
+            'current_chemical_exposure_duration' => ['nullable', 'string', 'max:100'],
+            'current_chemical_exposure_incidents' => ['nullable', 'string'],
+            'occup_job_title' => ['array'],
+            'occup_job_title.*' => ['nullable', 'string', 'max:150'],
+            'occup_company_name' => ['array'],
+            'occup_company_name.*' => ['nullable', 'string', 'max:150'],
+            'employment_duration' => ['array'],
+            'employment_duration.*' => ['nullable', 'string', 'max:100'],
+            'chemical_exposure_duration' => ['array'],
+            'chemical_exposure_duration.*' => ['nullable', 'string', 'max:100'],
+            'chemical_exposure_incidents' => ['array'],
+            'chemical_exposure_incidents.*' => ['nullable', 'string'],
+            'smoking_history' => ['nullable', 'string', 'max:50'],
+            'years_of_smoking' => ['nullable', 'integer', 'min:0'],
+            'no_of_cigarettes' => ['nullable', 'integer', 'min:0'],
+            'vaping_history' => ['nullable', 'string', 'max:10'],
+            'years_of_vaping' => ['nullable', 'integer', 'min:0'],
+            'hobby' => ['nullable', 'string'],
+            'handling_of_chemical' => ['nullable', 'string', 'max:10'],
+            'chemical_comments' => ['nullable', 'string'],
+            'sign_symptoms' => ['nullable', 'string', 'max:10'],
+            'sign_comments' => ['nullable', 'string'],
+            'chemical_poisoning' => ['nullable', 'string', 'max:10'],
+            'poisoning_comments' => ['nullable', 'string'],
+            'proper_PPE' => ['nullable', 'string', 'max:10'],
+            'proper_comments' => ['nullable', 'string'],
+            'PPE_usage' => ['nullable', 'string', 'max:10'],
+            'usage_comments' => ['nullable', 'string'],
+        ]);
+    }
+
+    protected function validateSurveillancePatientSupportingRequest(Request $request): array
+    {
+        return $request->validate([
             'diagnosed_history' => ['nullable', 'string'],
             'medication_history' => ['nullable', 'string'],
             'admitted_history' => ['nullable', 'string'],
@@ -4046,6 +4136,8 @@ class PanelController extends Controller
         $selectedCompany = $companyId > 0 ? DB::table('company')->where('company_id', $companyId)->first() : null;
         $doctor = ! empty($declaration->doctor_id) ? DB::table('doctor')->where('doctor_id', $declaration->doctor_id)->first() : $this->linkedDoctorRecord($user);
 
+        $patientSupportingContext = $this->surveillancePatientSupportingContext($employeeId, $selectedCompany, $selectedEmployee);
+
         $context = [
             'chemicalInfo' => $surveillanceId > 0 && Schema::hasTable('chemical_information') ? DB::table('chemical_information')->where('surveillance_id', $surveillanceId)->first() : null,
             'historyOfHealth' => $surveillanceId > 0 && Schema::hasTable('history_of_health') ? DB::table('history_of_health')->where('surveillance_id', $surveillanceId)->first() : null,
@@ -4056,6 +4148,7 @@ class PanelController extends Controller
             'fitnessRespirator' => $surveillanceId > 0 && Schema::hasTable('fitness_respirator') ? DB::table('fitness_respirator')->where('surveillance_id', $surveillanceId)->first() : null,
             'msFindings' => $surveillanceId > 0 && Schema::hasTable('ms_findings') ? DB::table('ms_findings')->where('surveillance_id', $surveillanceId)->first() : null,
             'recommendationData' => $surveillanceId > 0 && Schema::hasTable('recommendation') ? DB::table('recommendation')->where('surveillance_id', $surveillanceId)->first() : null,
+            'patientFormData' => $patientSupportingContext['patientFormData'],
         ];
 
         return view($readOnly ? 'surveillance.survList_view' : 'surveillance.survList_edit', array_merge(
@@ -4149,12 +4242,28 @@ class PanelController extends Controller
             $biologicalDone = count(array_filter($bloodResultFiles)) > 0;
         }
 
+        $patientDone = trim((string) $request->input('employee_firstName', '')) !== ''
+            || trim((string) $request->input('employee_lastName', '')) !== ''
+            || trim((string) $request->input('diagnosed_history', '')) !== ''
+            || trim((string) $request->input('current_job_title', '')) !== ''
+            || trim((string) $request->input('smoking_history', '')) !== ''
+            || trim((string) $request->input('handling_of_chemical', '')) !== '';
+
         return [
+            'patient' => $patientDone,
             'chemical' => trim((string) $request->input('company_name', '')) !== '' && trim((string) $request->input('chemicals', '')) !== '' && trim((string) $request->input('examination_type', '')) !== '' && trim((string) $request->input('examination_date', '')) !== '',
             'history' => trim((string) $request->input('breathing_difficulty', '')) !== '',
             'clinical' => trim((string) $request->input('result_clinical_findings', '')) !== '',
             'physical' => trim((string) $request->input('weight', '')) !== '' && trim((string) $request->input('height', '')) !== '' && trim((string) $request->input('BMI', '')) !== '',
-            'target' => trim((string) $request->input('blood_count', '')) !== '' && trim((string) $request->input('renal_function', '')) !== '' && trim((string) $request->input('liver_function', '')) !== '' && trim((string) $request->input('chest_xray', '')) !== '',
+            'target' => (
+                trim((string) $request->input('blood_count', '')) !== ''
+                && trim((string) $request->input('renal_function', '')) !== ''
+                && trim((string) $request->input('liver_function', '')) !== ''
+                && trim((string) $request->input('chest_xray', '')) !== ''
+            ) || ! empty(array_filter(
+                array_map(static fn ($value) => trim((string) $value), (array) $request->input('other_target_test_name', [])),
+                static fn ($value) => $value !== ''
+            )),
             'biological' => $biologicalDone,
             'respirator' => trim((string) $request->input('fitness_result', '')) !== '',
             'findings' => trim((string) $request->input('history_of_health', '')) !== '' && trim((string) $request->input('conclusion_fitness', '')) !== '',
@@ -4164,12 +4273,26 @@ class PanelController extends Controller
 
     protected function surveillanceSectionStatusesFromModels(array $context): array
     {
+        $patientFormData = (array) ($context['patientFormData'] ?? []);
+        $patientDone = ! empty(array_filter([
+            trim((string) ($patientFormData['employee_firstName'] ?? '')),
+            trim((string) ($patientFormData['employee_lastName'] ?? '')),
+            trim((string) ($patientFormData['diagnosed_history'] ?? '')),
+            trim((string) ($patientFormData['current_job_title'] ?? '')),
+            trim((string) ($patientFormData['smoking_history'] ?? '')),
+            trim((string) ($patientFormData['handling_of_chemical'] ?? '')),
+        ], static fn ($value) => $value !== ''));
+
         return [
+            'patient' => $patientDone,
             'chemical' => ! empty($context['chemicalInfo']) && trim((string) ($context['chemicalInfo']->chemicals ?? '')) !== '' && trim((string) ($context['chemicalInfo']->examination_type ?? '')) !== '' && trim((string) ($context['chemicalInfo']->examination_date ?? '')) !== '',
             'history' => ! empty($context['historyOfHealth']),
             'clinical' => ! empty($context['clinicalFindings']) && trim((string) ($context['clinicalFindings']->result_clinical_findings ?? '')) !== '',
             'physical' => ! empty($context['physicalExam']) && ($context['physicalExam']->weight ?? null) !== null && ($context['physicalExam']->height ?? null) !== null,
-            'target' => ! empty($context['targetOrgan']) && trim((string) ($context['targetOrgan']->blood_count ?? '')) !== '',
+            'target' => ! empty($context['targetOrgan']) && (
+                trim((string) ($context['targetOrgan']->blood_count ?? '')) !== ''
+                || trim((string) ($context['targetOrgan']->other_tests ?? '')) !== ''
+            ),
             'biological' => ! empty($context['biologicalMonitoring']) && (trim((string) ($context['biologicalMonitoring']->baseline_results ?? '')) !== '' || trim((string) ($context['biologicalMonitoring']->baseline_annual ?? '')) !== '' || trim((string) ($context['biologicalMonitoring']->blood_result_files ?? '')) !== ''),
             'respirator' => ! empty($context['fitnessRespirator']) && trim((string) ($context['fitnessRespirator']->fitness_result ?? '')) !== '',
             'findings' => ! empty($context['msFindings']) && trim((string) ($context['msFindings']->history_of_health ?? '')) !== '',

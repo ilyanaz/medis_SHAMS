@@ -53,19 +53,32 @@ if ($findings) {
         || in_array((string) ($findings->pregnancy_breastFeding ?? ''), ['Yes', 'Abnormal'], true);
 }
 
+$abnormalTargetSummary = array_filter([
+    ! empty($targetOrgan->blood_count) ? 'Blood' : null,
+    ! empty($targetOrgan->renal_function) ? 'Renal' : null,
+    ! empty($targetOrgan->liver_function) ? 'Liver' : null,
+    ! empty($targetOrgan->chest_xray) ? 'Chest' : null,
+    ! empty($targetOrgan->spirometry_FEV_FVC) ? 'Spirometry' : null,
+]);
+if (! empty($targetOrgan->other_tests ?? null)) {
+    $decodedOtherTargetTests = json_decode((string) $targetOrgan->other_tests, true);
+    if (is_array($decodedOtherTargetTests)) {
+        foreach ($decodedOtherTargetTests as $otherTargetTest) {
+            $testName = trim((string) ($otherTargetTest['name'] ?? ''));
+            if ($testName !== '') {
+                $abnormalTargetSummary[] = $testName;
+            }
+        }
+    }
+}
+
 $rows = $isAbnormal ? [[
     'worker' => trim((string) (($employee->employee_firstName ?? '') . ' ' . ($employee->employee_lastName ?? ''))),
     'chemical' => (string) ($chemical->chemicals ?? '-'),
     'job' => (string) ($chemical->examination_type ?? 'Medical surveillance'),
     'history' => (string) ($findings->history_of_health ?? 'No'),
     'clinical' => (string) ($findings->clinical_findings ?? 'No'),
-    'target' => implode(', ', array_filter([
-        ! empty($targetOrgan->blood_count) ? 'Blood' : null,
-        ! empty($targetOrgan->renal_function) ? 'Renal' : null,
-        ! empty($targetOrgan->liver_function) ? 'Liver' : null,
-        ! empty($targetOrgan->chest_xray) ? 'Chest' : null,
-        ! empty($targetOrgan->spirometry_FEV_FVC) ? 'Spirometry' : null,
-    ])),
+    'target' => implode(', ', $abnormalTargetSummary),
     'bei' => (string) ($biological->baseline_annual ?? $biological->baseline_results ?? '-'),
     'work' => trim(implode(' / ', array_filter([
         isset($findings->CF_work_related) ? 'CF: ' . $findings->CF_work_related : null,

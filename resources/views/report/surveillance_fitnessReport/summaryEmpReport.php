@@ -75,6 +75,20 @@ $targetOrganSummary = implode('; ', array_filter([
     ! empty($targetOrgan->chest_xray) ? 'Chest X-ray: ' . $targetOrgan->chest_xray : null,
     ! empty($targetOrgan->spirometry_FEV_FVC) ? 'Spirometry FEV/FVC: ' . $targetOrgan->spirometry_FEV_FVC : null,
 ]));
+if (! empty($targetOrgan->other_tests ?? null)) {
+    $decodedOtherTargetTests = json_decode((string) $targetOrgan->other_tests, true);
+    if (is_array($decodedOtherTargetTests)) {
+        $targetOrganSummaryParts = $targetOrganSummary !== '' ? [$targetOrganSummary] : [];
+        foreach ($decodedOtherTargetTests as $otherTargetTest) {
+            $testName = trim((string) ($otherTargetTest['name'] ?? ''));
+            $testResult = trim((string) ($otherTargetTest['result'] ?? ''));
+            if ($testName !== '') {
+                $targetOrganSummaryParts[] = $testResult !== '' ? $testName . ': ' . $testResult : $testName;
+            }
+        }
+        $targetOrganSummary = implode('; ', $targetOrganSummaryParts);
+    }
+}
 $belDeterminant = trim((string) ($biologicalMonitoring->baseline_annual ?? $biologicalMonitoring->baseline_results ?? $biologicalMonitoring->biological_exposure ?? ''));
 $workRelatedness = implode(' / ', array_filter([
     isset($findings->CF_work_related) ? 'CF: ' . $findings->CF_work_related : null,
