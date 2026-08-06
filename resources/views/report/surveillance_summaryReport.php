@@ -186,7 +186,7 @@ body{margin:0;padding:18px;background:#fff;color:#0f172a;font-family:"Poppins","
                     </div>
                 </div>
                 <div class="detail-line">
-                    <div class="detail-label">Total Employees Recommended for MRP</div>
+                    <div class="detail-label">Total Patients Recommended for MRP</div>
                     <div class="detail-value"><?php echo $esc((string) $mrpTotal); ?></div>
                 </div>
                 <div class="detail-line">

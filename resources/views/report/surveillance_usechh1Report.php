@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>USECHH 1 Employee Details</title>
+<title>USECHH 1 Patient Details</title>
 </head>
 <body>
 <?php
@@ -24,6 +24,10 @@ $showValue = static function ($value): string {
     $value = trim((string) ($value ?? ''));
     return $value !== '' ? $value : '-';
 };
+$historyResult = static function (object $history, string $field) use ($showValue): string {
+    $resultValue = trim((string) ($history->{$field . '_result'} ?? ''));
+    return $resultValue !== '' ? $resultValue : $showValue(null);
+};
 $addressParts = array_values(array_filter([
     trim((string) ($employee->employee_address ?? '')),
     trim((string) ($employee->employee_postcode ?? '')),
@@ -41,8 +45,10 @@ medis_render_navigation_start([
 ]);
 ?>
 <style>
-.report-page{width:100%;max-width:none;margin:0;color:#0f172a;font-family:"Poppins","Segoe UI",Tahoma,Geneva,Verdana,sans-serif}
-.sheet{padding:16px 18px;background:#fff}
+@page{size:A4 portrait;margin:10mm}
+html,body{margin:0;padding:0;background:#fff;color:#0f172a;font-family:Arial,Helvetica,sans-serif;font-size:11pt}
+.report-page{width:100%;max-width:none;margin:0;color:#0f172a;font-family:Arial,Helvetica,sans-serif;font-size:11pt}
+.sheet{width:186mm;min-height:273mm;margin:0 auto;padding:0;background:#fff}
 .clinic-report-header{margin-bottom:14px;text-align:center}
 .clinic-report-header img{max-width:100%;max-height:140px;object-fit:contain}
 .clinic-report-header__fallback{padding:16px;border:1px solid #c9d8ea;border-radius:12px;font-size:18px;font-weight:700;letter-spacing:.04em}
@@ -50,34 +56,36 @@ medis_render_navigation_start([
 .report-btn{display:inline-flex;align-items:center;gap:8px;text-decoration:none;border:1px solid #d1d5db;border-radius:10px;padding:8px 14px;background:#fff;color:#374151;font-size:14px;font-weight:500;cursor:pointer}
 .report-btn.primary{background:#389B5B;border-color:#389B5B;color:#fff}
 .sheet-top{position:relative;display:block;text-align:center;margin-bottom:10px}
-.center-title{display:block;width:100%;text-align:center;font-size:14px;font-weight:700;line-height:1.35;color:#0f172a}
-.right-code{position:absolute;right:0;top:0;font-size:14px;font-weight:700;line-height:1.35;color:#0f172a}
+.center-title{display:block;width:100%;text-align:center;font-size:11pt;font-weight:700;line-height:1.35;color:#0f172a}
+.right-code{position:absolute;right:0;top:0;font-size:11pt;font-weight:700;line-height:1.35;color:#0f172a}
 .sheet-title{text-align:center;margin-bottom:18px}
-.sheet-title .line{font-size:15px;font-weight:700;line-height:1.35}
-.sheet-title .main{font-size:18px;font-weight:700;line-height:1.35;margin-top:8px;letter-spacing:.04em}
+.sheet-title .line{font-size:11pt;font-weight:700;line-height:1.35}
+.sheet-title .main{font-size:13pt;font-weight:700;line-height:1.35;margin-top:8px;letter-spacing:.02em}
 .document-table{width:100%;border-collapse:collapse;margin-bottom:16px;table-layout:fixed}
-.document-table th,.document-table td{border:1px solid #c9d8ea;padding:8px 10px;font-size:11.5px;vertical-align:top;text-align:left;word-wrap:break-word}
+.document-table th,.document-table td{border:1px solid #c9d8ea;padding:8px 10px;font-size:11pt;vertical-align:top;text-align:left;word-wrap:break-word}
 .document-table th{font-weight:700;color:#0f172a;background:#fff}
 .document-table .label-cell{width:21%;font-weight:700;background:#fff}
 .document-table .value-cell{width:29%}
 .document-table .wide-label{width:18%}
 .document-table .wide-value{width:32%}
+.document-table .status-cell{width:10%;text-align:center;font-weight:700}
 .document-table.employee-details th,
 .document-table.employee-details td{border:none;padding-left:0;padding-right:16px}
 .section-block{margin-top:22px}
 .section-heading{display:flex;align-items:center;gap:14px;margin:0 0 14px}
 .section-heading::after{content:"";flex:1;height:1px;background:#c9d8ea}
-.section-heading span{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
+.section-heading span{font-size:11pt;font-weight:700;letter-spacing:.02em;text-transform:uppercase;white-space:nowrap}
 .text-block{min-height:28px;line-height:1.6;white-space:pre-wrap}
 .subtle{color:#475569}
 .occupational-table th,.occupational-table td{text-align:left}
 .occupational-table thead th{background:#fff}
 .training-table thead th{background:#fff}
+.section-note{margin:-4px 0 12px;font-size:11px;color:#64748b}
 .pdf-page-break{page-break-before:always;break-before:page}
 .toolbar-hide .app-card{padding:0;border:0;background:transparent;box-shadow:none}
 .toolbar-hide .app-page{padding:18px;background:#f3f6f8}
 .print-only{display:none}
-@media print{body{background:#fff}.app-topbar,.app-sidebar,.report-actions{display:none!important}.app-shell{display:block}.app-main,.app-page,.app-card{display:block;height:auto;overflow:visible;padding:0!important;border:0!important;background:#fff!important}.sheet{padding:0;border:0;box-shadow:none}.print-only{display:block}}
+@media print{body{background:#fff}.app-topbar,.app-sidebar,.report-actions{display:none!important}.app-shell{display:block}.app-main,.app-page,.app-card{display:block;height:auto;overflow:visible;padding:0!important;border:0!important;background:#fff!important}.sheet{width:auto;min-height:auto;padding:0;border:0;box-shadow:none}.print-only{display:block}}
 </style>
 <div class="report-page toolbar-hide">
     <section class="sheet">
@@ -88,12 +96,12 @@ medis_render_navigation_start([
         </div>
         <div class="sheet-title">
             <div class="line">Use and Standard of Exposure of Chemicals Hazardous to Health Regulations 2000</div>
-            <div class="main">EMPLOYEE DETAILS</div>
+            <div class="main">PATIENT DETAILS AND PATIENT INFORMATION</div>
         </div>
 
         <div class="section-block">
             <?php if (!$pdfMode): ?>
-            <div class="section-heading"><span>Employee Details</span></div>
+            <div class="section-heading"><span>Patient Details</span></div>
             <?php endif; ?>
             <table class="document-table employee-details">
                 <tbody>
@@ -143,13 +151,14 @@ medis_render_navigation_start([
 
         <div class="section-block">
             <div class="section-heading"><span>Medical History</span></div>
+            <div class="section-note">Patient information section from the surveillance examination record.</div>
             <table class="document-table">
                 <tbody>
-                    <tr><td class="label-cell">Diagnosed History</td><td colspan="3" class="text-block"><?php echo nl2br($esc($showValue($medicalHistory->diagnosed_history ?? null))); ?></td></tr>
-                    <tr><td class="label-cell">Medication History</td><td colspan="3" class="text-block"><?php echo nl2br($esc($showValue($medicalHistory->medication_history ?? null))); ?></td></tr>
-                    <tr><td class="label-cell">Admitted History</td><td colspan="3" class="text-block"><?php echo nl2br($esc($showValue($medicalHistory->admitted_history ?? null))); ?></td></tr>
-                    <tr><td class="label-cell">Family History</td><td colspan="3" class="text-block"><?php echo nl2br($esc($showValue($medicalHistory->family_history ?? null))); ?></td></tr>
-                    <tr><td class="label-cell">Other History</td><td colspan="3" class="text-block"><?php echo nl2br($esc($showValue($medicalHistory->others_history ?? null))); ?></td></tr>
+                    <tr><td class="label-cell">Diagnosed History</td><td class="status-cell"><?php echo $esc($historyResult($medicalHistory, 'diagnosed_history')); ?></td><td colspan="2" class="text-block"><?php echo nl2br($esc($showValue($medicalHistory->diagnosed_history ?? null))); ?></td></tr>
+                    <tr><td class="label-cell">Medication History</td><td class="status-cell"><?php echo $esc($historyResult($medicalHistory, 'medication_history')); ?></td><td colspan="2" class="text-block"><?php echo nl2br($esc($showValue($medicalHistory->medication_history ?? null))); ?></td></tr>
+                    <tr><td class="label-cell">Admitted History</td><td class="status-cell"><?php echo $esc($historyResult($medicalHistory, 'admitted_history')); ?></td><td colspan="2" class="text-block"><?php echo nl2br($esc($showValue($medicalHistory->admitted_history ?? null))); ?></td></tr>
+                    <tr><td class="label-cell">Family History</td><td class="status-cell"><?php echo $esc($historyResult($medicalHistory, 'family_history')); ?></td><td colspan="2" class="text-block"><?php echo nl2br($esc($showValue($medicalHistory->family_history ?? null))); ?></td></tr>
+                    <tr><td class="label-cell">Other History</td><td class="status-cell"><?php echo $esc($historyResult($medicalHistory, 'others_history')); ?></td><td colspan="2" class="text-block"><?php echo nl2br($esc($showValue($medicalHistory->others_history ?? null))); ?></td></tr>
                 </tbody>
             </table>
         </div>

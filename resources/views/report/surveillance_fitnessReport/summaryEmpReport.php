@@ -68,26 +68,52 @@ $assessmentType = trim((string) ($chemical->examination_type ?? ''));
 $msDate = trim((string) ($chemical->examination_date ?? $declaration->doctor_date ?? $declaration->employee_date ?? ''));
 $historyEffects = trim((string) ($findings->history_of_health ?? ''));
 $clinicalFindings = trim((string) ($findings->clinical_findings ?? ''));
+$targetResultValue = static function (?object $targetOrganRecord, string $resultColumn): string {
+    if (! $targetOrganRecord) {
+        return '';
+    }
+
+    return trim((string) ($targetOrganRecord->{$resultColumn} ?? ''));
+};
 $targetOrganSummary = implode('; ', array_filter([
-    ! empty($targetOrgan->blood_count) ? 'Blood: ' . $targetOrgan->blood_count : null,
-    ! empty($targetOrgan->renal_function) ? 'Renal: ' . $targetOrgan->renal_function : null,
-    ! empty($targetOrgan->liver_function) ? 'Liver: ' . $targetOrgan->liver_function : null,
-    ! empty($targetOrgan->chest_xray) ? 'Chest X-ray: ' . $targetOrgan->chest_xray : null,
+    $targetResultValue($targetOrgan, 'blood_count_result') !== '' ? 'Full Blood Count: ' . $targetResultValue($targetOrgan, 'blood_count_result') : null,
+    $targetResultValue($targetOrgan, 'renal_function_result') !== '' ? 'Renal Function Test: ' . $targetResultValue($targetOrgan, 'renal_function_result') : null,
+    $targetResultValue($targetOrgan, 'liver_function_result') !== '' ? 'Liver Function Test: ' . $targetResultValue($targetOrgan, 'liver_function_result') : null,
+    $targetResultValue($targetOrgan, 'chest_xray_result') !== '' ? 'Chest X-ray: ' . $targetResultValue($targetOrgan, 'chest_xray_result') : null,
     ! empty($targetOrgan->spirometry_FEV_FVC) ? 'Spirometry FEV/FVC: ' . $targetOrgan->spirometry_FEV_FVC : null,
 ]));
-if (! empty($targetOrgan->other_tests ?? null)) {
+$otherTargetTests = [];
+if ($surveillanceId > 0 && DB::getSchemaBuilder()->hasTable('target_organ_other_tests')) {
+    $otherTargetTests = DB::table('target_organ_other_tests')
+        ->where('surveillance_id', $surveillanceId)
+        ->orderBy('sort_order')
+        ->orderBy('other_target_test_id')
+        ->get(['test_name', 'result', 'comments'])
+        ->map(static fn ($row) => [
+            'name' => trim((string) ($row->test_name ?? '')),
+            'result' => trim((string) ($row->result ?? '')),
+            'comments' => trim((string) ($row->comments ?? '')),
+        ])
+        ->filter(static fn ($row) => $row['name'] !== '' || $row['result'] !== '' || $row['comments'] !== '')
+        ->values()
+        ->all();
+}
+if ($otherTargetTests === [] && ! empty($targetOrgan->other_tests ?? null)) {
     $decodedOtherTargetTests = json_decode((string) $targetOrgan->other_tests, true);
     if (is_array($decodedOtherTargetTests)) {
-        $targetOrganSummaryParts = $targetOrganSummary !== '' ? [$targetOrganSummary] : [];
-        foreach ($decodedOtherTargetTests as $otherTargetTest) {
-            $testName = trim((string) ($otherTargetTest['name'] ?? ''));
-            $testResult = trim((string) ($otherTargetTest['result'] ?? ''));
-            if ($testName !== '') {
-                $targetOrganSummaryParts[] = $testResult !== '' ? $testName . ': ' . $testResult : $testName;
-            }
-        }
-        $targetOrganSummary = implode('; ', $targetOrganSummaryParts);
+        $otherTargetTests = $decodedOtherTargetTests;
     }
+}
+if ($otherTargetTests !== []) {
+    $targetOrganSummaryParts = $targetOrganSummary !== '' ? [$targetOrganSummary] : [];
+    foreach ($otherTargetTests as $otherTargetTest) {
+        $testName = trim((string) ($otherTargetTest['name'] ?? ''));
+        $testResult = trim((string) ($otherTargetTest['result'] ?? ''));
+        if ($testName !== '') {
+            $targetOrganSummaryParts[] = $testResult !== '' ? $testName . ': ' . $testResult : $testName;
+        }
+    }
+    $targetOrganSummary = implode('; ', $targetOrganSummaryParts);
 }
 $belDeterminant = trim((string) ($biologicalMonitoring->baseline_annual ?? $biologicalMonitoring->baseline_results ?? $biologicalMonitoring->biological_exposure ?? ''));
 $workRelatedness = implode(' / ', array_filter([
@@ -110,49 +136,50 @@ $doctorRegNo = trim((string) ($doctor->OHD_registrationNo ?? $doctor->MMC_no ?? 
 </head>
 <body>
 <style>
-@page{size:A4 landscape;margin:12mm}
-body{margin:0;padding:18px;background:#fff;color:#000;font-family:Arial,Helvetica,sans-serif}
-.sheet{display:grid;gap:16px}
+@page{size:A4 portrait;margin:10mm}
+html,body{margin:0;padding:0;background:#fff;color:#000;font-family:Arial,Helvetica,sans-serif;font-size:11pt}
+body{padding:10mm}
+.sheet{display:grid;gap:10px;width:100%;max-width:277mm;margin:0 auto}
 .clinic-report-header{text-align:center}
 .clinic-report-header img{max-width:100%;max-height:140px;object-fit:contain}
 .clinic-report-header__fallback{padding:16px;border:1px solid #c9d8ea;border-radius:12px;font-size:18px;font-weight:700;letter-spacing:.04em}
 .report-shell{border:1px solid #111;background:#fff}
 .usechh-head{padding:8px 12px 0;text-align:center}
-.usechh-head__top{position:relative;display:block;text-align:center;font-size:14px}
+.usechh-head__top{position:relative;display:block;text-align:center;font-size:11pt}
 .usechh-head__right{position:absolute;right:0;top:0;font-weight:700}
-.usechh-head__title{margin:12px 0 0;font-size:18px;font-weight:700}
-.usechh-head__subtitle{margin:6px 0 10px;font-size:15px}
-.meta{padding:0 10px 8px;font-size:14px}
+.usechh-head__title{margin:10px 0 0;font-size:13pt;font-weight:700}
+.usechh-head__subtitle{margin:6px 0 10px;font-size:11pt}
+.meta{padding:0 10px 8px;font-size:11pt}
 .meta-row{display:flex;align-items:center;gap:8px;margin:4px 0}
 .meta-label{min-width:138px;font-weight:700}
 .meta-value{flex:1;min-height:18px;padding:1px 0;font-weight:500}
 table{width:100%;border-collapse:collapse;table-layout:fixed}
-th,td{border:1px solid #111;padding:8px 6px;vertical-align:top;font-size:13px;line-height:1.35}
+th,td{border:1px solid #111;padding:8px 6px;vertical-align:top;font-size:11pt;line-height:1.3}
 th{background:#dcefe1;font-weight:700;text-align:center;color:#123524}
 td{min-height:100px;word-wrap:break-word;white-space:pre-wrap}
 .small-col{width:4%}
-.date-col{width:9%}
-.assessment-col{width:15%}
-.history-col{width:12%}
-.clinical-col{width:10%}
-.target-col{width:11%}
-.bel-col{width:10%}
+.date-col{width:8%}
+.assessment-col{width:12%}
+.history-col{width:10%}
+.clinical-col{width:9%}
+.target-col{width:19%}
+.bel-col{width:8%}
 .work-col{width:10%}
-.conclusion-col{width:10%}
-.mrp-col{width:10%}
-.doctor-col{width:13%}
+.conclusion-col{width:9%}
+.mrp-col{width:9%}
+.doctor-col{width:11%}
 .print-only{display:none}
 @media print{
-  body{padding:0;background:#fff}
+  html,body{padding:0;background:#fff}
   .sheet{gap:10px}
   .clinic-report-header img{max-height:110px}
   .report-shell{border:1px solid #000}
-  th,td{font-size:12px;padding:6px 5px}
+  th,td{font-size:11pt;padding:8px 6px}
   .usechh-head{padding:4px 10px 0}
-  .usechh-head__top{font-size:13px}
-  .usechh-head__title{font-size:16px}
-  .usechh-head__subtitle{font-size:14px;margin-bottom:8px}
-  .meta{padding:0 10px 6px;font-size:13px}
+  .usechh-head__top{font-size:11pt}
+  .usechh-head__title{font-size:13pt}
+  .usechh-head__subtitle{font-size:11pt;margin-bottom:8px}
+  .meta{padding:0 10px 6px;font-size:11pt}
   .print-only{display:block}
 }
 </style>

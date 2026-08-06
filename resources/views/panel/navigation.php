@@ -78,7 +78,7 @@ if (! function_exists('medis_render_navigation_start')) {
     {
         $clinicName = $config['clinicName'] ?? 'Medis SHAMS';
         $defaultExpandedLogoUrl = function_exists('asset') ? asset('images/logos/medis-logo-left-right.png') : '/images/logos/medis-logo-left-right.png';
-        $defaultCollapsedLogoUrl = function_exists('asset') ? asset('images/logos/medis-logo-up-down.png') : '/images/logos/medis-logo-up-down.png';
+        $defaultCollapsedLogoUrl = function_exists('asset') ? asset('images/logos/medis-logo.png') : '/images/logos/medis-logo.png';
         $expandedLogoUrl = (string) ($config['expandedLogoUrl'] ?? $defaultExpandedLogoUrl);
         $collapsedLogoUrl = (string) ($config['collapsedLogoUrl'] ?? $defaultCollapsedLogoUrl);
         $systemLogoUrl = (string) ($config['systemLogoUrl'] ?? $expandedLogoUrl);

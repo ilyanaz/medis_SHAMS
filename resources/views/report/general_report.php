@@ -143,22 +143,22 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
 <style>
 .flow{height:calc(100dvh - 204px);min-height:calc(100dvh - 204px);display:flex}
 .content{padding:4px 6px;height:100%;width:100%;margin-top:0;border:0;background:transparent;border-radius:0;display:flex;flex-direction:column;overflow:hidden}
-.report-shell{display:grid;gap:12px;height:100%;min-height:0}
+.report-shell{display:grid;gap:10px;height:100%;min-height:0}
 .report-head h2{margin:0;font-size:1.9rem}
 .report-head p{margin:8px 0 0;color:#6b7280}
-.manage-card{border:1px solid #e5e7eb;border-radius:20px;background:#fff;padding:0;overflow:hidden;display:flex;flex-direction:column;min-height:0;flex:1}
-.module-bar{display:flex;gap:12px;padding:14px 18px;border-bottom:1px solid #edf0f2;flex-wrap:wrap}
-.module-btn{appearance:none;border:1px solid #d1d5db;background:#fff;border-radius:12px;padding:12px 20px;font:inherit;font-weight:700;color:#374151;cursor:pointer;min-width:150px}
+.manage-card{border:0;border-radius:0;background:transparent;padding:0;overflow:hidden;display:flex;flex-direction:column;min-height:0;flex:1}
+.module-bar{display:flex;gap:12px;padding:10px 18px;border-bottom:1px solid #edf0f2;flex-wrap:wrap}
+.module-btn{appearance:none;border:1px solid #d1d5db;background:#fff;border-radius:12px;padding:10px 20px;font:inherit;font-weight:700;color:#374151;cursor:pointer;min-width:150px}
 .module-btn.active{background:#eef7f0;border-color:#b8d8c4;color:#166534}
 .subfilter-bar{display:flex;gap:18px;align-items:center;padding:0 18px;border-bottom:1px solid #edf0f2;flex-wrap:wrap}
-.subfilter-btn{appearance:none;border:0;background:transparent;padding:12px 0 10px;font:inherit;font-weight:600;color:#4b5563;cursor:pointer;position:relative;text-transform:uppercase;font-size:.82rem}
+.subfilter-btn{appearance:none;border:0;background:transparent;padding:10px 0 9px;font:inherit;font-weight:600;color:#4b5563;cursor:pointer;position:relative;text-transform:uppercase;font-size:.82rem}
 .subfilter-btn.active{color:#166534}
 .subfilter-btn.active::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:#389B5B;border-radius:999px}
 .toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid #edf0f2;flex-wrap:wrap}
 .toolbar-left,.toolbar-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.toolbar-btn{display:inline-flex;align-items:center;gap:8px;border:1px solid #d1d5db;border-radius:10px;background:#fff;color:#374151;padding:9px 12px;text-decoration:none;font:inherit;cursor:pointer}
+.toolbar-btn{display:inline-flex;align-items:center;gap:8px;border:1px solid #d1d5db;border-radius:10px;background:#fff;color:#374151;padding:8px 12px;text-decoration:none;font:inherit;cursor:pointer}
 .toolbar-btn.is-active{background:#eef7f0;border-color:#b8d8c4;color:#166534}
-.search{width:min(420px,100%);border:1px solid #d1d5db;border-radius:10px;padding:10px 12px;font:inherit}
+.search{width:min(360px,100%);border:1px solid #d1d5db;border-radius:10px;padding:9px 12px;font:inherit}
 .filter-backdrop{display:none;position:fixed;inset:0;background:rgba(15,23,42,.18);z-index:120}
 .filter-backdrop.is-open{display:block}
 .filter-panel{display:none;position:fixed;top:110px;right:36px;width:min(520px,calc(100vw - 32px));padding:18px;border:1px solid #dbe3ea;border-radius:18px;background:#fff;box-shadow:0 26px 60px rgba(15,23,42,.16);z-index:121}
@@ -175,15 +175,28 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
 .clear-btn,.apply-btn{display:inline-flex;align-items:center;justify-content:center;border-radius:12px;padding:10px 14px;font:inherit;cursor:pointer;text-decoration:none}
 .clear-btn{border:1px solid #d1d5db;background:#fff;color:#374151}
 .apply-btn{border:1px solid #389B5B;background:#389B5B;color:#fff}
-.selection-bar{display:flex;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid #edf0f2;background:#f8fbf8}
+.selection-bar{display:flex;align-items:center;gap:12px;padding:8px 18px;border-bottom:1px solid #edf0f2;background:#f8fbf8}
 .selection-bar span{font-size:.9rem;font-weight:600;color:#166534}
 .check-col{width:52px;text-align:center}
 .check-col input{width:16px;height:16px;accent-color:#389B5B;cursor:pointer}
-.manage-card-body{display:flex;flex-direction:column;flex:1;min-height:0}
+.manage-card-body{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}
+.table-shell{flex:1;min-height:0;overflow:auto}
 .report-table{width:100%;border-collapse:collapse}
-.report-table th,.report-table td{padding:13px 18px;text-align:left;border-top:1px solid #edf0f2;vertical-align:top}
+.report-table th,.report-table td{padding:10px 18px;text-align:left;border-top:1px solid #edf0f2;vertical-align:middle}
 .report-table th{font-size:.78rem;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;background:#fafafa}
-.filler-row td{height:46px;color:transparent;user-select:none}
+.folder-row td{padding:0;border-top:1px solid #dfe8e2;border-bottom:1px solid #edf0f2;background:#f8fbf8}
+.folder-link{width:100%;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 18px;border:0;background:transparent;color:#166534;text-align:left;cursor:pointer;font:inherit;text-decoration:none}
+.folder-main{display:flex;align-items:center;gap:10px;min-width:0}
+.folder-icon{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;background:#e7f4ea;color:#2f7a46;flex-shrink:0}
+.folder-icon svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8}
+.folder-text{display:grid;gap:2px;min-width:0}
+.folder-name{font-size:.84rem;font-weight:700;color:#166534;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.folder-date{font-size:.75rem;color:#64748b;font-weight:600}
+.folder-meta{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.folder-count{display:inline-flex;align-items:center;justify-content:center;min-width:84px;height:28px;padding:0 10px;border-radius:999px;background:#eaf5ed;color:#2f7a46;font-size:.74rem;font-weight:700}
+.folder-chevron{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;color:#64748b}
+.folder-chevron svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2}
+.filler-row td{height:42px;color:transparent;user-select:none}
 .status{display:inline-flex;align-items:center;border-radius:999px;padding:5px 10px;font-weight:700;font-size:.76rem}
 .status.completed{background:#dcfce7;color:#166534}
 .status.pending,.status.incomplete{background:#fef3c7;color:#92400e}
@@ -192,13 +205,13 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
 .icon-btn{display:inline-flex;align-items:center;justify-content:center;background:transparent;border:0;padding:0;color:#111827;cursor:pointer;text-decoration:none}
 .icon-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8}
 .icon-btn.delete{color:#ef4444}
-.table-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 18px;border-top:1px solid #edf0f2;flex-wrap:wrap;margin-top:auto}
-.pager{color:#6b7280;font-size:.84rem}
-.pager-group{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.page-btn{display:inline-flex;align-items:center;gap:8px;text-decoration:none;border:1px solid #d1d5db;border-radius:12px;padding:8px 12px;background:#fff;color:#374151;cursor:pointer}
+.table-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 18px;border-top:1px solid #edf0f2;flex-wrap:wrap;margin-top:auto;flex-shrink:0;background:#fff}
+.pager{color:#6b7280;font-size:.78rem}
+.pager-group{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.page-btn{display:inline-flex;align-items:center;justify-content:center;min-width:32px;height:32px;text-decoration:none;border:1px solid #d6e4d9;border-radius:10px;padding:0 10px;background:#f7fbf8;color:#2f4b36;font-weight:600;font-size:.82rem;cursor:pointer;box-shadow:none}
 .page-btn[disabled]{opacity:.45;cursor:not-allowed}
-.page-btn.is-active{background:#389B5B;border-color:#389B5B;color:#fff}
-.page-numbers{display:flex;gap:8px;flex-wrap:wrap}
+.page-btn.is-active{background:#389B5B;border-color:#389B5B;color:#fff;box-shadow:none}
+.page-numbers{display:flex;gap:6px;flex-wrap:wrap}
 .empty-row td{text-align:center;color:#6b7280}
 @media(max-width:1180px){.flow{height:auto;min-height:auto}.content{height:auto;min-height:auto}}
 @media(max-width:980px){.toolbar{align-items:stretch}.toolbar-left,.toolbar-right{width:100%}.toolbar-right{justify-content:flex-start}.search{width:100%}.subfilter-bar{gap:14px}.filter-panel{top:96px;right:16px}}
@@ -272,45 +285,47 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
         <div class="selection-bar" id="selectionBar" style="display:none;"><span id="selectionCount">0 selected</span></div>
 
         <div class="manage-card-body">
-            <table class="report-table">
-                <thead>
-                    <tr>
-                        <th class="check-col"><input type="checkbox" id="selectAllRows" aria-label="Select all visible rows"></th>
-                        <th class="col-employee">Patient Name</th>
-                        <th class="col-company">Company Name</th>
-                        <th class="col-usechh1-extra">No Phone</th>
-                        <th class="col-usechh1-extra">IC / Passport No</th>
-                        <th class="col-chemical">Chemical Name</th>
-                        <th class="col-date">Date Examined</th>
-                        <th class="col-status">Status</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody id="reportTableBody">
-                    <?php foreach ($rows as $row): ?>
-                        <tr data-module="<?php echo $esc($row['module']); ?>" data-filter="<?php echo $esc($row['filter']); ?>" data-company="<?php echo $esc(strtolower($row['company'])); ?>" data-status="<?php echo $esc($row['status_key']); ?>" data-date="<?php echo $esc($row['date_examined']); ?>" data-pdf-href="<?php echo $esc($row['pdf_href'] ?? ''); ?>">
-                            <td class="check-col"><input class="row-select" type="checkbox" aria-label="Select <?php echo $esc($row['employee_name']); ?>"></td>
-                            <td class="col-employee"><?php echo $esc($row['employee_name']); ?></td>
-                            <td class="col-company"><?php echo $esc($row['company']); ?></td>
-                            <td class="col-usechh1-extra"><?php echo $esc($row['phone_no'] ?? '-'); ?></td>
-                            <td class="col-usechh1-extra"><?php echo $esc($row['identity_no'] ?? '-'); ?></td>
-                            <td class="col-chemical"><?php echo $esc($row['chemical_name']); ?></td>
-                            <td class="col-date"><?php echo $esc(date('d M Y', strtotime($row['date_examined']))); ?></td>
-                            <td class="col-status"><span class="status <?php echo $esc($row['status_key']); ?>"><?php echo $esc($row['status']); ?></span></td>
-                            <td>
-                                <div class="action-icons">
-                                    <a class="icon-btn" href="<?php echo $esc($row['href']); ?>" title="View"><svg viewBox="0 0 24 24"><path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6-10-6-10-6z"></path><circle cx="12" cy="12" r="3"></circle></svg></a>
-                                    <a class="icon-btn" href="<?php echo $esc($row['href']); ?>" title="Edit"><svg viewBox="0 0 24 24"><path d="M4 20h4l10-10-4-4L4 16v4z"></path><path d="M13 7l4 4"></path></svg></a>
-                                    <button class="icon-btn delete" type="button" data-name="<?php echo $esc($row['employee_name']); ?>" title="Delete"><svg viewBox="0 0 24 24"><path d="M4 7h16"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M6 7l1 13h10l1-13"></path><path d="M9 7V4h6v3"></path></svg></button>
-                                </div>
-                            </td>
+            <div class="table-shell">
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th class="check-col"><input type="checkbox" id="selectAllRows" aria-label="Select all visible rows"></th>
+                            <th class="col-employee">Patient Name</th>
+                            <th class="col-company">Company Name</th>
+                            <th class="col-usechh1-extra">No Phone</th>
+                            <th class="col-usechh1-extra">IC / Passport No</th>
+                            <th class="col-chemical">Chemical Name</th>
+                            <th class="col-date">Date Examined</th>
+                            <th class="col-status">Status</th>
+                            <th>Action</th>
                         </tr>
-                    <?php endforeach; ?>
-                    <tr class="empty-row" id="reportEmptyRow" style="display:none;">
-                        <td colspan="9">No report records match the selected filter.</td>
-                    </tr>
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody id="reportTableBody">
+                        <?php foreach ($rows as $row): ?>
+                            <tr data-module="<?php echo $esc($row['module']); ?>" data-filter="<?php echo $esc($row['filter']); ?>" data-company="<?php echo $esc(strtolower($row['company'])); ?>" data-company-label="<?php echo $esc($row['company']); ?>" data-status="<?php echo $esc($row['status_key']); ?>" data-date="<?php echo $esc($row['date_examined']); ?>" data-pdf-href="<?php echo $esc($row['pdf_href'] ?? ''); ?>">
+                                <td class="check-col"><input class="row-select" type="checkbox" aria-label="Select <?php echo $esc($row['employee_name']); ?>"></td>
+                                <td class="col-employee"><?php echo $esc($row['employee_name']); ?></td>
+                                <td class="col-company"><?php echo $esc($row['company']); ?></td>
+                                <td class="col-usechh1-extra"><?php echo $esc($row['phone_no'] ?? '-'); ?></td>
+                                <td class="col-usechh1-extra"><?php echo $esc($row['identity_no'] ?? '-'); ?></td>
+                                <td class="col-chemical"><?php echo $esc($row['chemical_name']); ?></td>
+                                <td class="col-date"><?php echo $esc(date('d M Y', strtotime($row['date_examined']))); ?></td>
+                                <td class="col-status"><span class="status <?php echo $esc($row['status_key']); ?>"><?php echo $esc($row['status']); ?></span></td>
+                                <td>
+                                    <div class="action-icons">
+                                        <a class="icon-btn" href="<?php echo $esc($row['href']); ?>" title="View"><svg viewBox="0 0 24 24"><path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6-10-6-10-6z"></path><circle cx="12" cy="12" r="3"></circle></svg></a>
+                                        <a class="icon-btn" href="<?php echo $esc($row['href']); ?>" title="Edit"><svg viewBox="0 0 24 24"><path d="M4 20h4l10-10-4-4L4 16v4z"></path><path d="M13 7l4 4"></path></svg></a>
+                                        <button class="icon-btn delete" type="button" data-name="<?php echo $esc($row['employee_name']); ?>" title="Delete"><svg viewBox="0 0 24 24"><path d="M4 7h16"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M6 7l1 13h10l1-13"></path><path d="M9 7V4h6v3"></path></svg></button>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                        <tr class="empty-row" id="reportEmptyRow" style="display:none;">
+                            <td colspan="9">No report records match the selected filter.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
 
             <div class="table-foot">
                 <span class="pager" id="reportPager">Showing 0 records</span>
@@ -358,6 +373,8 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
     let currentPage = 1;
     const perPage = 5;
     const fillerClass = 'filler-row';
+    const folderClass = 'folder-row';
+    const folderRouteBase = <?php echo json_encode(function_exists('route') ? route('general.report.folder') : '#'); ?>;
 
     const titleCase = function(value){
         return value.split(' ').map(function(part){
@@ -481,13 +498,87 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
             const matchStatus = statusValue === '' || rowStatus === statusValue;
             const matchDate = dateValue === '' || rowDate === dateValue;
             return matchModule && matchFilter && matchSearch && matchCompany && matchStatus && matchDate;
+        }).sort(function(left, right){
+            const leftCompany = (left.getAttribute('data-company-label') || '').toLowerCase();
+            const rightCompany = (right.getAttribute('data-company-label') || '').toLowerCase();
+            if (leftCompany !== rightCompany) {
+                return leftCompany.localeCompare(rightCompany);
+            }
+            const leftDate = (left.getAttribute('data-date') || '').trim();
+            const rightDate = (right.getAttribute('data-date') || '').trim();
+            if (leftDate !== rightDate) {
+                return rightDate.localeCompare(leftDate);
+            }
+            return (left.textContent || '').localeCompare(right.textContent || '');
         });
     };
 
     const clearFillers = function(){
-        Array.prototype.slice.call(document.querySelectorAll('#reportTableBody .' + fillerClass)).forEach(function(row){
+        Array.prototype.slice.call(document.querySelectorAll('#reportTableBody .' + fillerClass + ', #reportTableBody .' + folderClass)).forEach(function(row){
             row.remove();
         });
+    };
+
+    const buildFolderKey = function(companyLabel, dateValue){
+        return companyLabel.toLowerCase() + '|' + dateValue;
+    };
+
+    const formatGroupDate = function(value){
+        if (!value) { return 'No examination date'; }
+        const parts = String(value).split('-');
+        if (parts.length !== 3) { return value; }
+        return parts[2] + ' ' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(parts[1]) - 1] + ' ' + parts[0];
+    };
+
+    const appendFolderRow = function(companyLabel, dateValue, count){
+        const folderRow = document.createElement('tr');
+        folderRow.className = folderClass;
+        const cell = document.createElement('td');
+        cell.colSpan = 9;
+        const link = document.createElement('a');
+        link.className = 'folder-link';
+        link.href = folderRouteBase + '?module=' + encodeURIComponent(activeModule) + '&company=' + encodeURIComponent(companyLabel) + '&date=' + encodeURIComponent(dateValue);
+        link.innerHTML = '' +
+            '<span class="folder-main">' +
+                '<span class="folder-icon" aria-hidden="true">' +
+                    '<svg viewBox="0 0 24 24"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H10l2 2h6.5A2.5 2.5 0 0 1 21 9.5v7A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z"></path></svg>' +
+                '</span>' +
+                '<span class="folder-text">' +
+                    '<span class="folder-name">' + companyLabel + '</span>' +
+                    '<span class="folder-date">Examination Date: ' + formatGroupDate(dateValue) + '</span>' +
+                '</span>' +
+            '</span>' +
+            '<span class="folder-meta">' +
+                '<span class="folder-count">' + count + ' record' + (count === 1 ? '' : 's') + '</span>' +
+                '<span class="folder-chevron" aria-hidden="true">' +
+                    '<svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"></path></svg>' +
+                '</span>' +
+            '</span>';
+        cell.appendChild(link);
+        folderRow.appendChild(cell);
+        document.getElementById('reportTableBody').appendChild(folderRow);
+    };
+
+    const getFolderGroups = function(filteredRows){
+        const groupedRows = [];
+        const groups = {};
+        filteredRows.forEach(function(row){
+            const companyLabel = (row.getAttribute('data-company-label') || 'No company').trim() || 'No company';
+            const dateValue = (row.getAttribute('data-date') || '').trim();
+            const groupKey = buildFolderKey(companyLabel, dateValue);
+            if (!groups[groupKey]) {
+                groups[groupKey] = {
+                    key: groupKey,
+                    companyLabel: companyLabel,
+                    dateValue: dateValue,
+                    rows: []
+                };
+                groupedRows.push(groups[groupKey]);
+            }
+            groups[groupKey].rows.push(row);
+        });
+
+        return groupedRows;
     };
 
     const appendFillers = function(count){
@@ -506,7 +597,8 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
     const renderRows = function(){
         clearFillers();
         const filteredRows = getFilteredRows();
-        const total = filteredRows.length;
+        const folderGroups = getFolderGroups(filteredRows);
+        const total = folderGroups.length;
         const totalPages = Math.max(1, Math.ceil(total / perPage));
         if (currentPage > totalPages) { currentPage = totalPages; }
         if (currentPage < 1) { currentPage = 1; }
@@ -519,19 +611,19 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
             if (checkbox) { checkbox.checked = false; }
         });
 
-        const visibleRows = filteredRows.slice(start, end);
-        visibleRows.forEach(function(row){
-            row.style.display = '';
+        const visibleGroups = folderGroups.slice(start, end);
+        visibleGroups.forEach(function(group){
+            appendFolderRow(group.companyLabel, group.dateValue, group.rows.length);
         });
 
-        if (total > 0 && visibleRows.length < perPage) {
-            appendFillers(perPage - visibleRows.length);
+        if (total > 0 && visibleGroups.length < perPage) {
+            appendFillers(perPage - visibleGroups.length);
         }
 
         if (emptyRow) {
             emptyRow.style.display = total === 0 ? '' : 'none';
         }
-        pager.textContent = total === 0 ? 'Showing 0 records' : 'Showing ' + (start + 1) + '-' + end + ' of ' + total + ' records';
+        pager.textContent = total === 0 ? 'Showing 0 folders' : 'Showing ' + (start + 1) + '-' + end + ' of ' + total + ' folders';
         if (prevBtn) { prevBtn.disabled = currentPage === 1 || total === 0; }
         if (nextBtn) { nextBtn.disabled = currentPage === totalPages || total === 0; }
         if (pageNumbers) {

@@ -1,5 +1,22 @@
 <?php
 
+$smtpScheme = env('MAIL_SCHEME');
+$smtpEncryption = env('MAIL_ENCRYPTION');
+
+if ($smtpScheme === null || $smtpScheme === '') {
+    $smtpScheme = match (strtolower((string) $smtpEncryption)) {
+        'ssl' => 'smtps',
+        default => null,
+    };
+} else {
+    $smtpScheme = match (strtolower((string) $smtpScheme)) {
+        'smtp' => 'smtp',
+        'smtps', 'ssl' => 'smtps',
+        'tls' => null,
+        default => null,
+    };
+}
+
 return [
 
     /*
@@ -39,13 +56,14 @@ return [
 
         'smtp' => [
             'transport' => 'smtp',
-            'scheme' => env('MAIL_SCHEME'),
+            'scheme' => $smtpScheme,
             'url' => env('MAIL_URL'),
             'host' => env('MAIL_HOST', '127.0.0.1'),
             'port' => env('MAIL_PORT', 2525),
             'username' => env('MAIL_USERNAME'),
             'password' => env('MAIL_PASSWORD'),
             'timeout' => null,
+            'auto_tls' => strtolower((string) env('MAIL_ENCRYPTION', 'tls')) === 'tls',
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
 

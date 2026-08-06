@@ -24,6 +24,8 @@ if (! $declaration && DB::getSchemaBuilder()->hasTable('declaration')) {
 $surveillanceId = (int) ($declaration->surveillance_id ?? $surveillanceId);
 $employeeId = (int) ($declaration->employee_id ?? $employeeId);
 $companyId = (int) ($declaration->company_id ?? $companyId);
+$groupChemical = trim((string) $query->query('group_chemical', ''));
+$groupDate = trim((string) $query->query('group_date', ''));
 
 $employee = $employeeId > 0 ? DB::table('employee')->where('employee_id', $employeeId)->first() : null;
 $company = $companyId > 0 ? DB::table('company')->where('company_id', $companyId)->first() : null;
@@ -53,41 +55,193 @@ if ($findings) {
         || in_array((string) ($findings->pregnancy_breastFeding ?? ''), ['Yes', 'Abnormal'], true);
 }
 
+$targetResultValue = static function (?object $targetOrganRecord, string $resultColumn): string {
+    if (! $targetOrganRecord) {
+        return '';
+    }
+
+    return trim((string) ($targetOrganRecord->{$resultColumn} ?? ''));
+};
 $abnormalTargetSummary = array_filter([
-    ! empty($targetOrgan->blood_count) ? 'Blood' : null,
-    ! empty($targetOrgan->renal_function) ? 'Renal' : null,
-    ! empty($targetOrgan->liver_function) ? 'Liver' : null,
-    ! empty($targetOrgan->chest_xray) ? 'Chest' : null,
+    $targetResultValue($targetOrgan, 'blood_count_result') === 'Abnormal' ? 'Full Blood Count' : null,
+    $targetResultValue($targetOrgan, 'renal_function_result') === 'Abnormal' ? 'Renal Function Test' : null,
+    $targetResultValue($targetOrgan, 'liver_function_result') === 'Abnormal' ? 'Liver Function Test' : null,
+    $targetResultValue($targetOrgan, 'chest_xray_result') === 'Abnormal' ? 'Chest X-ray' : null,
     ! empty($targetOrgan->spirometry_FEV_FVC) ? 'Spirometry' : null,
 ]);
-if (! empty($targetOrgan->other_tests ?? null)) {
+$otherTargetTests = [];
+if ($surveillanceId > 0 && DB::getSchemaBuilder()->hasTable('target_organ_other_tests')) {
+    $otherTargetTests = DB::table('target_organ_other_tests')
+        ->where('surveillance_id', $surveillanceId)
+        ->orderBy('sort_order')
+        ->orderBy('other_target_test_id')
+        ->get(['test_name', 'result', 'comments'])
+        ->map(static fn ($row) => [
+            'name' => trim((string) ($row->test_name ?? '')),
+            'result' => trim((string) ($row->result ?? '')),
+            'comments' => trim((string) ($row->comments ?? '')),
+        ])
+        ->filter(static fn ($row) => $row['name'] !== '' || $row['result'] !== '' || $row['comments'] !== '')
+        ->values()
+        ->all();
+}
+if ($otherTargetTests === [] && ! empty($targetOrgan->other_tests ?? null)) {
     $decodedOtherTargetTests = json_decode((string) $targetOrgan->other_tests, true);
     if (is_array($decodedOtherTargetTests)) {
-        foreach ($decodedOtherTargetTests as $otherTargetTest) {
-            $testName = trim((string) ($otherTargetTest['name'] ?? ''));
-            if ($testName !== '') {
-                $abnormalTargetSummary[] = $testName;
-            }
+        $otherTargetTests = $decodedOtherTargetTests;
+    }
+}
+if ($otherTargetTests !== []) {
+    foreach ($otherTargetTests as $otherTargetTest) {
+        $testName = trim((string) ($otherTargetTest['name'] ?? ''));
+        $testResult = trim((string) ($otherTargetTest['result'] ?? ''));
+        if ($testName !== '' && $testResult === 'Abnormal') {
+            $abnormalTargetSummary[] = $testName;
         }
     }
 }
 
-$rows = $isAbnormal ? [[
-    'worker' => trim((string) (($employee->employee_firstName ?? '') . ' ' . ($employee->employee_lastName ?? ''))),
-    'chemical' => (string) ($chemical->chemicals ?? '-'),
-    'job' => (string) ($chemical->examination_type ?? 'Medical surveillance'),
-    'history' => (string) ($findings->history_of_health ?? 'No'),
-    'clinical' => (string) ($findings->clinical_findings ?? 'No'),
-    'target' => implode(', ', $abnormalTargetSummary),
-    'bei' => (string) ($biological->baseline_annual ?? $biological->baseline_results ?? '-'),
-    'work' => trim(implode(' / ', array_filter([
-        isset($findings->CF_work_related) ? 'CF: ' . $findings->CF_work_related : null,
-        isset($findings->TO_work_related) ? 'TO: ' . $findings->TO_work_related : null,
-        isset($findings->BM_work_related) ? 'BM: ' . $findings->BM_work_related : null,
-    ]))),
-    'protection' => (string) ($removal->removal_type ?? 'Monitoring'),
-    'department' => (string) ($company->company_name ?? '-'),
-]] : [];
+$buildAbnormalRow = static function (
+    ?object $employeeRecord,
+    ?object $chemicalRecord,
+    ?object $findingsRecord,
+    ?object $targetOrganRecord,
+    ?object $biologicalRecord,
+    ?object $removalRecord,
+    array $otherTargetTestRows,
+    string $departmentName
+): array {
+    $targetResultValue = static function (?object $targetOrganInnerRecord, string $resultColumn): string {
+        if (! $targetOrganInnerRecord) {
+            return '';
+        }
+
+        return trim((string) ($targetOrganInnerRecord->{$resultColumn} ?? ''));
+    };
+
+    $targetSummary = array_filter([
+        $targetResultValue($targetOrganRecord, 'blood_count_result') === 'Abnormal' ? 'Full Blood Count' : null,
+        $targetResultValue($targetOrganRecord, 'renal_function_result') === 'Abnormal' ? 'Renal Function Test' : null,
+        $targetResultValue($targetOrganRecord, 'liver_function_result') === 'Abnormal' ? 'Liver Function Test' : null,
+        $targetResultValue($targetOrganRecord, 'chest_xray_result') === 'Abnormal' ? 'Chest X-ray' : null,
+        ! empty($targetOrganRecord->spirometry_FEV_FVC) ? 'Spirometry' : null,
+    ]);
+
+    foreach ($otherTargetTestRows as $otherTargetTestRow) {
+        $testName = trim((string) ($otherTargetTestRow['name'] ?? ''));
+        $testResult = trim((string) ($otherTargetTestRow['result'] ?? ''));
+        if ($testName !== '' && $testResult === 'Abnormal') {
+            $targetSummary[] = $testName;
+        }
+    }
+
+    return [
+        'worker' => trim((string) (($employeeRecord->employee_firstName ?? '') . ' ' . ($employeeRecord->employee_lastName ?? ''))),
+        'chemical' => (string) ($chemicalRecord->chemicals ?? '-'),
+        'job' => (string) ($chemicalRecord->examination_type ?? 'Medical surveillance'),
+        'history' => (string) ($findingsRecord->history_of_health ?? 'No'),
+        'clinical' => (string) ($findingsRecord->clinical_findings ?? 'No'),
+        'target' => implode(', ', $targetSummary),
+        'bei' => (string) ($biologicalRecord->baseline_annual ?? $biologicalRecord->baseline_results ?? '-'),
+        'work' => trim(implode(' / ', array_filter([
+            isset($findingsRecord->CF_work_related) ? 'CF: ' . $findingsRecord->CF_work_related : null,
+            isset($findingsRecord->TO_work_related) ? 'TO: ' . $findingsRecord->TO_work_related : null,
+            isset($findingsRecord->BM_work_related) ? 'BM: ' . $findingsRecord->BM_work_related : null,
+        ]))),
+        'protection' => (string) ($removalRecord->removal_type ?? 'Monitoring'),
+        'department' => $departmentName !== '' ? $departmentName : '-',
+    ];
+};
+
+$rows = [];
+
+if ($groupChemical !== '' && $groupDate !== '' && $companyId > 0 && DB::getSchemaBuilder()->hasTable('declaration')) {
+    $candidateDeclarations = DB::table('declaration')
+        ->leftJoin('chemical_information', 'chemical_information.surveillance_id', '=', 'declaration.surveillance_id')
+        ->where('declaration.company_id', $companyId)
+        ->where('chemical_information.chemicals', $groupChemical)
+        ->where(function ($builder) use ($groupDate): void {
+            $builder->whereDate('declaration.employee_date', $groupDate)
+                ->orWhere(function ($fallback) use ($groupDate): void {
+                    $fallback->whereNull('declaration.employee_date')
+                        ->whereDate('declaration.doctor_date', $groupDate);
+                });
+        })
+        ->orderBy('declaration.declaration_id')
+        ->get(['declaration.declaration_id', 'declaration.employee_id', 'declaration.company_id', 'declaration.surveillance_id']);
+
+    foreach ($candidateDeclarations as $candidateDeclaration) {
+        $candidateFindings = DB::getSchemaBuilder()->hasTable('ms_findings')
+            ? DB::table('ms_findings')->where('surveillance_id', $candidateDeclaration->surveillance_id)->first()
+            : null;
+
+        if (! $candidateFindings) {
+            continue;
+        }
+
+        $candidateIsAbnormal = in_array((string) ($candidateFindings->conclusion_fitness ?? ''), ['Not Fit', 'Abnormal'], true)
+            || in_array((string) ($candidateFindings->history_of_health ?? ''), ['Yes', 'Abnormal'], true)
+            || in_array((string) ($candidateFindings->clinical_findings ?? ''), ['Yes', 'Abnormal'], true)
+            || in_array((string) ($candidateFindings->target_organ ?? ''), ['Yes', 'Abnormal'], true)
+            || in_array((string) ($candidateFindings->biological_monitoring ?? ''), ['Yes', 'Abnormal'], true)
+            || in_array((string) ($candidateFindings->CF_work_related ?? ''), ['Yes', 'Abnormal'], true)
+            || in_array((string) ($candidateFindings->TO_work_related ?? ''), ['Yes', 'Abnormal'], true)
+            || in_array((string) ($candidateFindings->BM_work_related ?? ''), ['Yes', 'Abnormal'], true)
+            || in_array((string) ($candidateFindings->pregnancy_breastFeding ?? ''), ['Yes', 'Abnormal'], true);
+
+        if (! $candidateIsAbnormal) {
+            continue;
+        }
+
+        $candidateEmployee = DB::table('employee')->where('employee_id', $candidateDeclaration->employee_id)->first();
+        $candidateChemical = DB::table('chemical_information')->where('surveillance_id', $candidateDeclaration->surveillance_id)->first();
+        $candidateTargetOrgan = DB::getSchemaBuilder()->hasTable('target_organ')
+            ? DB::table('target_organ')->where('surveillance_id', $candidateDeclaration->surveillance_id)->first()
+            : null;
+        $candidateBiological = DB::getSchemaBuilder()->hasTable('biological_monitoring')
+            ? DB::table('biological_monitoring')->where('surveillance_id', $candidateDeclaration->surveillance_id)->first()
+            : null;
+        $candidateRemoval = DB::getSchemaBuilder()->hasTable('removal_report')
+            ? DB::table('removal_report')->where('surveillance_id', $candidateDeclaration->surveillance_id)->first()
+            : null;
+        $candidateOtherTargetTests = DB::getSchemaBuilder()->hasTable('target_organ_other_tests')
+            ? DB::table('target_organ_other_tests')
+                ->where('surveillance_id', $candidateDeclaration->surveillance_id)
+                ->orderBy('sort_order')
+                ->orderBy('other_target_test_id')
+                ->get(['test_name', 'result', 'comments'])
+                ->map(static fn ($row) => [
+                    'name' => trim((string) ($row->test_name ?? '')),
+                    'result' => trim((string) ($row->result ?? '')),
+                    'comments' => trim((string) ($row->comments ?? '')),
+                ])
+                ->values()
+                ->all()
+            : [];
+
+        $rows[] = $buildAbnormalRow(
+            $candidateEmployee,
+            $candidateChemical,
+            $candidateFindings,
+            $candidateTargetOrgan,
+            $candidateBiological,
+            $candidateRemoval,
+            $candidateOtherTargetTests,
+            (string) ($company->company_name ?? '')
+        );
+    }
+} elseif ($isAbnormal) {
+    $rows[] = $buildAbnormalRow(
+        $employee,
+        $chemical,
+        $findings,
+        $targetOrgan,
+        $biological,
+        $removal,
+        $otherTargetTests,
+        (string) ($company->company_name ?? '')
+    );
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">

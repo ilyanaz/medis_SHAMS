@@ -133,32 +133,58 @@ if (! empty($recommendation->MRPdate_start) && ! empty($recommendation->MRPdate_
     }
 }
 
+$targetResultValue = static function (?object $targetOrganRecord, string $resultColumn): string {
+    if (! $targetOrganRecord) {
+        return '';
+    }
+
+    return trim((string) ($targetOrganRecord->{$resultColumn} ?? ''));
+};
 $targetOrganAbnormal = false;
 $targetOrganNotes = [];
 foreach ([
-    'blood_count' => 'Blood count',
-    'renal_function' => 'Renal function',
-    'liver_function' => 'Liver function',
-    'chest_xray' => 'Chest X-ray',
-] as $field => $label) {
-    if (($targetOrgan->{$field} ?? null) === 'Abnormal') {
+    ['result_column' => 'blood_count_result', 'label' => 'Full Blood Count'],
+    ['result_column' => 'renal_function_result', 'label' => 'Renal Function Test'],
+    ['result_column' => 'liver_function_result', 'label' => 'Liver Function Test'],
+    ['result_column' => 'chest_xray_result', 'label' => 'Chest X-ray'],
+] as $field) {
+    if ($targetResultValue($targetOrgan, $field['result_column']) === 'Abnormal') {
         $targetOrganAbnormal = true;
-        $targetOrganNotes[] = $label;
+        $targetOrganNotes[] = $field['label'];
     }
 }
 if (! empty($targetOrgan->spirometry_comments) || (! empty($targetOrgan->spirometry_FEV1) || ! empty($targetOrgan->spirometry_FVC) || ! empty($targetOrgan->spirometry_FEV_FVC))) {
     $targetOrganNotes[] = 'Spirometry';
 }
-if (! empty($targetOrgan->other_tests ?? null)) {
+$otherTargetTests = [];
+if ($surveillanceId > 0 && DB::getSchemaBuilder()->hasTable('target_organ_other_tests')) {
+    $otherTargetTests = DB::table('target_organ_other_tests')
+        ->where('surveillance_id', $surveillanceId)
+        ->orderBy('sort_order')
+        ->orderBy('other_target_test_id')
+        ->get(['test_name', 'result', 'comments'])
+        ->map(static fn ($row) => [
+            'name' => trim((string) ($row->test_name ?? '')),
+            'result' => trim((string) ($row->result ?? '')),
+            'comments' => trim((string) ($row->comments ?? '')),
+        ])
+        ->filter(static fn ($row) => $row['name'] !== '' || $row['result'] !== '' || $row['comments'] !== '')
+        ->values()
+        ->all();
+}
+if ($otherTargetTests === [] && ! empty($targetOrgan->other_tests ?? null)) {
     $decodedOtherTargetTests = json_decode((string) $targetOrgan->other_tests, true);
     if (is_array($decodedOtherTargetTests)) {
-        foreach ($decodedOtherTargetTests as $otherTargetTest) {
-            $testName = trim((string) ($otherTargetTest['name'] ?? ''));
-            $testResult = trim((string) ($otherTargetTest['result'] ?? ''));
-            if ($testName !== '' && $testResult === 'Abnormal') {
-                $targetOrganAbnormal = true;
-                $targetOrganNotes[] = $testName;
-            }
+        $otherTargetTests = $decodedOtherTargetTests;
+    }
+}
+if ($otherTargetTests !== []) {
+    foreach ($otherTargetTests as $otherTargetTest) {
+        $testName = trim((string) ($otherTargetTest['name'] ?? ''));
+        $testResult = trim((string) ($otherTargetTest['result'] ?? ''));
+        if ($testName !== '' && $testResult === 'Abnormal') {
+            $targetOrganAbnormal = true;
+            $targetOrganNotes[] = $testName;
         }
     }
 }

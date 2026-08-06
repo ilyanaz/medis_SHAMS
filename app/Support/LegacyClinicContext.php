@@ -353,15 +353,21 @@ class LegacyClinicContext
                 'clinical_findings.result_clinical_findings',
                 'physical_examination.weight',
                 'physical_examination.height',
-                'target_organ.blood_count',
+                'physical_examination.others',
+                'target_organ.blood_count_result',
+                'target_organ.renal_function_result',
+                'target_organ.liver_function_result',
+                'target_organ.chest_xray_result',
                 'biological_monitoring.baseline_results',
                 'biological_monitoring.baseline_annual',
                 'biological_monitoring.blood_result_files',
+                'biological_monitoring.manual_completed',
                 'fitness_respirator.fitness_result',
                 'ms_findings.history_of_health',
                 'recommendation.recommencation_type',
                 'recommendation.employee_signature as recommendation_employee_signature',
                 'recommendation.employee_signature_date as recommendation_employee_signature_date',
+                'recommendation.is_final as recommendation_is_final',
             ])
             ->orderByDesc('declaration.declaration_id');
 
@@ -374,15 +380,32 @@ class LegacyClinicContext
         }
 
         return $query->get()->map(function ($row) {
+            $patientSectionData = $this->surveillancePatientCompletionData($row);
+            $hasSpirometryResults = ! is_null($row->surveillance_id)
+                && Schema::hasTable('target_organ')
+                && DB::table('target_organ')
+                    ->where('surveillance_id', $row->surveillance_id)
+                    ->whereNotNull('spirometry_FEV1')
+                    ->whereNotNull('spirometry_FVC')
+                    ->whereNotNull('spirometry_FEV_FVC')
+                    ->exists();
+            $isCompleted = ! empty($row->recommendation_is_final);
             $sectionStatuses = [
+                'patient' => $patientSectionData['patient'],
                 'chemical' => trim((string) ($row->chemicals ?? '')) !== '' && trim((string) ($row->examination_type ?? '')) !== '' && trim((string) ($row->examination_date ?? '')) !== '',
                 'history' => ! is_null($row->surveillance_id) && Schema::hasTable('history_of_health')
                     ? DB::table('history_of_health')->where('surveillance_id', $row->surveillance_id)->exists()
                     : false,
                 'clinical' => trim((string) ($row->result_clinical_findings ?? '')) !== '',
                 'physical' => ($row->weight ?? null) !== null && ($row->height ?? null) !== null,
-                'target' => trim((string) ($row->blood_count ?? '')) !== '',
-                'biological' => trim((string) ($row->baseline_results ?? '')) !== '' || trim((string) ($row->baseline_annual ?? '')) !== '' || trim((string) ($row->blood_result_files ?? '')) !== '',
+                'target' => trim((string) ($row->blood_count_result ?? '')) !== ''
+                    && trim((string) ($row->renal_function_result ?? '')) !== ''
+                    && trim((string) ($row->liver_function_result ?? '')) !== ''
+                    && $hasSpirometryResults,
+                'biological' => trim((string) ($row->baseline_results ?? '')) !== ''
+                    || trim((string) ($row->baseline_annual ?? '')) !== ''
+                    || trim((string) ($row->blood_result_files ?? '')) !== ''
+                    || (bool) ($row->manual_completed ?? false),
                 'respirator' => trim((string) ($row->fitness_result ?? '')) !== '',
                 'findings' => trim((string) ($row->history_of_health ?? '')) !== '',
                 'recommendation' => trim((string) ($row->recommencation_type ?? '')) !== ''
@@ -390,11 +413,128 @@ class LegacyClinicContext
                     && trim((string) ($row->recommendation_employee_signature_date ?? '')) !== '',
             ];
 
-            $row->is_completed = ! in_array(false, $sectionStatuses, true);
+            $row->is_completed = $isCompleted;
             $row->section_statuses = $sectionStatuses;
 
             return $row;
         })->all();
+    }
+
+    protected function surveillancePatientCompletionData(object $row): array
+    {
+        $employeeId = (int) ($row->employee_id ?? 0);
+        $surveillanceId = (int) ($row->surveillance_id ?? 0);
+
+        if ($employeeId <= 0) {
+            return ['patient' => false];
+        }
+
+        $medicalHistory = null;
+        if (Schema::hasTable('medical_history')) {
+            $medicalHistoryQuery = DB::table('medical_history')->where('employee_id', $employeeId);
+            if ($surveillanceId > 0 && Schema::hasColumn('medical_history', 'surveillance_id')) {
+                $medicalHistory = DB::table('medical_history')
+                    ->where('employee_id', $employeeId)
+                    ->where('surveillance_id', $surveillanceId)
+                    ->orderByDesc('medHistory_id')
+                    ->first();
+                if ($medicalHistory === null) {
+                    $medicalHistoryQuery->whereNull('surveillance_id');
+                } else {
+                    $medicalHistoryQuery = null;
+                }
+            }
+            if ($medicalHistory === null && $medicalHistoryQuery !== null) {
+                $medicalHistory = $medicalHistoryQuery->orderByDesc('medHistory_id')->first();
+            }
+        }
+
+        $occupationalHistory = null;
+        if (Schema::hasTable('occupational_history')) {
+            $occupationalQuery = DB::table('occupational_history')->where('employee_id', $employeeId);
+            if ($surveillanceId > 0 && Schema::hasColumn('occupational_history', 'surveillance_id')) {
+                $occupationalHistory = DB::table('occupational_history')
+                    ->where('employee_id', $employeeId)
+                    ->where('surveillance_id', $surveillanceId)
+                    ->orderBy('occupHistory_id')
+                    ->first();
+                if ($occupationalHistory === null) {
+                    $occupationalQuery->whereNull('surveillance_id');
+                } else {
+                    $occupationalQuery = null;
+                }
+            }
+            if ($occupationalHistory === null && $occupationalQuery !== null) {
+                $occupationalHistory = $occupationalQuery->orderBy('occupHistory_id')->first();
+            }
+        }
+
+        $personalHistory = null;
+        if (Schema::hasTable('personal_social_history')) {
+            $personalQuery = DB::table('personal_social_history')->where('employee_id', $employeeId);
+            if ($surveillanceId > 0 && Schema::hasColumn('personal_social_history', 'surveillance_id')) {
+                $personalHistory = DB::table('personal_social_history')
+                    ->where('employee_id', $employeeId)
+                    ->where('surveillance_id', $surveillanceId)
+                    ->orderByDesc('perSocHistory_id')
+                    ->first();
+                if ($personalHistory === null) {
+                    $personalQuery->whereNull('surveillance_id');
+                } else {
+                    $personalQuery = null;
+                }
+            }
+            if ($personalHistory === null && $personalQuery !== null) {
+                $personalHistory = $personalQuery->orderByDesc('perSocHistory_id')->first();
+            }
+        }
+
+        $trainingHistory = null;
+        if (Schema::hasTable('training_history')) {
+            $trainingQuery = DB::table('training_history')->where('employee_id', $employeeId);
+            if ($surveillanceId > 0 && Schema::hasColumn('training_history', 'surveillance_id')) {
+                $trainingHistory = DB::table('training_history')
+                    ->where('employee_id', $employeeId)
+                    ->where('surveillance_id', $surveillanceId)
+                    ->orderByDesc('trainingHistory_id')
+                    ->first();
+                if ($trainingHistory === null) {
+                    $trainingQuery->whereNull('surveillance_id');
+                } else {
+                    $trainingQuery = null;
+                }
+            }
+            if ($trainingHistory === null && $trainingQuery !== null) {
+                $trainingHistory = $trainingQuery->orderByDesc('trainingHistory_id')->first();
+            }
+        }
+
+        $patientDone = ! empty(array_filter([
+            trim((string) ($row->employee_firstName ?? '')),
+            trim((string) ($row->employee_lastName ?? '')),
+            trim((string) ($medicalHistory->diagnosed_history_result ?? '')),
+            trim((string) ($medicalHistory->diagnosed_history ?? '')),
+            trim((string) ($occupationalHistory->job_title ?? '')),
+            trim((string) ($personalHistory->smoking_history ?? '')),
+            trim((string) ($trainingHistory->handling_of_chemical ?? '')),
+        ], static fn ($value) => $value !== ''));
+
+        return ['patient' => $patientDone];
+    }
+
+    protected function hasCompletedOtherTargetTest(int $surveillanceId): bool
+    {
+        if ($surveillanceId <= 0 || ! Schema::hasTable('target_organ_other_tests')) {
+            return false;
+        }
+
+        return DB::table('target_organ_other_tests')
+            ->where('surveillance_id', $surveillanceId)
+            ->whereNotNull('test_name')
+            ->where('test_name', '!=', '')
+            ->whereNotNull('result')
+            ->where('result', '!=', '')
+            ->exists();
     }
 
     protected function audiometryRows(?object $selectedCompany, ?object $selectedEmployee): array
@@ -449,24 +589,27 @@ class LegacyClinicContext
             ->leftJoin('employee', 'employee.employee_id', '=', 'declaration.employee_id')
             ->leftJoin('company', 'company.company_id', '=', 'declaration.company_id')
             ->leftJoin('chemical_information', 'chemical_information.surveillance_id', '=', 'declaration.surveillance_id')
-            ->select([
-                'declaration.declaration_id',
-                'declaration.company_id',
-                'declaration.employee_id',
-                'declaration.surveillance_id',
+            ->leftJoin('recommendation', 'recommendation.surveillance_id', '=', 'declaration.surveillance_id')
+              ->select([
+                  'declaration.declaration_id',
+                  'declaration.company_id',
+                  'declaration.employee_id',
+                  'declaration.surveillance_id',
                 'declaration.employee_date',
                 'declaration.doctor_date',
                 'declaration.doctor_signature',
                 'declaration.employee_signature',
-                'employee.employee_firstName',
-                'employee.employee_lastName',
-                'employee.employee_NRIC',
-                'employee.employee_passportNo',
-                'employee.employee_telephone',
-                'company.company_name',
-                'chemical_information.chemicals',
-                $clinicScopeSelect,
-            ])
+                  'employee.employee_firstName',
+                  'employee.employee_lastName',
+                  'employee.employee_NRIC',
+                  'employee.employee_passportNo',
+                  'employee.employee_telephone',
+                  'employee.employee_email',
+                  'company.company_name',
+                  'chemical_information.chemicals',
+                  'recommendation.is_final as recommendation_is_final',
+                  $clinicScopeSelect,
+              ])
             ->orderByDesc('declaration.declaration_id');
 
         if ($clinicId !== null && ($hasCompanyClinicId || $hasEmployeeClinicId)) {
@@ -480,12 +623,14 @@ class LegacyClinicContext
             });
         }
 
-        return $query->get()->flatMap(function ($row): array {
+        if (Schema::hasTable('recommendation') && Schema::hasColumn('recommendation', 'is_final')) {
+            $query->where('recommendation.is_final', 1);
+        }
+
+        $reportRows = $query->get()->flatMap(function ($row): array {
             $employeeName = trim((string) (($row->employee_firstName ?? '') . ' ' . ($row->employee_lastName ?? '')));
             $identityNo = trim((string) (($row->employee_NRIC ?? '') !== '' ? ($row->employee_NRIC ?? '') : ($row->employee_passportNo ?? '')));
-            $hasDoctorSignature = !empty($row->doctor_signature);
-            $hasEmployeeSignature = !empty($row->employee_signature);
-            $isCompleted = $hasDoctorSignature && $hasEmployeeSignature && !empty($row->doctor_date) && !empty($row->employee_date);
+            $isCompleted = ! empty($row->recommendation_is_final);
             $findings = null;
             if (! empty($row->surveillance_id) && Schema::hasTable('ms_findings')) {
                 $findings = DB::table('ms_findings')
@@ -512,11 +657,16 @@ class LegacyClinicContext
             ]);
             $base = [
                 'module' => 'surveillance',
-                'employee_name' => $employeeName !== '' ? $employeeName : 'Not set',
-                'company' => (string) ($row->company_name ?? 'Not set'),
-                'phone_no' => (string) ($row->employee_telephone ?? '-'),
-                'identity_no' => $identityNo !== '' ? $identityNo : '-',
-                'chemical_name' => (string) ($row->chemicals ?: 'Surveillance record'),
+                'declaration_id' => (int) ($row->declaration_id ?? 0),
+                'employee_id' => (int) ($row->employee_id ?? 0),
+                'company_id' => (int) ($row->company_id ?? 0),
+                'surveillance_id' => (int) ($row->surveillance_id ?? 0),
+                  'employee_name' => $employeeName !== '' ? $employeeName : 'Not set',
+                  'company' => (string) ($row->company_name ?? 'Not set'),
+                  'phone_no' => (string) ($row->employee_telephone ?? '-'),
+                  'employee_email' => (string) ($row->employee_email ?? ''),
+                  'identity_no' => $identityNo !== '' ? $identityNo : '-',
+                  'chemical_name' => (string) ($row->chemicals ?: 'Surveillance record'),
                 'status' => $isCompleted ? 'Completed' : 'Incomplete',
                 'status_key' => $isCompleted ? 'completed' : 'incomplete',
                 'date_examined' => (string) ($row->employee_date ?: $row->doctor_date ?: ''),
@@ -538,14 +688,14 @@ class LegacyClinicContext
                     'href' => route('surveillance.report.summary', $routeParams),
                     'pdf_href' => route('pdf.usechh4', $routeParams),
                 ]),
-                array_merge($base, [
-                    'filter' => 'usechh 5i',
-                    'href' => route('surveillance.report.removal', $routeParams),
-                    'pdf_href' => route('pdf.usechh5i', $routeParams),
-                ]),
             ];
 
             if ($isAbnormal) {
+                $reports[] = array_merge($base, [
+                    'filter' => 'usechh 5i',
+                    'href' => route('surveillance.report.removal', $routeParams),
+                    'pdf_href' => route('pdf.usechh5i', $routeParams),
+                ]);
                 $reports[] = array_merge($base, [
                     'filter' => 'usechh 5ii',
                     'href' => route('surveillance.report.abnormal', $routeParams),
@@ -554,7 +704,45 @@ class LegacyClinicContext
             }
 
             return $reports;
-        })->all();
+        });
+
+        $regularRows = [];
+        $groupedAbnormalRows = [];
+
+        foreach ($reportRows as $reportRow) {
+            if (strtolower(trim((string) ($reportRow['filter'] ?? ''))) !== 'usechh 5ii') {
+                $regularRows[] = $reportRow;
+                continue;
+            }
+
+            $groupKey = implode('|', [
+                (string) ($reportRow['company_id'] ?? 0),
+                trim((string) ($reportRow['chemical_name'] ?? '')),
+                trim((string) ($reportRow['date_examined'] ?? '')),
+            ]);
+
+            if (! isset($groupedAbnormalRows[$groupKey])) {
+                $routeParams = array_filter([
+                    'declaration_id' => $reportRow['declaration_id'] ?? null,
+                    'employee_id' => $reportRow['employee_id'] ?? null,
+                    'company_id' => $reportRow['company_id'] ?? null,
+                    'surveillance_id' => $reportRow['surveillance_id'] ?? null,
+                    'group_chemical' => $reportRow['chemical_name'] ?? null,
+                    'group_date' => $reportRow['date_examined'] ?? null,
+                ], static fn ($value) => $value !== null && $value !== '');
+
+                $reportRow['href'] = route('surveillance.report.abnormal', $routeParams);
+                $reportRow['pdf_href'] = route('pdf.usechh5ii', $routeParams);
+                $reportRow['group_count'] = 1;
+                $groupedAbnormalRows[$groupKey] = $reportRow;
+                continue;
+            }
+
+            $groupedAbnormalRows[$groupKey]['group_count'] += 1;
+            $groupedAbnormalRows[$groupKey]['employee_name'] = $groupedAbnormalRows[$groupKey]['group_count'].' abnormal patient(s)';
+        }
+
+        return array_values(array_merge($regularRows, array_values($groupedAbnormalRows)));
     }
 
     protected function audiometryReportRows(?int $clinicId): array

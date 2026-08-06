@@ -41,7 +41,7 @@ medis_render_navigation_start([
 <div class="pdf-page">
     <section class="page-head">
         <h2>PDF USECHH 1</h2>
-        <p>Preview the employee USECHH 1 report before printing.</p>
+        <p>Preview the patient USECHH 1 report before printing.</p>
     </section>
 
     <section class="preview-shell">
@@ -51,7 +51,7 @@ medis_render_navigation_start([
                 <strong>USECHH 1</strong>
             </div>
             <div class="meta-box">
-                <span>Employee Name</span>
+                <span>Patient Name</span>
                 <strong><?php echo $esc($workerName !== '' ? $workerName : 'Not set'); ?></strong>
             </div>
             <div class="meta-box">
@@ -64,7 +64,7 @@ medis_render_navigation_start([
             <div class="preview-frame-head">
                 <div>
                     <h3>Preview</h3>
-                    <p>Review the employee USECHH 1 report and print it from this page.</p>
+                    <p>Review the patient USECHH 1 report and print it from this page.</p>
                 </div>
                 <div class="preview-actions">
                     <a class="btn" href="<?php echo $esc($backUrl); ?>">Back</a>
@@ -72,7 +72,7 @@ medis_render_navigation_start([
                 </div>
             </div>
             <iframe class="preview-iframe" name="pdfPreviewFrame" src="<?php echo $esc($sourceUrl); ?>" title="PDF USECHH 1 preview"></iframe>
-            <div class="notice">Use the Print button to print this employee document directly.</div>
+            <div class="notice">Use the Print button to print this patient document directly.</div>
         </section>
     </section>
 </div>

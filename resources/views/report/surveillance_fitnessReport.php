@@ -61,25 +61,26 @@ $statusMessage = (string) session('status', '');
 </head>
 <body>
 <style>
-@page{size:A4 portrait;margin:12mm}
-body{margin:0;padding:18px;background:#fff;color:#0f172a;font-family:"Poppins","Segoe UI",Tahoma,Geneva,Verdana,sans-serif}
+@page{size:A4 portrait;margin:10mm}
+html,body{margin:0;padding:0;background:#fff;color:#0f172a;font-family:Arial,Helvetica,sans-serif;font-size:11pt}
+body{padding:10mm}
 .sheet{display:grid;gap:18px}
 .clinic-report-header{padding:0 0 8px}
 .clinic-report-header img{display:block;width:100%;max-width:100%;max-height:none;height:auto;object-fit:contain}
 .report-card{background:#fff;overflow:hidden}
 .report-head{padding:6px 0 14px;border-bottom:2px solid #dce8de}
 .report-head-top{position:relative;display:block;text-align:center}
-.report-code{position:absolute;right:0;top:0;font-size:14px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#0f172a}
-.report-head-act{font-size:14px;font-weight:700;line-height:1.35}
-.report-head-regulation{margin-top:4px;font-size:15px;font-weight:700;line-height:1.35}
-.report-title{margin:12px 0 0;text-align:center;font-size:18px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.report-code{position:absolute;right:0;top:0;font-size:11pt;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:#0f172a}
+.report-head-act{font-size:11pt;font-weight:700;line-height:1.35}
+.report-head-regulation{margin-top:4px;font-size:11pt;font-weight:700;line-height:1.35}
+.report-title{margin:12px 0 0;text-align:center;font-size:13pt;font-weight:700;letter-spacing:.02em;text-transform:uppercase}
 .section{padding:18px 0;border-top:1px solid #edf2ee}
 .section:first-of-type{border-top:0}
 .detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 24px}
 .detail-line{display:grid;grid-template-columns:170px 1fr;gap:12px;align-items:start;padding:6px 0}
 .detail-line.full{grid-column:1 / -1}
-.detail-label{font-size:.82rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#6b7d71}
-.detail-value{font-size:1rem;font-weight:500}
+.detail-label{font-size:11pt;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:#6b7d71}
+.detail-value{font-size:11pt;font-weight:500}
 .narrative{line-height:1.8}
 .narrative strong{font-weight:700}
 .signature-section{display:flex;justify-content:flex-end}
@@ -88,7 +89,7 @@ body{margin:0;padding:18px;background:#fff;color:#0f172a;font-family:"Poppins","
 .sign-box img{display:block;max-width:220px;max-height:72px;object-fit:contain;margin:0 0 10px auto}
 .doctor-meta{display:grid;gap:8px}
 .meta-row{padding:2px 0}
-.meta-row strong{display:block;font-size:.8rem;letter-spacing:.04em;text-transform:uppercase;color:#6b7d71;margin-bottom:4px}
+.meta-row strong{display:block;font-size:11pt;letter-spacing:.02em;text-transform:uppercase;color:#6b7d71;margin-bottom:4px}
 .muted{color:#64756b}
 .flash{margin:0 0 8px;padding:10px 14px;border:1px solid #cfe7d4;border-radius:12px;background:#f3fbf4;color:#1f5f35;font-size:.9rem}
 .remarks-form{display:grid;gap:12px}
@@ -97,7 +98,22 @@ body{margin:0;padding:18px;background:#fff;color:#0f172a;font-family:"Poppins","
 .save-btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 18px;border:1px solid #2f9e44;border-radius:999px;background:#2f9e44;color:#fff;font:inherit;font-weight:700;cursor:pointer}
 .screen-only{display:block}
 .print-only{display:none}
-@media print{body{padding:0}.report-card{break-inside:avoid}.clinic-report-header{padding-bottom:4px}.report-head{padding-top:0}.screen-only{display:none!important}.print-only{display:block}.remarks-print{white-space:pre-wrap}}
+@media print{
+  body{padding:0}
+  .sheet{gap:8px}
+  .report-card{break-inside:avoid}
+  .clinic-report-header{padding-bottom:2px}
+  .report-head{padding:0 0 10px}
+  .report-title{margin:8px 0 0}
+  .section{padding:10px 0}
+  .detail-grid{gap:8px 18px}
+  .detail-line{padding:4px 0}
+  .signature-stack{gap:8px;max-width:300px}
+  .doctor-meta{gap:4px}
+  .screen-only{display:none!important}
+  .print-only{display:block}
+  .remarks-print{white-space:pre-wrap}
+}
 </style>
 <div class="sheet">
     <div class="print-only"><?php require __DIR__ . '/partials/clinic_header.php'; ?></div>

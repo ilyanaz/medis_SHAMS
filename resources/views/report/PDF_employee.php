@@ -32,7 +32,7 @@ medis_render_navigation_start([
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PDF Employee</title>
+<title>PDF Patient</title>
 </head>
 <body>
 <style>
@@ -40,18 +40,18 @@ medis_render_navigation_start([
 </style>
 <div class="pdf-page">
     <section class="page-head">
-        <h2>PDF Employee</h2>
-        <p>Preview the employee USECHH 1 report before printing.</p>
+        <h2>PDF Patient</h2>
+        <p>Preview the patient USECHH 1 report before printing.</p>
     </section>
 
     <section class="preview-shell">
         <div class="preview-meta">
             <div class="meta-box">
                 <span>PDF Group</span>
-                <strong>Employee</strong>
+                <strong>Patient</strong>
             </div>
             <div class="meta-box">
-                <span>Employee Name</span>
+                <span>Patient Name</span>
                 <strong><?php echo $esc($workerName !== '' ? $workerName : 'Not set'); ?></strong>
             </div>
             <div class="meta-box">
@@ -64,15 +64,15 @@ medis_render_navigation_start([
             <div class="preview-frame-head">
                 <div>
                     <h3>Preview</h3>
-                    <p>Review the employee USECHH 1 report and print it from this page.</p>
+                    <p>Review the patient USECHH 1 report and print it from this page.</p>
                 </div>
                 <div class="preview-actions">
                     <a class="btn" href="<?php echo $esc($backUrl); ?>">Back</a>
                     <button class="next" type="button" onclick="window.frames['pdfPreviewFrame'].print()">Print</button>
                 </div>
             </div>
-            <iframe class="preview-iframe" name="pdfPreviewFrame" src="<?php echo $esc($sourceUrl); ?>" title="PDF Employee preview"></iframe>
-            <div class="notice">Use the Print button to print this employee document directly.</div>
+            <iframe class="preview-iframe" name="pdfPreviewFrame" src="<?php echo $esc($sourceUrl); ?>" title="PDF Patient preview"></iframe>
+            <div class="notice">Use the Print button to print this patient document directly.</div>
         </section>
     </section>
 </div>
