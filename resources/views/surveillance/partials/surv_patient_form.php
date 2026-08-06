@@ -26,10 +26,10 @@ textarea{min-height:90px;resize:vertical}.full{grid-column:1/-1}.phone-group{dis
 .req{color:#dc2626}.error{margin-top:14px;padding:12px 14px;border:1px solid #fecaca;background:#fef2f2;color:#991b1b;border-radius:12px}
 .section-title{margin:0;font-size:1rem;font-weight:700;color:#111827}.repeat-list{display:grid;gap:12px}.repeat-card{border:1px solid #e8ebf2;border-radius:14px;padding:14px;background:#fbfcfd}
 .repeat-card-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}.repeat-card-title{font-size:.92rem;font-weight:700;color:#111827}
-.repeat-actions{display:flex;justify-content:flex-end;margin-top:12px}.history-stack{display:grid;gap:12px}.history-row{display:grid;grid-template-columns:minmax(300px,1.45fr) minmax(160px,0.9fr) minmax(160px,0.9fr);gap:14px;align-items:start}.history-row.two-inputs{grid-template-columns:minmax(300px,1.45fr) minmax(220px,1fr)}
+.repeat-actions{display:flex;justify-content:flex-end;margin-top:12px}.employment-line-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.history-stack{display:grid;gap:12px}.history-row{display:grid;grid-template-columns:minmax(300px,1.45fr) minmax(160px,0.9fr) minmax(160px,0.9fr);gap:14px;align-items:start}.history-row.two-inputs{grid-template-columns:minmax(300px,1.45fr) minmax(220px,1fr)}
 .history-choice{display:grid;gap:8px;align-self:start;padding-right:8px}.history-choice-label{font-size:.9rem;font-weight:600;color:#111827}.history-radio-group{display:flex;gap:22px;align-items:center;justify-content:flex-start;flex-wrap:wrap;min-height:34px;padding:0;border:none;border-radius:0}.history-radio{display:inline-flex;align-items:center;gap:8px;font-size:.9rem;font-weight:500;color:#111827}.history-radio input{width:20px;height:20px;margin:0;accent-color:#389B5B;cursor:pointer;flex-shrink:0}
 .training-table{width:100%;border-collapse:separate;border-spacing:0;overflow:hidden;border:1px solid #e5e7eb;border-radius:14px}.training-table th,.training-table td{padding:12px;vertical-align:top;border-bottom:1px solid #e5e7eb}.training-table tr:last-child th,.training-table tr:last-child td{border-bottom:none}.training-table th{width:28%;background:#f8fafc;text-align:left;font-size:.92rem;color:#111827;font-weight:600}.training-table td{background:#fff}.training-table .comment-field textarea{min-height:78px}.training-radio-group{display:flex;gap:22px;align-items:center;justify-content:center;flex-wrap:wrap;min-height:44px;padding-left:18px}.training-radio{display:inline-flex;align-items:center;gap:8px;font-size:.9rem;font-weight:500;color:#111827}.training-radio input{width:20px;height:20px;margin:0;accent-color:#389B5B;cursor:pointer;flex-shrink:0}
-@media (max-width:860px){.history-row,.history-row.two-inputs{grid-template-columns:1fr}.training-table,.training-table tbody,.training-table tr,.training-table th,.training-table td{display:block;width:100%}.training-table th{border-bottom:none;padding-bottom:6px}.training-table td{padding-top:0}}
+@media (max-width:860px){.employment-line-grid,.history-row,.history-row.two-inputs{grid-template-columns:1fr}.training-table,.training-table tbody,.training-table tr,.training-table th,.training-table td{display:block;width:100%}.training-table th{border-bottom:none;padding-bottom:6px}.training-table td{padding-top:0}}
 @media (max-width:860px){.grid{grid-template-columns:1fr}.phone-group{grid-template-columns:1fr}.repeat-card-head{align-items:flex-start;flex-direction:column}}
 </style>
 </head>
@@ -52,10 +52,11 @@ $formAction = (string) ($formAction ?? '#');
 $formMethod = strtoupper((string) ($formMethod ?? 'POST'));
 $occupJobTitles = old('occup_job_title', $patientFormData['occup_job_title'] ?? []);
 $occupCompanyNames = old('occup_company_name', $patientFormData['occup_company_name'] ?? []);
+$startEmploymentDates = old('start_employment_date', $patientFormData['start_employment_date'] ?? []);
 $employmentDurations = old('employment_duration', $patientFormData['employment_duration'] ?? []);
 $chemicalExposureDurations = old('chemical_exposure_duration', $patientFormData['chemical_exposure_duration'] ?? []);
 $chemicalExposureIncidents = old('chemical_exposure_incidents', $patientFormData['chemical_exposure_incidents'] ?? []);
-$pastRows = max(count((array) $occupJobTitles), count((array) $occupCompanyNames), count((array) $employmentDurations), count((array) $chemicalExposureDurations), count((array) $chemicalExposureIncidents));
+$pastRows = max(count((array) $occupJobTitles), count((array) $occupCompanyNames), count((array) $startEmploymentDates), count((array) $employmentDurations), count((array) $chemicalExposureDurations), count((array) $chemicalExposureIncidents));
 $pastRows = $readOnly ? $pastRows : max(1, $pastRows);
 $value = static fn ($key, $default = '') => old($key, $patientFormData[$key] ?? $default);
 $isOtherEthnicity = $value('employee_ethnicity') === 'Others';
@@ -100,19 +101,32 @@ $editUrl = $patientRecord && function_exists('route') ? route('surveillance.pati
 </div>
 
 <div class="subpanel"><div class="section-title">Medical History</div><div class="grid">
-<label class="field full">Diagnosed History<textarea name="diagnosed_history" placeholder="Insert diagnosed history" <?php echo $readOnly ? 'readonly' : ''; ?>><?php echo $esc($value('diagnosed_history')); ?></textarea></label>
-<label class="field full">Medication History<textarea name="medication_history" placeholder="Insert medication history" <?php echo $readOnly ? 'readonly' : ''; ?>><?php echo $esc($value('medication_history')); ?></textarea></label>
-<label class="field full">Admitted History<textarea name="admitted_history" placeholder="Insert admitted history" <?php echo $readOnly ? 'readonly' : ''; ?>><?php echo $esc($value('admitted_history')); ?></textarea></label>
-<label class="field full">Family History<textarea name="family_history" placeholder="Insert family history" <?php echo $readOnly ? 'readonly' : ''; ?>><?php echo $esc($value('family_history')); ?></textarea></label>
-<label class="field full">Other History<textarea name="others_history" placeholder="Insert other history" <?php echo $readOnly ? 'readonly' : ''; ?>><?php echo $esc($value('others_history')); ?></textarea></label>
+<?php foreach ([
+['Diagnosed History', 'diagnosed_history', 'Insert diagnosed history'],
+['Medication History', 'medication_history', 'Insert medication history'],
+['Admitted History', 'admitted_history', 'Insert admitted history'],
+['Family History', 'family_history', 'Insert family history'],
+['Other History', 'others_history', 'Insert other history'],
+] as [$label, $name, $placeholder]): ?>
+<?php $choice = old($name . '_status', $value($name . '_status', trim((string) $value($name)) !== '' ? 'Yes' : '')); ?>
+<div class="field full">
+<div style="display:grid;grid-template-columns:minmax(190px,230px) minmax(160px,210px) 1fr;gap:12px;align-items:start;">
+<div style="padding-top:10px;font-weight:600;color:#111827;"><?php echo $esc($label); ?></div>
+<div style="display:flex;gap:18px;align-items:center;min-height:44px;flex-wrap:wrap;">
+<label class="history-radio"><input type="radio" name="<?php echo $esc($name); ?>_status" value="Yes"<?php echo $choice === 'Yes' ? ' checked' : ''; ?> <?php echo $readOnly ? 'disabled' : ''; ?>>Yes</label>
+<label class="history-radio"><input type="radio" name="<?php echo $esc($name); ?>_status" value="No"<?php echo $choice === 'No' ? ' checked' : ''; ?> <?php echo $readOnly ? 'disabled' : ''; ?>>No</label>
+</div>
+<textarea name="<?php echo $esc($name); ?>" placeholder="<?php echo $esc($placeholder); ?>" <?php echo $readOnly ? 'readonly' : ''; ?>><?php echo $esc($value($name)); ?></textarea>
+</div>
+</div>
+<?php endforeach; ?>
 </div></div>
 
 <div class="subpanel"><div class="section-title">Occupational &amp; Company History</div>
 <div class="repeat-card"><div class="repeat-card-head"><div class="repeat-card-title">Current Company Record</div></div><div class="grid">
 <label class="field">Job Title<input type="text" name="current_job_title" value="<?php echo $esc($value('current_job_title')); ?>" placeholder="Enter current job title" <?php echo $readOnly ? 'readonly' : ''; ?>></label>
 <label class="field">Company Name<input type="text" name="current_company_name" value="<?php echo $esc($value('current_company_name', $selectedCompanyName)); ?>" placeholder="Enter current company name" <?php echo ($hasSelectedCompany || $readOnly) ? 'readonly' : ''; ?>></label>
-<label class="field">Employment Duration<input type="text" name="current_employment_duration" value="<?php echo $esc($value('current_employment_duration')); ?>" placeholder="Enter employment duration" <?php echo $readOnly ? 'readonly' : ''; ?>></label>
-<label class="field">Chemical Exposure Duration<input type="text" name="current_chemical_exposure_duration" value="<?php echo $esc($value('current_chemical_exposure_duration')); ?>" placeholder="Enter exposure duration" <?php echo $readOnly ? 'readonly' : ''; ?>></label>
+<div class="field full"><div class="employment-line-grid"><label class="field">Date of Starting Employment<input type="date" name="current_start_employment_date" value="<?php echo $esc($value('current_start_employment_date')); ?>" <?php echo $readOnly ? 'readonly' : ''; ?>></label><label class="field">Employment Duration<input type="text" name="current_employment_duration" value="<?php echo $esc($value('current_employment_duration')); ?>" placeholder="Enter employment duration" <?php echo $readOnly ? 'readonly' : ''; ?>></label><label class="field">Chemical Exposure Duration<input type="text" name="current_chemical_exposure_duration" value="<?php echo $esc($value('current_chemical_exposure_duration')); ?>" placeholder="Enter exposure duration" <?php echo $readOnly ? 'readonly' : ''; ?>></label></div></div>
 <label class="field full">Chemical Exposure Incidents<textarea name="current_chemical_exposure_incidents" placeholder="Insert chemical exposure incidents" <?php echo $readOnly ? 'readonly' : ''; ?>><?php echo $esc($value('current_chemical_exposure_incidents')); ?></textarea></label>
 </div></div>
 <div class="repeat-list" id="occupationalHistoryList">
@@ -120,8 +134,7 @@ $editUrl = $patientRecord && function_exists('route') ? route('surveillance.pati
 <div class="repeat-card" data-occup-row><div class="repeat-card-head"><div class="repeat-card-title">Past Company Record <?php echo $index + 1; ?></div><?php if (!$readOnly): ?><button class="btn danger small" type="button" data-remove-occup-row>Delete</button><?php endif; ?></div><div class="grid">
 <label class="field">Job Title<input type="text" name="occup_job_title[]" value="<?php echo $esc((string) ($occupJobTitles[$index] ?? '')); ?>" placeholder="Enter job title" <?php echo $readOnly ? 'readonly' : ''; ?>></label>
 <label class="field">Company Name<input type="text" name="occup_company_name[]" value="<?php echo $esc((string) ($occupCompanyNames[$index] ?? '')); ?>" placeholder="Enter company name" <?php echo $readOnly ? 'readonly' : ''; ?>></label>
-<label class="field">Employment Duration<input type="text" name="employment_duration[]" value="<?php echo $esc((string) ($employmentDurations[$index] ?? '')); ?>" placeholder="Enter employment duration" <?php echo $readOnly ? 'readonly' : ''; ?>></label>
-<label class="field">Chemical Exposure Duration<input type="text" name="chemical_exposure_duration[]" value="<?php echo $esc((string) ($chemicalExposureDurations[$index] ?? '')); ?>" placeholder="Enter exposure duration" <?php echo $readOnly ? 'readonly' : ''; ?>></label>
+<div class="field full"><div class="employment-line-grid"><label class="field">Date of Starting Employment<input type="date" name="start_employment_date[]" value="<?php echo $esc((string) ($startEmploymentDates[$index] ?? '')); ?>" <?php echo $readOnly ? 'readonly' : ''; ?>></label><label class="field">Employment Duration<input type="text" name="employment_duration[]" value="<?php echo $esc((string) ($employmentDurations[$index] ?? '')); ?>" placeholder="Enter employment duration" <?php echo $readOnly ? 'readonly' : ''; ?>></label><label class="field">Chemical Exposure Duration<input type="text" name="chemical_exposure_duration[]" value="<?php echo $esc((string) ($chemicalExposureDurations[$index] ?? '')); ?>" placeholder="Enter exposure duration" <?php echo $readOnly ? 'readonly' : ''; ?>></label></div></div>
 <label class="field full">Chemical Exposure Incidents<textarea name="chemical_exposure_incidents[]" placeholder="Insert chemical exposure incidents" <?php echo $readOnly ? 'readonly' : ''; ?>><?php echo $esc((string) ($chemicalExposureIncidents[$index] ?? '')); ?></textarea></label>
 </div></div>
 <?php endfor; ?>
@@ -160,7 +173,7 @@ $editUrl = $patientRecord && function_exists('route') ? route('surveillance.pati
 </form>
 </div>
 <?php if (!$readOnly): ?>
-<template id="occupationalRowTemplate"><div class="repeat-card" data-occup-row><div class="repeat-card-head"><div class="repeat-card-title">Past Company Record</div><button class="btn danger small" type="button" data-remove-occup-row>Delete</button></div><div class="grid"><label class="field">Job Title<input type="text" name="occup_job_title[]" placeholder="Enter job title"></label><label class="field">Company Name<input type="text" name="occup_company_name[]" placeholder="Enter company name"></label><label class="field">Employment Duration<input type="text" name="employment_duration[]" placeholder="Enter employment duration"></label><label class="field">Chemical Exposure Duration<input type="text" name="chemical_exposure_duration[]" placeholder="Enter exposure duration"></label><label class="field full">Chemical Exposure Incidents<textarea name="chemical_exposure_incidents[]" placeholder="Insert chemical exposure incidents"></textarea></label></div></div></template>
+<template id="occupationalRowTemplate"><div class="repeat-card" data-occup-row><div class="repeat-card-head"><div class="repeat-card-title">Past Company Record</div><button class="btn danger small" type="button" data-remove-occup-row>Delete</button></div><div class="grid"><label class="field">Job Title<input type="text" name="occup_job_title[]" placeholder="Enter job title"></label><label class="field">Company Name<input type="text" name="occup_company_name[]" placeholder="Enter company name"></label><div class="field full"><div class="employment-line-grid"><label class="field">Date of Starting Employment<input type="date" name="start_employment_date[]"></label><label class="field">Employment Duration<input type="text" name="employment_duration[]" placeholder="Enter employment duration"></label><label class="field">Chemical Exposure Duration<input type="text" name="chemical_exposure_duration[]" placeholder="Enter exposure duration"></label></div></div><label class="field full">Chemical Exposure Incidents<textarea name="chemical_exposure_incidents[]" placeholder="Insert chemical exposure incidents"></textarea></label></div></div></template>
 <script>
 (function(){
 const form=document.getElementById('survPatientForm');

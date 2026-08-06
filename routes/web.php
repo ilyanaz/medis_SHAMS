@@ -84,6 +84,10 @@ Route::post('/surveillance/report/fitness', [PanelController::class, 'saveSurvei
 Route::post('/surveillance/report/summary', [PanelController::class, 'saveSurveillanceSummaryReport'])->name('surveillance.report.summary.save');
 Route::post('/surveillance/report/removal', [PanelController::class, 'saveSurveillanceRemovalReport'])->name('surveillance.report.removal.save');
 Route::view('/audiometry/report/questionnaire', 'report.audiometry_questionnaire_report')->name('audiometry.report.questionnaire');
+Route::get('/report/folder', [PanelController::class, 'generalReportFolder'])->name('general.report.folder');
+Route::get('/report/pdf/usechh-all', [PanelController::class, 'combinedUsechhAllPdf'])->name('pdf.usechh-all');
+Route::view('/report/pdf/examination', 'report.PDF_examination')->name('pdf.examination');
+Route::post('/report/email/send', [PanelController::class, 'sendSurveillanceReportEmail'])->name('report.email.send');
 
 Route::get('/admin/dashboard', [PanelController::class, 'adminDashboard'])->name('admin.dashboard');
 Route::get('/admin/doctors', [PanelController::class, 'doctorList'])->name('admin.doctor_list');

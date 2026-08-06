@@ -94,7 +94,6 @@ medis_render_navigation_start([
                 <th>Company Name</th>
                 <th>MYKPP Registration No</th>
                 <th>Contact</th>
-                <th>Total Workers</th>
                 <th>Action</th>
             </tr>
         </thead>
@@ -117,7 +116,6 @@ medis_render_navigation_start([
                                 <span class="muted"><?php echo $esc($company->company_fax ? 'Fax: ' . $company->company_fax : ($company->company_state ?: '')); ?></span>
                             </div>
                         </td>
-                        <td><?php echo $esc(number_format((int) ($company->total_workers ?? 0))); ?></td>
                         <td>
                             <div class="action-icons">
                                 <a class="icon-btn" href="<?php echo $esc(route('panel.company.show', ['company' => $company->company_id])); ?>" title="View company" aria-label="View company">
@@ -134,7 +132,7 @@ medis_render_navigation_start([
                     </tr>
                 <?php endforeach; ?>
             <?php else: ?>
-                <tr id="companyEmptyRow"><td class="empty" colspan="6">No company records found for the currently selected clinic.</td></tr>
+                <tr id="companyEmptyRow"><td class="empty" colspan="5">No company records found for the currently selected clinic.</td></tr>
             <?php endif; ?>
         </tbody>
     </table>
@@ -165,7 +163,7 @@ medis_render_navigation_start([
     var emptyRow = document.getElementById('companyEmptyRow');
     var activeFilter = '';
     var currentPage = 1;
-    var perPage = 10;
+    var perPage = 5;
 
     function getFilteredRows() {
         var query = (searchInput && searchInput.value ? searchInput.value : '').trim().toLowerCase();

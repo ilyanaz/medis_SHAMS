@@ -5,4 +5,4 @@ $pageTitle = 'View Patient';
 $formAction = '#';
 $formMethod = 'GET';
 $readOnly = true;
-require __DIR__ . '/partials/surv_patient_form.php';
+require __DIR__ . '/partials/surv_patient_basic_form.php';

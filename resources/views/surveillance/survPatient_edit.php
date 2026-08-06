@@ -6,4 +6,4 @@ $formAction = ($patientRecord && function_exists('route')) ? route('surveillance
 $formMethod = 'PUT';
 $submitLabel = 'Update Patient';
 $readOnly = false;
-require __DIR__ . '/partials/surv_patient_form.php';
+require __DIR__ . '/partials/surv_patient_basic_form.php';

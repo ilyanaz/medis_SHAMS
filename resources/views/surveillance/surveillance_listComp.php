@@ -147,7 +147,7 @@ medis_render_navigation_start([
     const nextBtn = document.getElementById('companyNextBtn');
     const pageNumbers = document.getElementById('companyPageNumbers');
     if (!body || !pager || !rows.length) { return; }
-    const perPage = 8;
+    const perPage = 5;
     let currentPage = 1;
     const fillerClass = 'filler-row';
 
