@@ -14,6 +14,7 @@ $folderDate = trim((string) $query->query('folder_date', ''));
 $createMode = (bool) $query->query('create_mode', false);
 $viewMode = (bool) $query->query('view', false);
 $printMode = (bool) $query->query('print', false);
+$pdfDownloadMode = (bool) ($pdfDownloadMode ?? false);
 
 $candidateRows = collect();
 if ($companyId > 0 && $folderDate !== '' && DB::getSchemaBuilder()->hasTable('declaration') && DB::getSchemaBuilder()->hasTable('chemical_information')) {
@@ -136,6 +137,7 @@ $companyAddressLines = array_values(array_filter([
     ])->filter(static fn ($value) => $value !== '')->implode(', ')),
 ], static fn ($value) => $value !== ''));
 $companyAddressText = implode("\n", $companyAddressLines);
+$companyAddressSingleLine = trim(preg_replace('/\s+/', ' ', implode(', ', $companyAddressLines)));
 
 $doctorName = trim((string) (($doctor->doctor_firstName ?? '') . ' ' . ($doctor->doctor_lastName ?? '')));
 $doctorRegistration = trim((string) ($doctor->OHD_registrationNo ?? $doctor->MMC_no ?? ''));
@@ -288,6 +290,45 @@ if ($isFreshCreate) {
     }
 }
 
+$selectedIndicationLabels = [];
+foreach ($indicationOptions as $key => $label) {
+    if (in_array($key, $screenSelectedIndications, true) && $key !== 'others') {
+        $selectedIndicationLabels[] = $label;
+    }
+}
+if (in_array('others', $screenSelectedIndications, true)) {
+    $otherIndicationLabel = trim((string) $screenIndicationOther);
+    $selectedIndicationLabels[] = $otherIndicationLabel !== '' ? 'Others - ' . $otherIndicationLabel : 'Others';
+}
+$indicationSummary = $selectedIndicationLabels !== [] ? implode(', ', $selectedIndicationLabels) : '-';
+$decisionRows = [
+    [
+        'label' => 'Continue MS',
+        'checked' => $screen['decision'] === 'Continue MS',
+        'justification' => $screen['decision'] === 'Continue MS' ? $screen['justification_decision'] : '-',
+        'date' => $screen['decision'] === 'Continue MS' ? $showValue($formatDate($screen['date_of_implementation'])) : '-',
+    ],
+    [
+        'label' => 'Stop MS',
+        'checked' => $screen['decision'] === 'Stop MS',
+        'justification' => $screen['decision'] === 'Stop MS' ? $screen['justification_decision'] : '-',
+        'date' => $screen['decision'] === 'Stop MS' ? $showValue($formatDate($screen['date_of_implementation'])) : '-',
+    ],
+];
+$reportRecommendationText = trim((string) $screen['recommendation']) !== ''
+    ? trim((string) $screen['recommendation'])
+    : '-';
+$reportDecisionText = trim((string) $screen['decision']) !== ''
+    ? trim((string) $screen['decision'])
+    : '-';
+$reportDecisionJustificationText = trim((string) $screen['justification_decision']) !== ''
+    ? trim((string) $screen['justification_decision'])
+    : '-';
+$reportDecisionDateText = trim((string) $screen['date_of_implementation']) !== ''
+    ? $showValue($formatDate($screen['date_of_implementation']))
+    : '-';
+$downloadDateText = Carbon::now()->format('d/m/Y');
+
 $readonly = $viewMode ? ' readonly' : '';
 $disabled = $viewMode ? ' disabled' : '';
 $printDate = $isFreshCreate ? '' : $showValue($formatDate($chemical->examination_date ?? ''));
@@ -358,6 +399,58 @@ body{margin:0;padding:0;background:#fff;color:#111827;font-family:Arial,Helvetic
 .screen-only{display:block}
 .print-only{display:none}
 .hidden{display:none !important}
+.clinic-report-header{padding:0 0 18px;width:100%}
+.clinic-report-header img{display:block;width:100%;max-width:none;max-height:none;height:auto;object-fit:fill}
+.clinic-report-header__fallback{padding:20px 0;text-align:center;font-size:20px;font-weight:700;color:#0f172a}
+.usechh4-print-page{font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:1.45;color:#111827}
+.usechh4-print-wrap{padding:0 8mm 0}
+.usechh4-print-heading{position:relative;text-align:center;padding-bottom:6px}
+.usechh4-print-code{position:absolute;right:0;top:0;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#0f172a}
+.usechh4-print-act{font-size:14px;font-weight:700}
+.usechh4-print-regulation{margin-top:2px;font-size:14px;font-weight:700}
+.usechh4-print-title{margin-top:12px;font-size:20px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#123524}
+.usechh4-print-section-gap{height:14px}
+.usechh4-print-divider{margin:16px 0 14px;border-top:1px solid #cbd5e1}
+.usechh4-print-page-break{break-before:page;page-break-before:always;margin-top:0;padding-top:0}
+.usechh4-print-table{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed}
+.usechh4-print-table td,.usechh4-print-table th{padding:5px 6px;vertical-align:top}
+.usechh4-print-table .label{width:31%;font-weight:700}
+.usechh4-print-table .sep{width:2%}
+.usechh4-print-table .value{width:67%}
+.usechh4-print-table .label-wide{width:31%;font-weight:700}
+.usechh4-print-table .value-wide{width:67%}
+.usechh4-print-table .single-line-label{white-space:nowrap}
+.usechh4-print-table .single-line-value{white-space:nowrap}
+.usechh4-print-box-table{width:100%;border-collapse:collapse;margin-top:12px;font-size:11px}
+.usechh4-print-box-table td{border:1px solid #123524;padding:9px 10px}
+.usechh4-print-checks{margin-top:12px}
+.usechh4-print-check-row{display:grid;grid-template-columns:1fr 1fr;gap:10px 32px}
+.usechh4-print-check-item{display:flex;align-items:flex-start;gap:10px}
+.usechh4-print-check-box{width:16px;height:16px;border:1px solid #123524;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;line-height:1;flex:0 0 16px}
+.usechh4-print-results{width:100%;border-collapse:collapse;margin-top:16px;font-size:10.8px}
+.usechh4-print-results th,.usechh4-print-results td{border:1px solid #123524;padding:7px 8px;vertical-align:top}
+.usechh4-print-results thead th{background:#fff;color:#111827;font-weight:700;text-align:center}
+.usechh4-print-results .subhead{background:#fff;color:#111827}
+.usechh4-print-results .row-label{font-weight:700}
+.usechh4-print-text-table{width:100%;border-collapse:collapse;margin-top:12px;font-size:11px}
+.usechh4-print-text-table td{padding:4px 4px 4px 0;vertical-align:top}
+.usechh4-print-decision{width:100%;border-collapse:collapse;margin-top:12px;font-size:10.6px}
+.usechh4-print-decision th,.usechh4-print-decision td{border:1px solid #123524;padding:7px 8px;vertical-align:top}
+.usechh4-print-decision thead th{background:#fff;color:#111827;font-weight:700;text-align:center}
+.usechh4-print-decision .tick-col{width:6%;text-align:center}
+.usechh4-print-decision .decision-col{width:18%}
+.usechh4-print-note-small{margin-top:4px;font-size:10px}
+.usechh4-print-declare{margin-top:12px}
+.usechh4-print-doctor{width:100%;border-collapse:collapse;margin-top:8px;font-size:11px}
+.usechh4-print-doctor td{padding:4px 6px 4px 0;vertical-align:top}
+.usechh4-print-doctor .label{width:26%;font-weight:700}
+.usechh4-print-sign-block{margin-top:18px;font-size:11px;color:#111827}
+.usechh4-print-sign-line{display:flex;align-items:center;gap:8px}
+.usechh4-print-sign-line .label{font-weight:700;min-width:72px}
+.usechh4-print-sign-line .value{text-align:left}
+.usechh4-print-sign-image{margin:10px 0;padding-left:72px}
+.usechh4-print-sign-image img{max-width:120px;max-height:44px;object-fit:contain}
+.usechh4-print-footer-note{margin-top:18px;padding-top:10px;border-top:1px solid #123524;font-size:10px;line-height:1.45;text-align:center}
 
 @media (max-width: 960px){
     .page-shell{padding:0 16px 24px}
@@ -375,80 +468,204 @@ body{margin:0;padding:0;background:#fff;color:#111827;font-family:Arial,Helvetic
 }
 </style>
 
-<?php if ($printMode): ?>
-    <div class="print-only" style="padding:0;">
+<?php if ($printMode || $pdfDownloadMode): ?>
+    <div class="<?php echo $pdfDownloadMode ? 'usechh4-print-page' : 'print-only usechh4-print-page'; ?>" style="padding:0;">
         <?php require __DIR__ . '/partials/clinic_header.php'; ?>
-        <div style="padding:10mm 8mm 0;">
-            <div style="text-align:center;">
-                <div style="font-size:14px;font-weight:700;">Occupational Safety and Health Act 1994 (Act 514)</div>
-                <div style="margin-top:4px;font-size:14px;font-weight:700;">Use and Standard of Exposure of Chemical Hazardous to Health Regulations 2000</div>
-                <div style="margin-top:8px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#1e3a8a;">USECHH 4</div>
-                <div style="margin-top:10px;font-size:24px;font-weight:800;text-transform:uppercase;">Summary Report for Medical Surveillance</div>
+        <div class="usechh4-print-wrap">
+            <div class="usechh4-print-heading">
+                <div class="usechh4-print-code">USECHH 4</div>
+                <div class="usechh4-print-act">Occupational Safety and Health Act 1994 (Act 514)</div>
+                <div class="usechh4-print-regulation">Use and Standard of Exposure of Chemical Hazardous to Health Regulations 2000</div>
+                <div class="usechh4-print-title">Summary Report for Medical Surveillance</div>
             </div>
 
-            <div style="margin-top:18px;border:1px solid #dbe4ee;border-radius:18px;padding:16px 18px;">
-                <table style="width:100%;border-collapse:collapse;font-size:11px;line-height:1.45;">
-                    <tr>
-                        <td style="width:30%;padding:7px 0;font-weight:700;">Name of Workplace</td>
-                        <td style="width:3%;padding:7px 0;">:</td>
-                        <td style="padding:7px 0;"><?php echo $esc($showValue($company->company_name ?? '')); ?></td>
-                    </tr>
-                    <tr>
-                        <td style="padding:7px 0;font-weight:700;">MyKKP Registration No.</td>
-                        <td style="padding:7px 0;">:</td>
-                        <td style="padding:7px 0;"><?php echo $esc($showValue($company->mykpp_registration_no ?? '')); ?></td>
-                    </tr>
-                    <tr>
-                        <td style="padding:7px 0;font-weight:700;">Address of Workplace</td>
-                        <td style="padding:7px 0;">:</td>
-                        <td style="padding:7px 0;white-space:pre-line;"><?php echo $esc($showValue($companyAddressText)); ?></td>
-                    </tr>
-                    <tr>
-                        <td style="padding:7px 0;font-weight:700;">Individual Chemical</td>
-                        <td style="padding:7px 0;">:</td>
-                        <td style="padding:7px 0;"><?php echo $esc($showValue($screen['chemical_name'])); ?></td>
-                    </tr>
-                    <tr>
-                        <td style="padding:7px 0;font-weight:700;">Date of CHRA Conducted</td>
-                        <td style="padding:7px 0;">:</td>
-                        <td style="padding:7px 0;"><?php echo $esc($printDate); ?></td>
-                    </tr>
-                    <tr>
-                        <td style="padding:7px 0;font-weight:700;">CHRA Report No.</td>
-                        <td style="padding:7px 0;">:</td>
-                        <td style="padding:7px 0;"><?php echo $esc($showValue($screen['CHRA_reportNo'])); ?></td>
-                    </tr>
-                </table>
-            </div>
+            <table class="usechh4-print-table" style="margin-top:16px;">
+                <tr>
+                    <td class="label single-line-label">Name of Workplace</td>
+                    <td class="sep">:</td>
+                    <td class="value single-line-value" colspan="4"><?php echo $esc($showValue($company->company_name ?? '')); ?></td>
+                </tr>
+                <tr>
+                    <td class="label single-line-label">MyKKP Registration No.</td>
+                    <td class="sep">:</td>
+                    <td class="value single-line-value" colspan="4"><?php echo $esc($showValue($company->mykpp_registration_no ?? '')); ?></td>
+                </tr>
+                <tr>
+                    <td class="label single-line-label">Address of Workplace</td>
+                    <td class="sep">:</td>
+                    <td class="value-wide single-line-value" colspan="4"><?php echo $esc($showValue($companyAddressSingleLine)); ?></td>
+                </tr>
+            </table>
 
-            <div style="margin-top:16px;">
-                <table style="width:100%;border-collapse:collapse;font-size:11px;">
-                    <thead>
+            <div class="usechh4-print-section-gap"></div>
+
+            <table class="usechh4-print-table">
+                <tr>
+                    <td class="label-wide">Individual Chemical (Use ONE USECHH 4 form for ONE chemical only)</td>
+                    <td class="sep">:</td>
+                    <td class="value-wide" colspan="4"><?php echo $esc($showValue($screen['chemical_name'])); ?></td>
+                </tr>
+                <tr>
+                    <td class="label single-line-label">Date of CHRA conducted</td>
+                    <td class="sep">:</td>
+                    <td class="value single-line-value" colspan="4"><?php echo $esc($printDate); ?></td>
+                </tr>
+                <tr>
+                    <td class="label single-line-label">CHRA report no.</td>
+                    <td class="sep">:</td>
+                    <td class="value single-line-value" colspan="4"><?php echo $esc($showValue($screen['CHRA_reportNo'])); ?></td>
+                </tr>
+                <tr>
+                    <td class="label-wide">Indication for medical surveillance based on CHRA report</td>
+                    <td class="sep">:</td>
+                    <td class="value-wide" colspan="4"><?php echo $esc($indicationSummary); ?></td>
+                </tr>
+            </table>
+
+            <table class="usechh4-print-box-table">
+                <tr>
+                    <td style="width:48%;font-weight:700;">Total number of workers in the workplace</td>
+                    <td><?php echo $esc($showValue($screen['totalNo_workplace'])); ?></td>
+                </tr>
+                <tr>
+                    <td style="font-weight:700;">Name of the work unit where workers are in</td>
+                    <td><?php echo $esc($showValue($screen['name_of_workUnit'])); ?></td>
+                </tr>
+                <tr>
+                    <td style="font-weight:700;">Total number of exposed workers in the work unit</td>
+                    <td><?php echo $esc($showValue($screen['no_exposedWorkers'])); ?></td>
+                </tr>
+                <tr>
+                    <td style="font-weight:700;">Total number of workers examined</td>
+                    <td><?php echo $esc($showValue($screen['totalNo_examined'])); ?></td>
+                </tr>
+            </table>
+
+            <table class="usechh4-print-results avoid-break">
+                <thead>
+                    <tr>
+                        <th style="width:26%;"></th>
+                        <th rowspan="2" style="width:13%;">No. of workers with normal findings</th>
+                        <th colspan="2" style="width:32%;">No. of workers with abnormal findings</th>
+                        <th rowspan="2" style="width:17%;">No. of workers recommended for medical removal protection</th>
+                    </tr>
+                    <tr>
+                        <th class="subhead"></th>
+                        <th class="subhead">Occupational</th>
+                        <th class="subhead">Non-occupational</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($metrics as $metric): ?>
                         <tr>
-                            <th style="border:1px solid #cbd5e1;padding:10px;background:#e9f5ee;text-align:left;">Medical Surveillance Results</th>
-                            <th style="border:1px solid #cbd5e1;padding:10px;background:#e9f5ee;">Normal</th>
-                            <th style="border:1px solid #cbd5e1;padding:10px;background:#e9f5ee;">Occupational</th>
-                            <th style="border:1px solid #cbd5e1;padding:10px;background:#e9f5ee;">Non-Occupational</th>
-                            <th style="border:1px solid #cbd5e1;padding:10px;background:#e9f5ee;">MRP</th>
+                            <td class="row-label">
+                                <?php echo $esc($metric['title']); ?>
+                                <?php if ($metric['specify_key'] && trim((string) ($metricValues[$metric['specify_key']] ?? '')) !== ''): ?>
+                                    <div style="margin-top:4px;font-weight:400;">Please specify: <?php echo $esc(trim((string) ($metricValues[$metric['specify_key']] ?? ''))); ?></div>
+                                <?php endif; ?>
+                            </td>
+                            <td style="text-align:center;"><?php echo $esc($showValue($metricValues[$metric['normal_key']] ?? '0')); ?></td>
+                            <td style="text-align:center;"><?php echo $esc($showValue($metricValues[$metric['occ_key']] ?? '0')); ?></td>
+                            <td style="text-align:center;"><?php echo $esc($metric['non_occ_key'] ? $showValue($metricValues[$metric['non_occ_key']] ?? '0') : 'Not applicable'); ?></td>
+                            <td style="text-align:center;"><?php echo $esc($metric['mrp_key'] ? $showValue($metricValues[$metric['mrp_key']] ?? '0') : 'Not applicable'); ?></td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($metrics as $metric): ?>
-                            <tr>
-                                <td style="border:1px solid #cbd5e1;padding:10px;font-weight:600;">
-                                    <?php echo $esc($metric['title']); ?>
-                                    <?php if ($metric['specify_key']): ?>
-                                        <div style="margin-top:4px;font-weight:400;color:#475569;"><?php echo $esc($showValue($metricValues[$metric['specify_key']] ?? '', '')); ?></div>
-                                    <?php endif; ?>
-                                </td>
-                                <td style="border:1px solid #cbd5e1;padding:10px;text-align:center;"><?php echo $esc($metricValues[$metric['normal_key']] ?? '0'); ?></td>
-                                <td style="border:1px solid #cbd5e1;padding:10px;text-align:center;"><?php echo $esc($metricValues[$metric['occ_key']] ?? '0'); ?></td>
-                                <td style="border:1px solid #cbd5e1;padding:10px;text-align:center;"><?php echo $esc($metric['non_occ_key'] ? ($metricValues[$metric['non_occ_key']] ?? '0') : 'N/A'); ?></td>
-                                <td style="border:1px solid #cbd5e1;padding:10px;text-align:center;"><?php echo $esc($metric['mrp_key'] ? ($metricValues[$metric['mrp_key']] ?? '0') : 'N/A'); ?></td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+
+            <div class="usechh4-print-page-break">
+                <?php require __DIR__ . '/partials/clinic_header.php'; ?>
+                <div class="usechh4-print-wrap">
+                    <div class="usechh4-print-heading">
+                        <div class="usechh4-print-code">USECHH 4</div>
+                        <div class="usechh4-print-act">Occupational Safety and Health Act 1994 (Act 514)</div>
+                        <div class="usechh4-print-regulation">Use and Standard of Exposure of Chemical Hazardous to Health Regulations 2000</div>
+                        <div class="usechh4-print-title">Summary Report for Medical Surveillance</div>
+                    </div>
+
+                    <table class="usechh4-print-text-table" style="margin-top:18px;">
+                        <tr>
+                            <td style="width:38%;font-weight:700;">Total no. of employees recommended for MRP</td>
+                            <td style="width:2%;">:</td>
+                            <td><?php echo $esc($showValue($screen['totalNo_MRP'])); ?></td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:700;">Name of Laboratory</td>
+                            <td>:</td>
+                            <td><?php echo $esc($showValue($screen['name_of_laboratoy'])); ?></td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:700;">Recommendation</td>
+                            <td>:</td>
+                            <td><?php echo $esc($showValue($reportRecommendationText)); ?></td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:700;">Decision / Justification of Decision / Date of Implementation</td>
+                            <td>:</td>
+                            <td>
+                                <?php echo $esc($showValue($reportDecisionText)); ?>
+                                <span style="display:inline-block;width:20px;"></span>
+                                <?php echo $esc($showValue($reportDecisionJustificationText)); ?>
+                                <span style="display:inline-block;width:20px;"></span>
+                                <?php echo $esc($showValue($reportDecisionDateText)); ?>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <div class="usechh4-print-divider"></div>
+
+                    <div class="usechh4-print-declare">
+                        I hereby declare that all particulars given in this report are accurate to the best of my knowledge.
+                    </div>
+
+                    <table class="usechh4-print-doctor avoid-break">
+                        <tr>
+                            <td class="label">Name of Occupational Health Doctor</td>
+                            <td class="sep">:</td>
+                            <td><?php echo $esc($showValue($doctorName)); ?></td>
+                        </tr>
+                        <tr>
+                            <td class="label">OHD Registration No.</td>
+                            <td class="sep">:</td>
+                            <td><?php echo $esc($showValue($doctorRegistration)); ?></td>
+                        </tr>
+                        <tr>
+                            <td class="label">Name of Practice &amp; Address</td>
+                            <td class="sep">:</td>
+                            <td style="white-space:pre-line;"><?php echo $esc($showValue($editableClinicAddress)); ?></td>
+                        </tr>
+                        <tr>
+                            <td class="label">Tel No.</td>
+                            <td class="sep">:</td>
+                            <td><?php echo $esc($showValue($clinicRecord->clinic_tel ?? '')); ?></td>
+                        </tr>
+                        <tr>
+                            <td class="label">Email Address</td>
+                            <td class="sep">:</td>
+                            <td><?php echo $esc($showValue($clinicRecord->clinic_email ?? '')); ?></td>
+                        </tr>
+                    </table>
+
+                    <div class="usechh4-print-sign-block avoid-break">
+                        <div class="usechh4-print-sign-line">
+                            <span class="label">Date:</span>
+                            <span class="value"><?php echo $esc($downloadDateText); ?></span>
+                        </div>
+                        <div class="usechh4-print-sign-image">
+                            <?php if (trim((string) ($doctor->doctor_sign ?? '')) !== ''): ?>
+                                <img src="<?php echo $esc(trim((string) ($doctor->doctor_sign ?? ''))); ?>" alt="Doctor signature">
+                            <?php endif; ?>
+                        </div>
+                        <div class="usechh4-print-sign-line">
+                            <span class="label">Signature:</span>
+                            <span class="value"></span>
+                        </div>
+                    </div>
+
+                    <div class="usechh4-print-footer-note">
+                        Submit this form within 30 days of completion of medical surveillance to the Director General, Department of Occupational Safety and Health, Putrajaya. Please ensure all items in the form are completed. Incomplete forms will not be accepted.
+                    </div>
+                </div>
             </div>
         </div>
     </div>
