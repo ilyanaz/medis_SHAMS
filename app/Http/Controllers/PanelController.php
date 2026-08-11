@@ -1020,16 +1020,21 @@ class PanelController extends Controller
             $surveillanceId = 0;
         }
 
-        $params = array_filter([
-            'company_id' => (int) $validated['company_id'],
-            'employee_id' => (int) $validated['employee_id'],
-            'declaration_id' => $declarationId,
-            'surveillance_id' => $surveillanceId > 0 ? $surveillanceId : null,
-        ], static fn ($value) => $value !== null && $value !== '');
+        $company = $companyId ? DB::table('company')->where('company_id', $companyId)->first() : null;
+        $chemicalInfo = $surveillanceId > 0 && Schema::hasTable('chemical_information')
+            ? DB::table('chemical_information')->where('surveillance_id', $surveillanceId)->first()
+            : null;
+
+        $folderDate = trim((string) ($declaration->employee_date ?? $declaration->doctor_date ?? $request->input('folder_date', $chemicalInfo->examination_date ?? '')));
 
         return redirect()
-            ->route('surveillance.examination', $params)
-            ->with('status', 'Declaration saved successfully. You can continue with the examination.');
+            ->route('general.report.folder', array_filter([
+                'module' => 'surveillance',
+                'company' => trim((string) ($company->company_name ?? '')),
+                'date' => $folderDate,
+                'tab' => 'usechh 4',
+            ], static fn ($value) => $value !== ''))
+            ->with('status', 'USECHH 4 details saved successfully.');
     }
 
     public function companyShow(Request $request, int $company): View|RedirectResponse
@@ -2998,13 +3003,33 @@ class PanelController extends Controller
             'employee_id' => ['nullable', 'integer', 'min:1'],
             'company_id' => ['nullable', 'integer', 'min:1'],
             'declaration_id' => ['nullable', 'integer', 'min:1'],
+            'chemical_name' => ['nullable', 'string'],
             'totalNo_workplace' => ['nullable', 'integer', 'min:0'],
             'name_of_workUnit' => ['nullable', 'string'],
             'no_exposedWorkers' => ['nullable', 'integer', 'min:0'],
             'totalNo_examined' => ['nullable', 'integer', 'min:0'],
             'CHRA_reportNo' => ['nullable', 'string'],
-            'indication_CHRAreport' => ['nullable', 'string'],
+            'indication_flags' => ['nullable', 'array'],
+            'indication_flags.*' => ['nullable', 'string'],
+            'indication_other' => ['nullable', 'string'],
             'name_of_laboratoy' => ['nullable', 'string'],
+            'no_ofWorkersNormal_H' => ['nullable', 'integer', 'min:0'],
+            'no_ofWorkersNormal_I' => ['nullable', 'integer', 'min:0'],
+            'no_ofWorkersNormal_J' => ['nullable', 'integer', 'min:0'],
+            'no_ofWorkersNormal_K' => ['nullable', 'integer', 'min:0'],
+            'no_ofWorkersAbormal_OccupationalH' => ['nullable', 'integer', 'min:0'],
+            'no_ofWorkersAbormal_OccupationalI' => ['nullable', 'integer', 'min:0'],
+            'no_ofWorkersAbormal_nonOccupationalI' => ['nullable', 'integer', 'min:0'],
+            'no_ofWorkersAbormal_OccupationalJ' => ['nullable', 'integer', 'min:0'],
+            'no_ofWorkersAbormal_nonOccupationalJ' => ['nullable', 'integer', 'min:0'],
+            'no_ofWorkersAbormal_OccupationalK' => ['nullable', 'integer', 'min:0'],
+            'no_ofWorkersAbormal_nonOccupationalK' => ['nullable', 'integer', 'min:0'],
+            'no_ofWorkersRecommended_I' => ['nullable', 'integer', 'min:0'],
+            'no_ofWorkersRecommended_J' => ['nullable', 'integer', 'min:0'],
+            'no_ofWorkersRecommended_K' => ['nullable', 'integer', 'min:0'],
+            'specify_J' => ['nullable', 'string'],
+            'specify_K' => ['nullable', 'string'],
+            'totalNo_MRP' => ['nullable', 'integer', 'min:0'],
             'recommendation' => ['nullable', 'string'],
             'decision' => ['nullable', 'string'],
             'justification_decision' => ['nullable', 'string'],
@@ -3023,17 +3048,93 @@ class PanelController extends Controller
             ->where('surveillance_id', $surveillanceId)
             ->first();
 
+        $declaration = null;
+        if (Schema::hasTable('declaration')) {
+            if (! empty($validated['declaration_id'])) {
+                $declaration = DB::table('declaration')
+                    ->where('declaration_id', (int) $validated['declaration_id'])
+                    ->first();
+            }
+
+            if (! $declaration) {
+                $declaration = DB::table('declaration')
+                    ->where('surveillance_id', $surveillanceId)
+                    ->when($employeeId, static fn ($query) => $query->where('employee_id', (int) $employeeId))
+                    ->when($companyId, static fn ($query) => $query->where('company_id', (int) $companyId))
+                    ->orderByDesc('declaration_id')
+                    ->first();
+            }
+        }
+
+        $user = auth()->user();
+        $doctor = $this->resolvedSurveillanceDoctorRecord($request, $user, $declaration);
+        $resolvedDoctorId = (int) ($record->doctor_id ?? ($doctor->doctor_id ?? ($declaration->doctor_id ?? 0)));
+
+        if ($resolvedDoctorId <= 0) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['doctor_id' => 'Unable to determine the active occupational health doctor for this USECHH 4 report.']);
+        }
+
+        $indicationLabels = [
+            'significant_personal_exposure' => 'Significant personal exposure (>= 50% PEL)',
+            'reported_health_effects' => 'Reported health effects',
+            'skin_absorption' => 'Skin absorption',
+            'others' => 'Others',
+        ];
+        $selectedIndicationFlags = array_values(array_filter(
+            array_map(static fn ($value) => trim((string) $value), (array) ($validated['indication_flags'] ?? [])),
+            static fn ($value) => $value !== '' && array_key_exists($value, $indicationLabels)
+        ));
+        $indicationParts = [];
+        foreach ($selectedIndicationFlags as $flag) {
+            if ($flag === 'others') {
+                $otherText = trim((string) ($validated['indication_other'] ?? ''));
+                $indicationParts[] = $otherText !== '' ? 'Others: '.$otherText : 'Others';
+                continue;
+            }
+
+            $indicationParts[] = $indicationLabels[$flag];
+        }
+        $indicationSummary = implode("\n", $indicationParts);
+        if ($indicationSummary === '') {
+            $indicationSummary = trim((string) ($record->indication_CHRAreport ?? ''));
+        }
+
+        $recommendedTotal = (int) ($validated['no_ofWorkersRecommended_I'] ?? ($record->no_ofWorkersRecommended_I ?? 0))
+            + (int) ($validated['no_ofWorkersRecommended_J'] ?? ($record->no_ofWorkersRecommended_J ?? 0))
+            + (int) ($validated['no_ofWorkersRecommended_K'] ?? ($record->no_ofWorkersRecommended_K ?? 0));
+
         $payload = [
             'employee_id' => $employeeId ?? ($record->employee_id ?? null),
             'company_id' => $companyId ?? ($record->company_id ?? null),
             'surveillance_id' => $surveillanceId,
+            'doctor_id' => $resolvedDoctorId,
+            'chemical_name' => trim((string) ($validated['chemical_name'] ?? ($record->chemical_name ?? ''))),
             'totalNo_workplace' => $validated['totalNo_workplace'] ?? ($record->totalNo_workplace ?? null),
             'name_of_workUnit' => trim((string) ($validated['name_of_workUnit'] ?? ($record->name_of_workUnit ?? ''))),
             'no_exposedWorkers' => $validated['no_exposedWorkers'] ?? ($record->no_exposedWorkers ?? null),
             'totalNo_examined' => $validated['totalNo_examined'] ?? ($record->totalNo_examined ?? null),
             'CHRA_reportNo' => trim((string) ($validated['CHRA_reportNo'] ?? ($record->CHRA_reportNo ?? ''))),
-            'indication_CHRAreport' => trim((string) ($validated['indication_CHRAreport'] ?? ($record->indication_CHRAreport ?? ''))),
+            'indication_CHRAreport' => $indicationSummary,
             'name_of_laboratoy' => trim((string) ($validated['name_of_laboratoy'] ?? ($record->name_of_laboratoy ?? ''))),
+            'no_ofWorkersNormal_H' => $validated['no_ofWorkersNormal_H'] ?? ($record->no_ofWorkersNormal_H ?? 0),
+            'no_ofWorkersNormal_I' => $validated['no_ofWorkersNormal_I'] ?? ($record->no_ofWorkersNormal_I ?? 0),
+            'no_ofWorkersNormal_J' => $validated['no_ofWorkersNormal_J'] ?? ($record->no_ofWorkersNormal_J ?? 0),
+            'no_ofWorkersNormal_K' => $validated['no_ofWorkersNormal_K'] ?? ($record->no_ofWorkersNormal_K ?? 0),
+            'no_ofWorkersAbormal_OccupationalH' => $validated['no_ofWorkersAbormal_OccupationalH'] ?? ($record->no_ofWorkersAbormal_OccupationalH ?? 0),
+            'no_ofWorkersAbormal_OccupationalI' => $validated['no_ofWorkersAbormal_OccupationalI'] ?? ($record->no_ofWorkersAbormal_OccupationalI ?? 0),
+            'no_ofWorkersAbormal_nonOccupationalI' => $validated['no_ofWorkersAbormal_nonOccupationalI'] ?? ($record->no_ofWorkersAbormal_nonOccupationalI ?? 0),
+            'no_ofWorkersAbormal_OccupationalJ' => $validated['no_ofWorkersAbormal_OccupationalJ'] ?? ($record->no_ofWorkersAbormal_OccupationalJ ?? 0),
+            'no_ofWorkersAbormal_nonOccupationalJ' => $validated['no_ofWorkersAbormal_nonOccupationalJ'] ?? ($record->no_ofWorkersAbormal_nonOccupationalJ ?? 0),
+            'no_ofWorkersAbormal_OccupationalK' => $validated['no_ofWorkersAbormal_OccupationalK'] ?? ($record->no_ofWorkersAbormal_OccupationalK ?? 0),
+            'no_ofWorkersAbormal_nonOccupationalK' => $validated['no_ofWorkersAbormal_nonOccupationalK'] ?? ($record->no_ofWorkersAbormal_nonOccupationalK ?? 0),
+            'no_ofWorkersRecommended_I' => $validated['no_ofWorkersRecommended_I'] ?? ($record->no_ofWorkersRecommended_I ?? 0),
+            'no_ofWorkersRecommended_J' => $validated['no_ofWorkersRecommended_J'] ?? ($record->no_ofWorkersRecommended_J ?? 0),
+            'no_ofWorkersRecommended_K' => $validated['no_ofWorkersRecommended_K'] ?? ($record->no_ofWorkersRecommended_K ?? 0),
+            'specify_J' => trim((string) ($validated['specify_J'] ?? ($record->specify_J ?? ''))),
+            'specify_K' => trim((string) ($validated['specify_K'] ?? ($record->specify_K ?? ''))),
+            'totalNo_MRP' => $validated['totalNo_MRP'] ?? $recommendedTotal,
             'recommendation' => trim((string) ($validated['recommendation'] ?? ($record->recommendation ?? ''))),
             'decision' => trim((string) ($validated['decision'] ?? ($record->decision ?? ''))),
             'justification_decision' => trim((string) ($validated['justification_decision'] ?? ($record->justification_decision ?? ''))),
@@ -3048,15 +3149,20 @@ class PanelController extends Controller
             DB::table('summary_report')->insert($payload);
         }
 
-        $params = array_filter([
-            'declaration_id' => $validated['declaration_id'] ?? null,
-            'employee_id' => $employeeId,
-            'company_id' => $companyId,
-            'surveillance_id' => $surveillanceId,
-        ], static fn ($value) => $value !== null && $value !== '');
+        $company = $companyId ? DB::table('company')->where('company_id', $companyId)->first() : null;
+        $chemicalInfo = $surveillanceId > 0 && Schema::hasTable('chemical_information')
+            ? DB::table('chemical_information')->where('surveillance_id', $surveillanceId)->first()
+            : null;
+
+        $folderDate = trim((string) ($declaration->employee_date ?? $declaration->doctor_date ?? $request->input('folder_date', $chemicalInfo->examination_date ?? '')));
 
         return redirect()
-            ->route('surveillance.report.summary', $params)
+            ->route('general.report.folder', array_filter([
+                'module' => 'surveillance',
+                'company' => trim((string) ($company->company_name ?? '')),
+                'date' => $folderDate,
+                'tab' => 'usechh 4',
+            ], static fn ($value) => $value !== ''))
             ->with('status', 'USECHH 4 details saved successfully.');
     }
 

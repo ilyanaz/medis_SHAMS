@@ -339,6 +339,7 @@ class LegacyClinicContext
             ->leftJoin('fitness_respirator', 'fitness_respirator.surveillance_id', '=', 'declaration.surveillance_id')
             ->leftJoin('ms_findings', 'ms_findings.surveillance_id', '=', 'declaration.surveillance_id')
             ->leftJoin('recommendation', 'recommendation.surveillance_id', '=', 'declaration.surveillance_id')
+            ->leftJoin('summary_report', 'summary_report.surveillance_id', '=', 'declaration.surveillance_id')
             ->select([
                 'declaration.*',
                 'employee.employee_firstName',
@@ -348,6 +349,8 @@ class LegacyClinicContext
                 'employee.employee_telephone',
                 'company.company_name',
                 'chemical_information.chemicals',
+                  'summary_report.summaryReport_id',
+                  'summary_report.name_of_workUnit',
                 'chemical_information.examination_type',
                 'chemical_information.examination_date',
                 'clinical_findings.result_clinical_findings',
@@ -590,6 +593,7 @@ class LegacyClinicContext
             ->leftJoin('company', 'company.company_id', '=', 'declaration.company_id')
             ->leftJoin('chemical_information', 'chemical_information.surveillance_id', '=', 'declaration.surveillance_id')
             ->leftJoin('recommendation', 'recommendation.surveillance_id', '=', 'declaration.surveillance_id')
+            ->leftJoin('summary_report', 'summary_report.surveillance_id', '=', 'declaration.surveillance_id')
               ->select([
                   'declaration.declaration_id',
                   'declaration.company_id',
@@ -607,6 +611,8 @@ class LegacyClinicContext
                   'employee.employee_email',
                   'company.company_name',
                   'chemical_information.chemicals',
+                  'summary_report.summaryReport_id',
+                  'summary_report.name_of_workUnit',
                   'recommendation.is_final as recommendation_is_final',
                   $clinicScopeSelect,
               ])
@@ -667,6 +673,8 @@ class LegacyClinicContext
                   'employee_email' => (string) ($row->employee_email ?? ''),
                   'identity_no' => $identityNo !== '' ? $identityNo : '-',
                   'chemical_name' => (string) ($row->chemicals ?: 'Surveillance record'),
+                  'work_unit' => (string) ($row->name_of_workUnit ?? ''),
+                  'has_saved_summary' => ! empty($row->summaryReport_id),
                 'status' => $isCompleted ? 'Completed' : 'Incomplete',
                 'status_key' => $isCompleted ? 'completed' : 'incomplete',
                 'date_examined' => (string) ($row->employee_date ?: $row->doctor_date ?: ''),

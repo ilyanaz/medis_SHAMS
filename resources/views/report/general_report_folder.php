@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -32,6 +32,9 @@ $formatDate = static function (string $value): string {
 $folderRows = array_values(array_filter($sourceRows, static function (array $row) use ($folderCompany, $folderDate): bool {
     return trim((string) ($row['company'] ?? '')) === $folderCompany
         && trim((string) ($row['date_examined'] ?? '')) === $folderDate;
+}));
+$usechh4Candidates = array_values(array_filter($folderRows, static function (array $row): bool {
+    return strtolower(trim((string) ($row['filter'] ?? ''))) === 'usechh 4';
 }));
 $usechh5iCandidates = array_values(array_filter($folderRows, static function (array $row): bool {
     return strtolower(trim((string) ($row['filter'] ?? ''))) === 'usechh 5i';
@@ -99,6 +102,10 @@ $tabbedRows = array_merge(
         $filter = strtolower(trim((string) ($row['filter'] ?? '')));
         if (! in_array($filter, ['usechh 4', 'usechh 5i', 'usechh 5ii'], true)) {
             return false;
+        }
+
+        if ($filter === 'usechh 4') {
+            return ! empty($row['has_saved_summary']);
         }
 
         if ($filter === 'usechh 5i') {
@@ -200,8 +207,8 @@ medis_render_navigation_start([
                 <input class="search" id="folderSearch" type="text" placeholder="Search patient name">
             </div>
             <div class="toolbar-right">
-                <button class="toolbar-action" id="folderPrintBtn" type="button" title="Print selected">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9V4h10v5"></path><path d="M7 18h10v2H7z"></path><path d="M6 18H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-1"></path></svg>
+                <button class="toolbar-action" id="folderPrintBtn" type="button" title="Download selected">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11"></path><path d="m7 10 5 5 5-5"></path><path d="M5 19h14"></path></svg>
                 </button>
                 <form id="folderEmailForm" method="post" action="<?php echo $esc(function_exists('route') ? route('report.email.send') : '#'); ?>" style="margin:0;">
                     <?php echo csrf_field(); ?>
@@ -211,6 +218,9 @@ medis_render_navigation_start([
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.75A1.75 1.75 0 0 1 4.75 5h14.5A1.75 1.75 0 0 1 21 6.75v10.5A1.75 1.75 0 0 1 19.25 19H4.75A1.75 1.75 0 0 1 3 17.25V6.75Z"></path><path d="m4 7 8 6 8-6"></path></svg>
                     </button>
                 </form>
+                <button class="toolbar-generate is-hidden is-disabled" id="folderGenerateUsechh4Btn" type="button" title="Open the USECHH 4 form creator">
+                    Create USECHH 4 Report
+                </button>
                 <button class="toolbar-generate is-hidden is-disabled" id="folderGenerateUsechh5iBtn" type="button" title="Open the USECHH 5i form creator">
                     Create USECHH 5I Report
                 </button>
@@ -230,7 +240,7 @@ medis_render_navigation_start([
                             </div>
                         </th>
                         <th id="folderSecondaryLabel">Chemical Name</th>
-                        <th>Date Examined</th>
+                        <th id="folderTertiaryLabel">Date Examined</th>
                         <th>Action</th>
                     </tr>
                 </thead>
@@ -244,7 +254,11 @@ medis_render_navigation_start([
                         ?>
                         <tr
                             data-tab="<?php echo $esc($row['tab_key'] ?? 'all'); ?>"
-                            data-name="<?php echo $esc(strtolower((string) ($row['employee_name'] ?? ''))); ?>"
+                            data-name="<?php echo $esc(strtolower(trim((string) (
+                                ($row['tab_key'] ?? '') === 'usechh 4'
+                                    ? (($row['chemical_name'] ?? '') . ' ' . ($row['work_unit'] ?? ''))
+                                    : ($row['employee_name'] ?? '')
+                            )))); ?>"
                             data-date-examined="<?php echo $esc((string) ($row['date_examined'] ?? '')); ?>"
                             data-print-href="<?php echo $esc(($row['tab_key'] ?? '') === 'all' ? ($row['combined_pdf_href'] ?? '#') : ($row['pdf_href'] ?? '#')); ?>"
                             data-edit-href="<?php echo $esc(($row['tab_key'] ?? '') === 'all' ? '' : ($row['href'] ?? '#')); ?>"
@@ -262,7 +276,9 @@ medis_render_navigation_start([
                                 <div class="patient-cell">
                                     <input class="row-select" type="checkbox" data-row-select="1">
                                     <div class="patient-cell-text">
-                                        <?php if (in_array(($row['tab_key'] ?? ''), ['all', 'usechh 5i', 'usechh 5ii'], true)): ?>
+                                        <?php if (($row['tab_key'] ?? '') === 'usechh 4'): ?>
+                                            <?php echo $esc($row['chemical_name'] ?? ''); ?>
+                                        <?php elseif (in_array(($row['tab_key'] ?? ''), ['all', 'usechh 5i', 'usechh 5ii'], true)): ?>
                                             <?php echo $esc($row['employee_name'] ?? ''); ?>
                                         <?php else: ?>
                                             <a class="patient-link" href="<?php echo $esc($row['href'] ?? '#'); ?>">
@@ -272,10 +288,10 @@ medis_render_navigation_start([
                                     </div>
                                 </div>
                             </td>
-                            <td><?php echo $esc($row['chemical_name'] ?? ''); ?></td>
+                            <td><?php echo $esc(($row['tab_key'] ?? '') === 'usechh 4' ? ($row['work_unit'] ?? '-') : ($row['chemical_name'] ?? '')); ?></td>
                             <td><?php echo $esc($formatDate((string) ($row['date_examined'] ?? ''))); ?></td>
                             <td>
-                                <?php if (in_array(($row['tab_key'] ?? ''), ['usechh 5i', 'usechh 5ii'], true)): ?>
+                                <?php if (in_array(($row['tab_key'] ?? ''), ['usechh 4', 'usechh 5i', 'usechh 5ii'], true)): ?>
                                     <div class="action-icons">
                                         <a class="action-icon" href="<?php echo $esc(($row['href'] ?? '#') . (str_contains((string) ($row['href'] ?? ''), '?') ? '&' : '?') . 'view=1'); ?>" title="View">
                                             <svg viewBox="0 0 24 24"><path d="M1.5 12s3.8-6.5 10.5-6.5S22.5 12 22.5 12 18.7 18.5 12 18.5 1.5 12 1.5 12Z"></path><circle cx="12" cy="12" r="3.25"></circle></svg>
@@ -320,15 +336,24 @@ medis_render_navigation_start([
     const emailBtn = document.getElementById('folderEmailBtn');
     const emailForm = document.getElementById('folderEmailForm');
     const emailSelections = document.getElementById('folderEmailSelections');
+    const generateUsechh4Btn = document.getElementById('folderGenerateUsechh4Btn');
     const generateUsechh5iBtn = document.getElementById('folderGenerateUsechh5iBtn');
     const primaryLabel = document.getElementById('folderPrimaryLabel');
     const secondaryLabel = document.getElementById('folderSecondaryLabel');
+    const tertiaryLabel = document.getElementById('folderTertiaryLabel');
+    const usechh4Candidates = <?php echo json_encode(array_values(array_map(static function (array $row): array {
+        return [
+            'company_id' => (string) ($row['company_id'] ?? ''),
+            'date_examined' => (string) ($row['date_examined'] ?? ''),
+        ];
+    }, $usechh4Candidates)), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
     const usechh5iCandidates = <?php echo json_encode(array_values(array_map(static function (array $row): array {
         return [
             'company_id' => (string) ($row['company_id'] ?? ''),
             'date_examined' => (string) ($row['date_examined'] ?? ''),
         ];
     }, $usechh5iCandidates)), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+    const summaryReportBaseHref = <?php echo json_encode(function_exists('route') ? route('surveillance.report.summary') : '#', JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
     const removalReportBaseHref = <?php echo json_encode(function_exists('route') ? route('surveillance.report.removal') : '#', JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
     const fillerClass = 'filler-row';
     const perPage = 5;
@@ -391,7 +416,7 @@ medis_render_navigation_start([
         if (printBtn) {
             printBtn.disabled = !hasSelectedRows;
             printBtn.classList.toggle('is-disabled', !hasSelectedRows);
-            const isDownloadTab = activeTab === 'usechh 5i' || activeTab === 'usechh 5ii';
+            const isDownloadTab = activeTab === 'usechh 4' || activeTab === 'usechh 5i' || activeTab === 'usechh 5ii';
             printBtn.innerHTML = isDownloadTab ? downloadIconSvg : printIconSvg;
             printBtn.title = hasSelectedRows
                 ? (isDownloadTab ? 'Download selected as PDF' : 'Print selected')
@@ -411,6 +436,18 @@ medis_render_navigation_start([
                     : 'Send selected by email');
         }
 
+        if (generateUsechh4Btn) {
+            generateUsechh4Btn.classList.toggle('is-hidden', activeTab !== 'usechh 4');
+            const generateUsechh4Disabled = activeTab !== 'usechh 4' || usechh4Candidates.length === 0;
+            generateUsechh4Btn.disabled = generateUsechh4Disabled;
+            generateUsechh4Btn.classList.toggle('is-disabled', generateUsechh4Disabled);
+            generateUsechh4Btn.title = activeTab !== 'usechh 4'
+                ? 'Create USECHH 4 report is only available in the USECHH 4 tab'
+                : (usechh4Candidates.length === 0
+                    ? 'No USECHH 4 records are available for this folder'
+                    : 'Open the USECHH 4 form creator');
+        }
+
         if (generateUsechh5iBtn) {
             generateUsechh5iBtn.classList.toggle('is-hidden', activeTab !== 'usechh 5i');
             const generateDisabled = activeTab !== 'usechh 5i' || usechh5iCandidates.length === 0;
@@ -424,15 +461,23 @@ medis_render_navigation_start([
         }
 
         if (search) {
-            search.placeholder = activeTab === 'usechh 5ii' ? 'Search chemical name' : 'Search patient name';
+            search.placeholder = activeTab === 'usechh 4'
+                ? 'Search chemical name or work unit'
+                : (activeTab === 'usechh 5ii' ? 'Search chemical name' : 'Search patient name');
         }
 
         if (primaryLabel) {
-            primaryLabel.textContent = activeTab === 'usechh 5ii' ? 'Chemical Name' : 'Patient Name';
+            primaryLabel.textContent = activeTab === 'usechh 4' || activeTab === 'usechh 5ii' ? 'Chemical Name' : 'Patient Name';
         }
 
         if (secondaryLabel) {
-            secondaryLabel.textContent = activeTab === 'usechh 5ii' ? 'Total Patient' : 'Chemical Name';
+            secondaryLabel.textContent = activeTab === 'usechh 4'
+                ? 'Work Unit'
+                : (activeTab === 'usechh 5ii' ? 'Total Patient' : 'Chemical Name');
+        }
+
+        if (tertiaryLabel) {
+            tertiaryLabel.textContent = activeTab === 'usechh 4' ? 'Date Examined' : 'Date Examined';
         }
     };
 
@@ -572,6 +617,23 @@ medis_render_navigation_start([
                     emailSelections.appendChild(input);
                 });
             });
+        });
+    }
+
+    if (generateUsechh4Btn) {
+        generateUsechh4Btn.addEventListener('click', function(){
+            if (activeTab !== 'usechh 4' || !usechh4Candidates.length || !summaryReportBaseHref || summaryReportBaseHref === '#') {
+                syncToolbarActions();
+                return;
+            }
+            const firstCandidate = usechh4Candidates[0];
+            const companyId = firstCandidate.company_id || '';
+            const dateExamined = firstCandidate.date_examined || '';
+            const href = summaryReportBaseHref + '?'
+                + 'create_mode=1'
+                + '&company_id=' + encodeURIComponent(companyId)
+                + '&folder_date=' + encodeURIComponent(dateExamined);
+            window.open(href, '_blank', 'noopener');
         });
     }
 
