@@ -14,6 +14,7 @@ $folderDate = trim((string) $query->query('folder_date', ''));
 $createMode = (bool) $query->query('create_mode', false);
 $viewMode = (bool) $query->query('view', false);
 $printMode = (bool) $query->query('print', false);
+$pdfDownloadMode = (bool) ($pdfDownloadMode ?? false);
 
 $candidatePatientRows = collect();
 if ($companyId > 0 && $folderDate !== '' && DB::getSchemaBuilder()->hasTable('declaration') && DB::getSchemaBuilder()->hasTable('chemical_information')) {
@@ -220,13 +221,22 @@ $employmentDuration = trim((string) ($occupationalCurrent->employment_duration ?
 $employmentDurationDisplay = $formatRoundedDuration($employmentDuration, 'Not recorded');
 $reviewDateRaw = trim((string) ($recommendation->nextReview_date ?? $recommendation->MRPdate_end ?? ''));
 $doctorSignature = trim((string) ($doctor->doctor_sign ?? $declaration->doctor_signature ?? ''));
-$toSignatureDataUrl = static function ($value) {
+$toSignatureDataUrl = static function ($value) use ($pdfDownloadMode) {
     $value = trim((string) ($value ?? ''));
     if ($value === '') {
         return '';
     }
     if (str_starts_with($value, 'data:image') || str_starts_with($value, 'http://') || str_starts_with($value, 'https://') || str_starts_with($value, '/')) {
+        if ($pdfDownloadMode && str_starts_with($value, '/')) {
+            $localPath = public_path(ltrim($value, '/\\'));
+            return is_file($localPath) ? $localPath : $value;
+        }
         return $value;
+    }
+
+    if ($pdfDownloadMode) {
+        $localPath = public_path(ltrim($value, '/\\'));
+        return is_file($localPath) ? $localPath : $value;
     }
 
     return function_exists('asset') ? asset($value) : $value;
@@ -542,6 +552,23 @@ body{margin:0;padding:0;background:#fff;color:#111827;font-family:Arial,Helvetic
 .print-footer-block{display:grid;gap:16px}
 .print-note-footer{margin-top:auto;padding-top:10px}
 .print-section-spacer{height:10px}
+.pdf-download-render{font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:1.35;color:#111827}
+.pdf-download-details{width:100%;border-collapse:collapse;margin-top:2px}
+.pdf-download-details td{padding:4px 0;vertical-align:top;font-size:11px}
+.pdf-download-label{width:165px;font-weight:700}
+.pdf-download-sep{width:14px}
+.pdf-download-value{width:auto}
+.pdf-download-right-label{width:155px;font-weight:700;padding-left:28px}
+.pdf-download-full-label{width:165px;font-weight:700}
+.pdf-download-copy{margin-top:10px;font-size:11px;line-height:1.35}
+.pdf-download-copy p{margin:0 0 6px}
+.pdf-download-heading{margin:10px 0 5px;font-size:11px;font-weight:700;color:#111827}
+.pdf-download-reasons{margin:0;padding-left:18px;font-size:11px;line-height:1.3}
+.pdf-download-signature{margin-top:16px;text-align:right}
+.pdf-download-signature img{max-width:185px;max-height:56px;object-fit:contain}
+.pdf-download-signature-meta{margin-top:5px;font-size:11px;line-height:1.25}
+.pdf-download-signature-meta strong{font-weight:700}
+.pdf-download-note{margin-top:18px;font-size:8.8px;line-height:1.18;color:#334155;text-align:center}
 .signature-row{display:grid;grid-template-columns:1fr 220px;gap:36px;align-items:end;padding-top:18px}
 .signature-line{border-top:1.4px solid #334155;padding-top:6px;text-align:center;font-size:14px}
 .digital-note{font-size:12.5px;line-height:1.55;color:#334155;text-align:center}
@@ -632,6 +659,19 @@ display:none!important;
 .print-note-footer{margin-top:auto;padding-top:12px}
 .print-note-bottom{margin-top:0;font-size:11px;line-height:1.32}
 .print-section-spacer{height:10px}
+.pdf-download-render{font-size:11px;line-height:1.35}
+.pdf-download-details td{padding:3px 0;font-size:11px}
+.pdf-download-label{width:155px}
+.pdf-download-right-label{width:150px;padding-left:24px}
+.pdf-download-full-label{width:155px}
+.pdf-download-copy{margin-top:9px;font-size:11px;line-height:1.32}
+.pdf-download-copy p{margin:0 0 5px}
+.pdf-download-heading{margin:10px 0 5px;font-size:11px;color:#111827}
+.pdf-download-reasons{font-size:10.8px;line-height:1.24}
+.pdf-download-signature{margin-top:14px}
+.pdf-download-signature img{max-width:180px;max-height:52px}
+.pdf-download-signature-meta{font-size:10.5px;line-height:1.18}
+.pdf-download-note{margin-top:16px;font-size:8.2px;line-height:1.1}
 .detail-grid{gap:6px 16px}
 .detail-line{grid-template-columns:160px 1fr;gap:8px;padding:2px 0}
 .detail-label{font-size:.72rem}
@@ -838,62 +878,89 @@ display:none!important;
         </div>
 
         <div class="section print-only avoid-break">
-            <div class="print-layout">
-                <div class="print-info-grid">
-                    <div class="print-info-row">
-                        <div class="print-line"><div class="print-line-label">Patient Name</div><div>:</div><div class="print-line-value"><?php echo $esc($showValue($workerName)); ?></div></div>
-                        <div class="print-line"><div class="print-line-label">NRIC / Passport No.</div><div>:</div><div class="print-line-value"><?php echo $esc($showValue($editableIdentityNo)); ?></div></div>
+            <?php if ($pdfDownloadMode): ?>
+                <div class="pdf-download-render">
+                    <table class="pdf-download-details">
+                        <tr>
+                            <td class="pdf-download-label">Patient Name</td>
+                            <td class="pdf-download-sep">:</td>
+                            <td class="pdf-download-value"><?php echo $esc($showValue($workerName)); ?></td>
+                            <td class="pdf-download-right-label">NRIC / Passport No.</td>
+                            <td class="pdf-download-sep">:</td>
+                            <td class="pdf-download-value"><?php echo $esc($showValue($editableIdentityNo)); ?></td>
+                        </tr>
+                        <tr>
+                            <td class="pdf-download-label">Date of Birth</td>
+                            <td class="pdf-download-sep">:</td>
+                            <td class="pdf-download-value"><?php echo $esc($showValue($editableDateOfBirth !== '' ? $formatDate($editableDateOfBirth) : '')); ?></td>
+                            <td class="pdf-download-right-label">Sex</td>
+                            <td class="pdf-download-sep">:</td>
+                            <td class="pdf-download-value"><?php echo $esc($showValue($editableSex)); ?></td>
+                        </tr>
+                        <tr>
+                            <td class="pdf-download-full-label">Company Name</td>
+                            <td class="pdf-download-sep">:</td>
+                            <td class="pdf-download-value" colspan="4"><?php echo $esc($showValue($printCompanyName)); ?></td>
+                        </tr>
+                        <tr>
+                            <td class="pdf-download-full-label">Address</td>
+                            <td class="pdf-download-sep">:</td>
+                            <td class="pdf-download-value" colspan="4"><?php echo $esc($showValue($printCompanyAddress)); ?></td>
+                        </tr>
+                        <tr>
+                            <td class="pdf-download-label">Date of Starting Employment</td>
+                            <td class="pdf-download-sep">:</td>
+                            <td class="pdf-download-value"><?php echo $esc($showValue($editableEmploymentStartDate !== '' ? $formatDate($editableEmploymentStartDate) : '')); ?></td>
+                            <td class="pdf-download-right-label">Duration of Employment</td>
+                            <td class="pdf-download-sep">:</td>
+                            <td class="pdf-download-value"><?php echo $esc($showValue($editableEmploymentDuration)); ?></td>
+                        </tr>
+                        <tr>
+                            <td class="pdf-download-label">Health Hazard Present</td>
+                            <td class="pdf-download-sep">:</td>
+                            <td class="pdf-download-value"><?php echo $esc($showValue($editableHealthHazard)); ?></td>
+                            <td class="pdf-download-right-label">Removal Protection Type</td>
+                            <td class="pdf-download-sep">:</td>
+                            <td class="pdf-download-value"><?php echo $esc($showValue($screenRemovalType)); ?></td>
+                        </tr>
+                    </table>
+
+                    <div style="height:16px;"></div>
+                    <div class="pdf-download-copy">
+                        <p>
+                            I certify that the above named person examined by me on
+                            <strong><?php echo $esc($showValue($formatDate($examDateRaw))); ?></strong>
+                            should not continue to work as
+                            <strong><?php echo $esc($showValue($jobTitle, 'the current assigned role')); ?></strong>
+                            in
+                            <strong><?php echo $esc($showValue($editableWorkUnitDepartment)); ?></strong>
+                            for
+                            <strong><?php echo $esc($showValue($mrpMonths)); ?></strong>,
+                            subject to a review on
+                            <strong><?php echo $esc($showValue($formatDate($reviewDateRaw))); ?></strong>.
+                        </p>
+                        <p>
+                            In the meantime, the worker should be given alternative work in another department or section which does not expose the worker to
+                            <strong><?php echo $esc($showValue($editableHealthHazard, 'the identified chemical hazard')); ?></strong>.
+                        </p>
                     </div>
-                    <div class="print-info-row">
-                        <div class="print-line"><div class="print-line-label">Date of Birth</div><div>:</div><div class="print-line-value"><?php echo $esc($showValue($editableDateOfBirth !== '' ? $formatDate($editableDateOfBirth) : '')); ?></div></div>
-                        <div class="print-line"><div class="print-line-label">Sex</div><div>:</div><div class="print-line-value"><?php echo $esc($showValue($editableSex)); ?></div></div>
-                    </div>
-                    <div class="print-line full"><div class="print-line-label">Company Name</div><div>:</div><div class="print-line-value"><?php echo $esc($showValue($printCompanyName)); ?></div></div>
-                    <div class="print-line full"><div class="print-line-label">Address</div><div>:</div><div class="print-line-value"><?php echo $esc($showValue($printCompanyAddress)); ?></div></div>
-                    <div class="print-info-row">
-                        <div class="print-line"><div class="print-line-label">Date of Starting Employment</div><div>:</div><div class="print-line-value"><?php echo $esc($showValue($editableEmploymentStartDate !== '' ? $formatDate($editableEmploymentStartDate) : '')); ?></div></div>
-                        <div class="print-line"><div class="print-line-label">Duration of Employment</div><div>:</div><div class="print-line-value"><?php echo $esc($showValue($editableEmploymentDuration)); ?></div></div>
-                    </div>
-                    <div class="print-info-row">
-                        <div class="print-line"><div class="print-line-label">Health Hazard Present</div><div>:</div><div class="print-line-value"><?php echo $esc($showValue($editableHealthHazard)); ?></div></div>
-                        <div class="print-line"><div class="print-line-label">Removal Protection Type</div><div>:</div><div class="print-line-value"><?php echo $esc($showValue($screenRemovalType)); ?></div></div>
-                    </div>
-                </div>
-                <div class="print-section-spacer"></div>
-                <div class="print-copy">
-                    <p>
-                        I certify that the above named person examined by me on
-                        <strong><?php echo $esc($showValue($formatDate($examDateRaw))); ?></strong>
-                        should not continue to work as
-                        <strong><?php echo $esc($showValue($jobTitle, 'the current assigned role')); ?></strong>
-                        in
-                        <strong><?php echo $esc($showValue($editableWorkUnitDepartment)); ?></strong>
-                        for
-                        <strong><?php echo $esc($showValue($mrpMonths)); ?></strong>,
-                        subject to a review on
-                        <strong><?php echo $esc($showValue($formatDate($reviewDateRaw))); ?></strong>.
-                    </p>
-                    <p>
-                        In the meantime, the worker should be given alternative work in another department or section which does not expose the worker to
-                        <strong><?php echo $esc($showValue($editableHealthHazard, 'the identified chemical hazard')); ?></strong>.
-                    </p>
-                </div>
-                <div class="print-section-spacer"></div>
-                <div class="print-section-title">Reasons for Medical Removal</div>
-                <ul class="print-reasons-list">
-                    <?php foreach ($selectedReasonLabels as $selectedReasonLabel): ?>
-                        <li><?php echo $esc($selectedReasonLabel); ?></li>
-                    <?php endforeach; ?>
-                    <?php if (trim($screenReasonOther) !== ''): ?>
-                        <li><?php echo $esc($screenReasonOther); ?></li>
-                    <?php endif; ?>
-                </ul>
-                <div class="print-footer-block">
-                    <div class="print-signature-wrap">
-                        <?php if ($doctorSignatureSrc !== ''): ?>
-                            <img src="<?php echo $esc($doctorSignatureSrc); ?>" alt="Doctor signature">
+
+                    <div style="height:16px;"></div>
+                    <div class="pdf-download-heading" style="font-size:11px;font-weight:700;color:#111827;margin:0 0 6px;">Reasons for Medical Removal</div>
+                    <ul class="pdf-download-reasons">
+                        <?php foreach ($selectedReasonLabels as $selectedReasonLabel): ?>
+                            <li><?php echo $esc($selectedReasonLabel); ?></li>
+                        <?php endforeach; ?>
+                        <?php if (trim($screenReasonOther) !== ''): ?>
+                            <li><?php echo $esc($screenReasonOther); ?></li>
                         <?php endif; ?>
-                        <div class="print-meta">
+                    </ul>
+
+                    <div class="pdf-download-signature" style="margin-top:24px;text-align:right;">
+                        <?php if ($doctorSignatureSrc !== ''): ?>
+                            <img src="<?php echo $esc($doctorSignatureSrc); ?>" alt="Doctor signature" style="max-width:190px;max-height:60px;object-fit:contain;">
+                        <?php endif; ?>
+                        <div class="pdf-download-signature-meta" style="margin-top:6px;font-size:11px;line-height:1.25;">
                             <div><strong>Name of OHD</strong> <?php echo $esc($doctorName); ?></div>
                             <div><strong>OHD Signature Date</strong> <?php echo $esc($doctorPracticeDate); ?></div>
                             <div><strong>Address of Practice</strong> <?php echo $esc($showValue($printDoctorAddress, '-')); ?></div>
@@ -902,13 +969,84 @@ display:none!important;
                             <div><strong>Fax</strong> <?php echo $esc($showValue($printDoctorFax)); ?></div>
                         </div>
                     </div>
-                </div>
-                <div class="print-note-footer">
-                    <div class="print-note-bottom">
+
+                    <div class="pdf-download-note" style="margin-top:110px;font-size:8.8px;line-height:1.18;text-align:center;">
                         Note: This certificate should be completed in triplicate and the original copy forwarded to the director General, department of Occupational Safety and Health. Putrajaya and must include the actual results of the relevant examination/tests. The quantitative results (e.g. blood lead) the exact Diagrams and measurements units must be clearly stated. Also include a copy of qualitative results (e.g Chest X-ray). Incomplete form will not be accepted.
                     </div>
                 </div>
-            </div>
+            <?php else: ?>
+                <div class="print-layout">
+                    <div class="print-info-grid">
+                        <div class="print-info-row">
+                            <div class="print-line"><div class="print-line-label">Patient Name</div><div>:</div><div class="print-line-value"><?php echo $esc($showValue($workerName)); ?></div></div>
+                            <div class="print-line"><div class="print-line-label">NRIC / Passport No.</div><div>:</div><div class="print-line-value"><?php echo $esc($showValue($editableIdentityNo)); ?></div></div>
+                        </div>
+                        <div class="print-info-row">
+                            <div class="print-line"><div class="print-line-label">Date of Birth</div><div>:</div><div class="print-line-value"><?php echo $esc($showValue($editableDateOfBirth !== '' ? $formatDate($editableDateOfBirth) : '')); ?></div></div>
+                            <div class="print-line"><div class="print-line-label">Sex</div><div>:</div><div class="print-line-value"><?php echo $esc($showValue($editableSex)); ?></div></div>
+                        </div>
+                        <div class="print-line full"><div class="print-line-label">Company Name</div><div>:</div><div class="print-line-value"><?php echo $esc($showValue($printCompanyName)); ?></div></div>
+                        <div class="print-line full"><div class="print-line-label">Address</div><div>:</div><div class="print-line-value"><?php echo $esc($showValue($printCompanyAddress)); ?></div></div>
+                        <div class="print-info-row">
+                            <div class="print-line"><div class="print-line-label">Date of Starting Employment</div><div>:</div><div class="print-line-value"><?php echo $esc($showValue($editableEmploymentStartDate !== '' ? $formatDate($editableEmploymentStartDate) : '')); ?></div></div>
+                            <div class="print-line"><div class="print-line-label">Duration of Employment</div><div>:</div><div class="print-line-value"><?php echo $esc($showValue($editableEmploymentDuration)); ?></div></div>
+                        </div>
+                        <div class="print-info-row">
+                            <div class="print-line"><div class="print-line-label">Health Hazard Present</div><div>:</div><div class="print-line-value"><?php echo $esc($showValue($editableHealthHazard)); ?></div></div>
+                            <div class="print-line"><div class="print-line-label">Removal Protection Type</div><div>:</div><div class="print-line-value"><?php echo $esc($showValue($screenRemovalType)); ?></div></div>
+                        </div>
+                    </div>
+                    <div class="print-section-spacer"></div>
+                    <div class="print-copy">
+                        <p>
+                            I certify that the above named person examined by me on
+                            <strong><?php echo $esc($showValue($formatDate($examDateRaw))); ?></strong>
+                            should not continue to work as
+                            <strong><?php echo $esc($showValue($jobTitle, 'the current assigned role')); ?></strong>
+                            in
+                            <strong><?php echo $esc($showValue($editableWorkUnitDepartment)); ?></strong>
+                            for
+                            <strong><?php echo $esc($showValue($mrpMonths)); ?></strong>,
+                            subject to a review on
+                            <strong><?php echo $esc($showValue($formatDate($reviewDateRaw))); ?></strong>.
+                        </p>
+                        <p>
+                            In the meantime, the worker should be given alternative work in another department or section which does not expose the worker to
+                            <strong><?php echo $esc($showValue($editableHealthHazard, 'the identified chemical hazard')); ?></strong>.
+                        </p>
+                    </div>
+                    <div class="print-section-spacer"></div>
+                    <div class="print-section-title">Reasons for Medical Removal</div>
+                    <ul class="print-reasons-list">
+                        <?php foreach ($selectedReasonLabels as $selectedReasonLabel): ?>
+                            <li><?php echo $esc($selectedReasonLabel); ?></li>
+                        <?php endforeach; ?>
+                        <?php if (trim($screenReasonOther) !== ''): ?>
+                            <li><?php echo $esc($screenReasonOther); ?></li>
+                        <?php endif; ?>
+                    </ul>
+                    <div class="print-footer-block">
+                        <div class="print-signature-wrap">
+                            <?php if ($doctorSignatureSrc !== ''): ?>
+                                <img src="<?php echo $esc($doctorSignatureSrc); ?>" alt="Doctor signature">
+                            <?php endif; ?>
+                            <div class="print-meta">
+                                <div><strong>Name of OHD</strong> <?php echo $esc($doctorName); ?></div>
+                                <div><strong>OHD Signature Date</strong> <?php echo $esc($doctorPracticeDate); ?></div>
+                                <div><strong>Address of Practice</strong> <?php echo $esc($showValue($printDoctorAddress, '-')); ?></div>
+                                <div><strong>Telephone</strong> <?php echo $esc($showValue($printDoctorTelephone)); ?></div>
+                                <div><strong>Email</strong> <?php echo $esc($showValue($printDoctorEmail)); ?></div>
+                                <div><strong>Fax</strong> <?php echo $esc($showValue($printDoctorFax)); ?></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="print-note-footer">
+                        <div class="print-note-bottom">
+                            Note: This certificate should be completed in triplicate and the original copy forwarded to the director General, department of Occupational Safety and Health. Putrajaya and must include the actual results of the relevant examination/tests. The quantitative results (e.g. blood lead) the exact Diagrams and measurements units must be clearly stated. Also include a copy of qualitative results (e.g Chest X-ray). Incomplete form will not be accepted.
+                        </div>
+                    </div>
+                </div>
+            <?php endif; ?>
         </div>
     </section>
 </div>

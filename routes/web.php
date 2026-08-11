@@ -86,6 +86,7 @@ Route::post('/surveillance/report/removal', [PanelController::class, 'saveSurvei
 Route::view('/audiometry/report/questionnaire', 'report.audiometry_questionnaire_report')->name('audiometry.report.questionnaire');
 Route::get('/report/folder', [PanelController::class, 'generalReportFolder'])->name('general.report.folder');
 Route::get('/report/pdf/usechh-all', [PanelController::class, 'combinedUsechhAllPdf'])->name('pdf.usechh-all');
+Route::get('/report/pdf/usechh5i/download', [PanelController::class, 'downloadUsechh5iPdf'])->name('pdf.usechh5i.download');
 Route::view('/report/pdf/examination', 'report.PDF_examination')->name('pdf.examination');
 Route::post('/report/email/send', [PanelController::class, 'sendSurveillanceReportEmail'])->name('report.email.send');
 

@@ -201,7 +201,7 @@ medis_render_navigation_start([
             </div>
             <div class="toolbar-right">
                 <button class="toolbar-action" id="folderPrintBtn" type="button" title="Print selected">
-                    <svg viewBox="0 0 24 24"><path d="M7 9V4h10v5"></path><path d="M7 18h10v2H7z"></path><path d="M6 18H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-1"></path></svg>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9V4h10v5"></path><path d="M7 18h10v2H7z"></path><path d="M6 18H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-1"></path></svg>
                 </button>
                 <form id="folderEmailForm" method="post" action="<?php echo $esc(function_exists('route') ? route('report.email.send') : '#'); ?>" style="margin:0;">
                     <?php echo csrf_field(); ?>
@@ -330,6 +330,8 @@ medis_render_navigation_start([
     const removalReportBaseHref = <?php echo json_encode(function_exists('route') ? route('surveillance.report.removal') : '#', JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
     const fillerClass = 'filler-row';
     const perPage = 5;
+    const printIconSvg = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9V4h10v5"></path><path d="M7 18h10v2H7z"></path><path d="M6 18H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-1"></path></svg>';
+    const downloadIconSvg = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11"></path><path d="m7 10 5 5 5-5"></path><path d="M5 19h14"></path></svg>';
     let activeTab = <?php echo json_encode($initialTab, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
     let currentPage = 1;
 
@@ -387,7 +389,11 @@ medis_render_navigation_start([
         if (printBtn) {
             printBtn.disabled = !hasSelectedRows;
             printBtn.classList.toggle('is-disabled', !hasSelectedRows);
-            printBtn.title = hasSelectedRows ? 'Print selected' : 'Select at least one record to print';
+            const isUsechh5iTab = activeTab === 'usechh 5i';
+            printBtn.innerHTML = isUsechh5iTab ? downloadIconSvg : printIconSvg;
+            printBtn.title = hasSelectedRows
+                ? (isUsechh5iTab ? 'Download selected as PDF' : 'Print selected')
+                : (isUsechh5iTab ? 'Select at least one record to download as PDF' : 'Select at least one record to print');
         }
 
         if (emailBtn) {

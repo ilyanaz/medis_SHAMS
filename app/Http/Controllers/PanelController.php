@@ -221,6 +221,87 @@ class PanelController extends Controller
         ]));
     }
 
+    public function downloadUsechh5iPdf(Request $request)
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        if ($this->isInAdminMode($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($this->requiresClinicSelection($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        $declarationId = (int) $request->query('declaration_id', 0);
+        $employeeId = (int) $request->query('employee_id', 0);
+        $companyId = (int) $request->query('company_id', 0);
+        $surveillanceId = (int) $request->query('surveillance_id', 0);
+
+        $declaration = null;
+        if ($declarationId > 0 && Schema::hasTable('declaration')) {
+            $declaration = DB::table('declaration')->where('declaration_id', $declarationId)->first();
+        }
+        if (! $declaration && Schema::hasTable('declaration')) {
+            $declarationQuery = DB::table('declaration');
+            if ($employeeId > 0) {
+                $declarationQuery->where('employee_id', $employeeId);
+            }
+            if ($companyId > 0) {
+                $declarationQuery->where('company_id', $companyId);
+            }
+            if ($surveillanceId > 0) {
+                $declarationQuery->where('surveillance_id', $surveillanceId);
+            }
+            $declaration = $declarationQuery->orderByDesc('declaration_id')->first();
+        }
+
+        $employeeId = (int) ($declaration->employee_id ?? $employeeId);
+        $companyId = (int) ($declaration->company_id ?? $companyId);
+        $surveillanceId = (int) ($declaration->surveillance_id ?? $surveillanceId);
+        $declarationId = (int) ($declaration->declaration_id ?? $declarationId);
+
+        $employee = $employeeId > 0 && Schema::hasTable('employee')
+            ? DB::table('employee')->where('employee_id', $employeeId)->first()
+            : null;
+        $workerName = trim((string) (($employee->employee_firstName ?? '') . ' ' . ($employee->employee_lastName ?? '')));
+        $safeWorkerName = trim(preg_replace('/[\\\\\\/:*?"<>|]+/', '', $workerName)) ?: 'Patient';
+        $filename = 'USECHH5i - ' . $safeWorkerName . '.pdf';
+
+        $viewData = $this->buildViewData($request, $user);
+        $viewData['pdfDownloadMode'] = true;
+        $clinicHeaderPath = trim((string) ($viewData['activeClinic']->clinic_header_path ?? ''));
+        if ($clinicHeaderPath !== '') {
+            $localClinicHeaderPath = public_path(ltrim($clinicHeaderPath, '/\\'));
+            if (is_file($localClinicHeaderPath)) {
+                $viewData['clinicHeaderUrl'] = $localClinicHeaderPath;
+                $viewData['clinicLogoUrl'] = $localClinicHeaderPath;
+            }
+        }
+        $queryBag = $request->query;
+        $originalQuery = $queryBag->all();
+        $queryBag->add(array_filter([
+            'declaration_id' => $declarationId,
+            'employee_id' => $employeeId,
+            'company_id' => $companyId,
+            'surveillance_id' => $surveillanceId,
+        ], static fn ($value) => (int) $value > 0));
+        $queryBag->set('view', '1');
+        $queryBag->set('print', '1');
+
+        try {
+            return Pdf::loadView('report.surveillance_removalReport', $viewData)
+                ->setOption(['isRemoteEnabled' => true, 'isHtml5ParserEnabled' => true])
+                ->setPaper('a4', 'portrait')
+                ->download($filename);
+        } finally {
+            $queryBag->replace($originalQuery);
+        }
+    }
+
     public function sendSurveillanceReportEmail(Request $request): RedirectResponse
     {
         $user = $this->requirePanelUser($request);
