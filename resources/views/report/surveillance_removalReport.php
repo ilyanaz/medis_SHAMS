@@ -203,6 +203,7 @@ $doctorAddress = collect([
     trim((string) ($doctor->doctor_state ?? '')),
 ])->filter(static fn ($value) => $value !== '')->implode(', ');
 $clinicAddress = collect([
+    trim((string) ($clinicRecord->clinic_name ?? '')),
     trim((string) ($clinicRecord->clinic_address ?? '')),
     collect([
         trim((string) ($clinicRecord->clinic_postcode ?? '')),
@@ -414,7 +415,7 @@ $editableEmploymentStartDate = old('employment_start_date', $formatInputDate($st
 $editableEmploymentDuration = old('employment_duration_text', $storedRemovalEmploymentDuration !== '' ? $storedRemovalEmploymentDuration : $employmentDurationDisplay);
 $editableHealthHazard = old('health_hazard_present', $storedRemovalHealthHazard !== '' ? $storedRemovalHealthHazard : $chemicalName);
 $editableWorkUnitDepartment = old('work_unit_department', $storedRemovalWorkUnitDepartment !== '' ? $storedRemovalWorkUnitDepartment : $workUnit);
-$editableDoctorAddress = old('doctor_practice_address', $storedRemovalDoctorAddress !== '' ? $storedRemovalDoctorAddress : $doctorAddress);
+$editableDoctorAddress = old('doctor_practice_address', $storedRemovalDoctorAddress !== '' ? $storedRemovalDoctorAddress : ($clinicAddress !== '' ? $clinicAddress : $doctorAddress));
 $editableDoctorEmail = old('doctor_email_address', $storedRemovalDoctorEmail !== '' ? $storedRemovalDoctorEmail : (string) ($doctor->doctor_email ?? ''));
 $editableDoctorTelephone = old('doctor_telephone', $storedRemovalDoctorTelephone !== '' ? $storedRemovalDoctorTelephone : (string) ($doctor->doctor_telephone ?? ''));
 $editableDoctorFax = old('doctor_fax', $storedRemovalDoctorFax !== '' ? $storedRemovalDoctorFax : (string) ($doctor->doctor_fax ?? ''));
@@ -436,7 +437,7 @@ $fallbackCompanyAddress = collect([
     ])->filter(static fn ($value) => $value !== '')->implode(', '),
 ])->filter(static fn ($value) => $value !== '')->implode(', ');
 $printCompanyAddress = trim(implode(', ', array_slice($editableCompanyAddressLines, 1)));
-if ($printCompanyAddress === '') {
+if ($printCompanyAddress === '' || count($editableCompanyAddressLines) <= 2) {
     $printCompanyAddress = $fallbackCompanyAddress;
 }
 $doctorPracticeDate = Carbon::now()->format('d/m/Y');
@@ -461,7 +462,7 @@ if ($createMode && ! session()->hasOldInput() && $declarationId <= 0) {
     $editableEmploymentDuration = '';
     $editableHealthHazard = '';
     $editableWorkUnitDepartment = '';
-    $editableDoctorAddress = '';
+    $editableDoctorAddress = $clinicAddress !== '' ? $clinicAddress : $doctorAddress;
     $editableDoctorEmail = '';
     $editableDoctorTelephone = '';
     $editableDoctorFax = '';
