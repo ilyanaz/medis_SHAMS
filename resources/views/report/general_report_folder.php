@@ -226,10 +226,10 @@ medis_render_navigation_start([
                                 <label class="select-all" title="Select all">
                                     <input id="folderSelectAll" type="checkbox" aria-label="Select all">
                                 </label>
-                                <span>Patient Name</span>
+                                <span id="folderPrimaryLabel">Patient Name</span>
                             </div>
                         </th>
-                        <th>Chemical Name</th>
+                        <th id="folderSecondaryLabel">Chemical Name</th>
                         <th>Date Examined</th>
                         <th>Action</th>
                     </tr>
@@ -248,7 +248,7 @@ medis_render_navigation_start([
                             data-date-examined="<?php echo $esc((string) ($row['date_examined'] ?? '')); ?>"
                             data-print-href="<?php echo $esc(($row['tab_key'] ?? '') === 'all' ? ($row['combined_pdf_href'] ?? '#') : ($row['pdf_href'] ?? '#')); ?>"
                             data-edit-href="<?php echo $esc(($row['tab_key'] ?? '') === 'all' ? '' : ($row['href'] ?? '#')); ?>"
-                            data-view-href="<?php echo $esc(($row['tab_key'] ?? '') === 'usechh 5i' ? (($row['href'] ?? '#') . (str_contains((string) ($row['href'] ?? ''), '?') ? '&' : '?') . 'view=1') : ''); ?>"
+                            data-view-href="<?php echo $esc(in_array(($row['tab_key'] ?? ''), ['usechh 5i', 'usechh 5ii'], true) ? (($row['href'] ?? '#') . (str_contains((string) ($row['href'] ?? ''), '?') ? '&' : '?') . 'view=1') : ''); ?>"
                             data-report-key="<?php echo $esc($rowReportKey); ?>"
                             data-declaration-id="<?php echo $esc((string) ($row['declaration_id'] ?? '')); ?>"
                             data-employee-id="<?php echo $esc((string) ($row['employee_id'] ?? '')); ?>"
@@ -262,7 +262,7 @@ medis_render_navigation_start([
                                 <div class="patient-cell">
                                     <input class="row-select" type="checkbox" data-row-select="1">
                                     <div class="patient-cell-text">
-                                        <?php if (($row['tab_key'] ?? '') === 'all' || ($row['tab_key'] ?? '') === 'usechh 5i'): ?>
+                                        <?php if (in_array(($row['tab_key'] ?? ''), ['all', 'usechh 5i', 'usechh 5ii'], true)): ?>
                                             <?php echo $esc($row['employee_name'] ?? ''); ?>
                                         <?php else: ?>
                                             <a class="patient-link" href="<?php echo $esc($row['href'] ?? '#'); ?>">
@@ -275,7 +275,7 @@ medis_render_navigation_start([
                             <td><?php echo $esc($row['chemical_name'] ?? ''); ?></td>
                             <td><?php echo $esc($formatDate((string) ($row['date_examined'] ?? ''))); ?></td>
                             <td>
-                                <?php if (($row['tab_key'] ?? '') === 'usechh 5i'): ?>
+                                <?php if (in_array(($row['tab_key'] ?? ''), ['usechh 5i', 'usechh 5ii'], true)): ?>
                                     <div class="action-icons">
                                         <a class="action-icon" href="<?php echo $esc(($row['href'] ?? '#') . (str_contains((string) ($row['href'] ?? ''), '?') ? '&' : '?') . 'view=1'); ?>" title="View">
                                             <svg viewBox="0 0 24 24"><path d="M1.5 12s3.8-6.5 10.5-6.5S22.5 12 22.5 12 18.7 18.5 12 18.5 1.5 12 1.5 12Z"></path><circle cx="12" cy="12" r="3.25"></circle></svg>
@@ -321,6 +321,8 @@ medis_render_navigation_start([
     const emailForm = document.getElementById('folderEmailForm');
     const emailSelections = document.getElementById('folderEmailSelections');
     const generateUsechh5iBtn = document.getElementById('folderGenerateUsechh5iBtn');
+    const primaryLabel = document.getElementById('folderPrimaryLabel');
+    const secondaryLabel = document.getElementById('folderSecondaryLabel');
     const usechh5iCandidates = <?php echo json_encode(array_values(array_map(static function (array $row): array {
         return [
             'company_id' => (string) ($row['company_id'] ?? ''),
@@ -389,11 +391,11 @@ medis_render_navigation_start([
         if (printBtn) {
             printBtn.disabled = !hasSelectedRows;
             printBtn.classList.toggle('is-disabled', !hasSelectedRows);
-            const isUsechh5iTab = activeTab === 'usechh 5i';
-            printBtn.innerHTML = isUsechh5iTab ? downloadIconSvg : printIconSvg;
+            const isDownloadTab = activeTab === 'usechh 5i' || activeTab === 'usechh 5ii';
+            printBtn.innerHTML = isDownloadTab ? downloadIconSvg : printIconSvg;
             printBtn.title = hasSelectedRows
-                ? (isUsechh5iTab ? 'Download selected as PDF' : 'Print selected')
-                : (isUsechh5iTab ? 'Select at least one record to download as PDF' : 'Select at least one record to print');
+                ? (isDownloadTab ? 'Download selected as PDF' : 'Print selected')
+                : (isDownloadTab ? 'Select at least one record to download as PDF' : 'Select at least one record to print');
         }
 
         if (emailBtn) {
@@ -419,6 +421,18 @@ medis_render_navigation_start([
                 : (usechh5iCandidates.length === 0
                     ? 'No USECHH 5i patient records are available for this folder'
                     : 'Open the USECHH 5i form creator');
+        }
+
+        if (search) {
+            search.placeholder = activeTab === 'usechh 5ii' ? 'Search chemical name' : 'Search patient name';
+        }
+
+        if (primaryLabel) {
+            primaryLabel.textContent = activeTab === 'usechh 5ii' ? 'Chemical Name' : 'Patient Name';
+        }
+
+        if (secondaryLabel) {
+            secondaryLabel.textContent = activeTab === 'usechh 5ii' ? 'Total Patient' : 'Chemical Name';
         }
     };
 

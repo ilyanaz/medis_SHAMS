@@ -703,11 +703,11 @@ class LegacyClinicContext
                 ]);
             }
 
-            if ($isAbnormal) {
+            if ($hasSavedRemoval) {
                 $reports[] = array_merge($base, [
                     'filter' => 'usechh 5ii',
                     'href' => route('surveillance.report.abnormal', $routeParams),
-                    'pdf_href' => route('pdf.usechh5ii', $routeParams),
+                    'pdf_href' => route('pdf.usechh5ii.download', $routeParams),
                 ]);
             }
 
@@ -740,14 +740,18 @@ class LegacyClinicContext
                 ], static fn ($value) => $value !== null && $value !== '');
 
                 $reportRow['href'] = route('surveillance.report.abnormal', $routeParams);
-                $reportRow['pdf_href'] = route('pdf.usechh5ii', $routeParams);
+                $reportRow['pdf_href'] = route('pdf.usechh5ii.download', $routeParams);
                 $reportRow['group_count'] = 1;
+                $reportRow['group_chemical'] = (string) ($reportRow['chemical_name'] ?? '');
+                $reportRow['employee_name'] = (string) ($reportRow['chemical_name'] ?? 'Chemical');
+                $reportRow['chemical_name'] = '1 patient';
                 $groupedAbnormalRows[$groupKey] = $reportRow;
                 continue;
             }
 
             $groupedAbnormalRows[$groupKey]['group_count'] += 1;
-            $groupedAbnormalRows[$groupKey]['employee_name'] = $groupedAbnormalRows[$groupKey]['group_count'].' abnormal patient(s)';
+            $groupedAbnormalRows[$groupKey]['employee_name'] = (string) ($groupedAbnormalRows[$groupKey]['group_chemical'] ?? $groupedAbnormalRows[$groupKey]['employee_name'] ?? 'Chemical');
+            $groupedAbnormalRows[$groupKey]['chemical_name'] = $groupedAbnormalRows[$groupKey]['group_count'].' patient'.($groupedAbnormalRows[$groupKey]['group_count'] === 1 ? '' : 's');
         }
 
         return array_values(array_merge($regularRows, array_values($groupedAbnormalRows)));
