@@ -2384,7 +2384,26 @@ class PanelController extends Controller
 
     protected function isRecommendationFinalized(?object $recommendationData): bool
     {
-        return ! empty($recommendationData) && ! empty($recommendationData->is_final);
+        if (empty($recommendationData) || empty($recommendationData->is_final)) {
+            return false;
+        }
+
+        $storedRecommendationLines = preg_split('/\r\n|\r|\n/', trim((string) ($recommendationData->recommencation_type ?? ''))) ?: [];
+        $needsMrpDates = collect($storedRecommendationLines)
+            ->contains(static fn ($line) => trim((string) $line) === 'Permanent Medical Removal Protection');
+
+        if (trim((string) ($recommendationData->nextReview_date ?? '')) === '') {
+            return false;
+        }
+
+        if ($needsMrpDates && (
+            trim((string) ($recommendationData->MRPdate_start ?? '')) === ''
+            || trim((string) ($recommendationData->MRPdate_end ?? '')) === ''
+        )) {
+            return false;
+        }
+
+        return true;
     }
 
     public function saveSurveillanceExamination(Request $request)
@@ -2929,6 +2948,18 @@ class PanelController extends Controller
             'company_id' => ['nullable', 'integer', 'min:1'],
             'declaration_id' => ['nullable', 'integer', 'min:1'],
             'removal_type' => ['nullable', 'string'],
+            'worker_identity_no' => ['nullable', 'string'],
+            'worker_date_of_birth' => ['nullable', 'date'],
+            'worker_sex' => ['nullable', 'string'],
+            'company_name_address' => ['nullable', 'string'],
+            'employment_start_date' => ['nullable', 'date'],
+            'employment_duration_text' => ['nullable', 'string'],
+            'health_hazard_present' => ['nullable', 'string'],
+            'work_unit_department' => ['nullable', 'string'],
+            'doctor_practice_address' => ['nullable', 'string'],
+            'doctor_email_address' => ['nullable', 'string'],
+            'doctor_telephone' => ['nullable', 'string'],
+            'doctor_fax' => ['nullable', 'string'],
             'recommendation_reasons' => ['nullable', 'array'],
             'recommendation_reasons.*' => ['nullable', 'string'],
             'recommendation_reason_other' => ['nullable', 'string'],
@@ -2948,6 +2979,12 @@ class PanelController extends Controller
             ->first();
         $declaration = $declarationId && Schema::hasTable('declaration')
             ? DB::table('declaration')->where('declaration_id', $declarationId)->first()
+            : null;
+        $company = $companyId && Schema::hasTable('company')
+            ? DB::table('company')->where('company_id', $companyId)->first()
+            : null;
+        $chemicalInfo = Schema::hasTable('chemical_information')
+            ? DB::table('chemical_information')->where('surveillance_id', $surveillanceId)->first()
             : null;
         $fitnessRecord = Schema::hasTable('fitness_report')
             ? DB::table('fitness_report')->where('surveillance_id', $surveillanceId)->first()
@@ -2984,6 +3021,25 @@ class PanelController extends Controller
             'fitnessReport_id' => $record->fitnessReport_id ?? ($fitnessRecord->fitnessReport_id ?? null),
         ];
 
+        foreach ([
+            'worker_identity_no',
+            'worker_date_of_birth',
+            'worker_sex',
+            'company_name_address',
+            'employment_start_date',
+            'employment_duration_text',
+            'health_hazard_present',
+            'work_unit_department',
+            'doctor_practice_address',
+            'doctor_email_address',
+            'doctor_telephone',
+            'doctor_fax',
+        ] as $column) {
+            if (Schema::hasColumn('removal_report', $column)) {
+                $payload[$column] = $validated[$column] ?? null;
+            }
+        }
+
         if ($record) {
             DB::table('removal_report')
                 ->where('removalReport_id', $record->removalReport_id)
@@ -2992,15 +3048,13 @@ class PanelController extends Controller
             DB::table('removal_report')->insert($payload);
         }
 
-        $params = array_filter([
-            'declaration_id' => $validated['declaration_id'] ?? null,
-            'employee_id' => $employeeId,
-            'company_id' => $companyId,
-            'surveillance_id' => $surveillanceId,
-        ], static fn ($value) => $value !== null && $value !== '');
-
         return redirect()
-            ->route('surveillance.report.removal', $params)
+            ->route('general.report.folder', array_filter([
+                'module' => 'surveillance',
+                'company' => trim((string) ($company->company_name ?? '')),
+                'date' => trim((string) ($chemicalInfo->examination_date ?? $declaration->employee_date ?? $declaration->doctor_date ?? '')),
+                'tab' => 'usechh 5i',
+            ], static fn ($value) => $value !== ''))
             ->with('status', 'USECHH 5i details saved successfully.');
     }
 

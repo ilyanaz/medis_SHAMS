@@ -3,7 +3,10 @@ require dirname(__DIR__) . '/panel/navigation.php';
 
 $esc = static fn($v) => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
 $sourceUrl = function_exists('route')
-    ? route('surveillance.report.removal', request()->only(['declaration_id', 'employee_id', 'company_id', 'surveillance_id']))
+    ? route('surveillance.report.removal', array_merge(
+        request()->only(['declaration_id', 'employee_id', 'company_id', 'surveillance_id']),
+        ['view' => 1]
+    ))
     : 'surveillance_removalReport.php';
 $resolvedUser = class_exists('\\Illuminate\\Support\\Facades\\Auth') ? \Illuminate\Support\Facades\Auth::user() : null;
 $footerFirst = trim((string) (($resolvedUser->first_name ?? $resolvedUser->firstName ?? '') ?: ''));

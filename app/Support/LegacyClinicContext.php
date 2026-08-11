@@ -690,12 +690,20 @@ class LegacyClinicContext
                 ]),
             ];
 
-            if ($isAbnormal) {
+            $hasSavedRemoval = ! empty($row->surveillance_id)
+                && Schema::hasTable('removal_report')
+                && DB::table('removal_report')->where('surveillance_id', $row->surveillance_id)->exists();
+
+            if ($isAbnormal || $hasSavedRemoval) {
                 $reports[] = array_merge($base, [
                     'filter' => 'usechh 5i',
                     'href' => route('surveillance.report.removal', $routeParams),
-                    'pdf_href' => route('pdf.usechh5i', $routeParams),
+                    'pdf_href' => route('surveillance.report.removal', array_merge($routeParams, ['view' => 1, 'print' => 1])),
+                    'has_saved_removal' => $hasSavedRemoval,
                 ]);
+            }
+
+            if ($isAbnormal) {
                 $reports[] = array_merge($base, [
                     'filter' => 'usechh 5ii',
                     'href' => route('surveillance.report.abnormal', $routeParams),

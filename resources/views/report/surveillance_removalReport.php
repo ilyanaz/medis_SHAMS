@@ -10,6 +10,40 @@ $declarationId = (int) $query->query('declaration_id', 0);
 $employeeId = (int) $query->query('employee_id', 0);
 $companyId = (int) $query->query('company_id', 0);
 $surveillanceId = (int) $query->query('surveillance_id', 0);
+$folderDate = trim((string) $query->query('folder_date', ''));
+$createMode = (bool) $query->query('create_mode', false);
+$viewMode = (bool) $query->query('view', false);
+$printMode = (bool) $query->query('print', false);
+
+$candidatePatientRows = collect();
+if ($companyId > 0 && $folderDate !== '' && DB::getSchemaBuilder()->hasTable('declaration') && DB::getSchemaBuilder()->hasTable('chemical_information')) {
+    $candidatePatientRows = DB::table('declaration')
+        ->join('employee', 'employee.employee_id', '=', 'declaration.employee_id')
+        ->join('chemical_information', 'chemical_information.surveillance_id', '=', 'declaration.surveillance_id')
+        ->leftJoin('recommendation', 'recommendation.surveillance_id', '=', 'declaration.surveillance_id')
+        ->where('declaration.company_id', $companyId)
+        ->where('chemical_information.examination_date', $folderDate)
+        ->select([
+            'declaration.declaration_id',
+            'declaration.employee_id',
+            'declaration.company_id',
+            'declaration.surveillance_id',
+            'employee.employee_firstName',
+            'employee.employee_lastName',
+            'chemical_information.chemicals',
+            'chemical_information.examination_date',
+            'recommendation.recommencation_type',
+        ])
+        ->orderBy('employee.employee_firstName')
+        ->orderBy('employee.employee_lastName')
+        ->get();
+}
+
+$selectedPatientOption = $candidatePatientRows->first(function ($row) use ($declarationId, $employeeId, $surveillanceId) {
+    return ((int) ($row->declaration_id ?? 0) === $declarationId && $declarationId > 0)
+        || ((int) ($row->employee_id ?? 0) === $employeeId && $employeeId > 0)
+        || ((int) ($row->surveillance_id ?? 0) === $surveillanceId && $surveillanceId > 0);
+});
 
 $declaration = $declarationId > 0 && DB::getSchemaBuilder()->hasTable('declaration')
     ? DB::table('declaration')->where('declaration_id', $declarationId)->first()
@@ -29,6 +63,10 @@ $companyId = (int) ($declaration->company_id ?? $companyId);
 
 $employee = $employeeId > 0 ? DB::table('employee')->where('employee_id', $employeeId)->first() : null;
 $company = $companyId > 0 ? DB::table('company')->where('company_id', $companyId)->first() : null;
+$activeClinicId = (int) request()->session()->get('active_clinic_id', 0);
+$clinicRecord = $activeClinicId > 0 && DB::getSchemaBuilder()->hasTable('clinic')
+    ? DB::table('clinic')->where('clinic_id', $activeClinicId)->first()
+    : null;
 $chemical = $surveillanceId > 0 && DB::getSchemaBuilder()->hasTable('chemical_information')
     ? DB::table('chemical_information')->where('surveillance_id', $surveillanceId)->first()
     : null;
@@ -69,24 +107,91 @@ $showValue = static function ($value, string $fallback = '-'): string {
     return $value !== '' ? $value : $fallback;
 };
 
-$formatDate = static function ($value): string {
+$parseReportDate = static function ($value): ?Carbon {
+    $value = trim((string) ($value ?? ''));
+    if ($value === '') {
+        return null;
+    }
+
+    foreach (['Y-m-d', 'd/m/Y', 'd-m-Y'] as $format) {
+        try {
+            return Carbon::createFromFormat($format, $value);
+        } catch (\Throwable) {
+        }
+    }
+
+    try {
+        return Carbon::parse($value);
+    } catch (\Throwable) {
+        return null;
+    }
+};
+
+$formatDate = static function ($value) use ($parseReportDate): string {
     $value = trim((string) ($value ?? ''));
     if ($value === '') {
         return '-';
     }
-    try {
-        return Carbon::parse($value)->format('d/m/Y');
-    } catch (\Throwable) {
-        return $value;
+
+    $parsedDate = $parseReportDate($value);
+    return $parsedDate ? $parsedDate->format('d/m/Y') : $value;
+};
+$formatInputDate = static function ($value) use ($parseReportDate): string {
+    $value = trim((string) ($value ?? ''));
+    if ($value === '') {
+        return '';
     }
+
+    $parsedDate = $parseReportDate($value);
+    return $parsedDate ? $parsedDate->format('Y-m-d') : '';
+};
+$formatRoundedDuration = static function ($value, string $fallback = '-'): string {
+    $value = trim((string) ($value ?? ''));
+    if ($value === '') {
+        return $fallback;
+    }
+
+    if (is_numeric($value)) {
+        $numericValue = (float) $value;
+        $wholeMonths = (int) floor($numericValue);
+        $days = (int) round(($numericValue - $wholeMonths) * 30);
+
+        if ($days === 30) {
+            $wholeMonths++;
+            $days = 0;
+        }
+
+        $parts = [];
+        $parts[] = $wholeMonths . ' month' . ($wholeMonths === 1 ? '' : 's');
+        if ($days > 0) {
+            $parts[] = $days . ' day' . ($days === 1 ? '' : 's');
+        }
+
+        return implode(', ', $parts);
+    }
+
+    if (preg_match('/^\d+\.\d+\s*months?$/i', $value) === 1) {
+        return $formatRoundedDuration((string) preg_replace('/\s*months?$/i', '', $value), $fallback);
+    }
+
+    return $value;
 };
 
-$companyAddress = collect([
-    trim((string) ($company->company_address ?? '')),
+$companyAddressLineOne = trim((string) ($company->company_address ?? ''));
+$companyAddressLineTwo = collect([
     trim((string) ($company->company_postcode ?? '')),
     trim((string) ($company->company_district ?? '')),
-    trim((string) ($company->company_state ?? '')),
 ])->filter(static fn ($value) => $value !== '')->implode(', ');
+$companyAddressLineThree = collect([
+    trim((string) ($company->company_state ?? '')),
+    'Malaysia',
+])->filter(static fn ($value) => $value !== '')->implode(', ');
+$companyAddress = collect([
+    trim((string) ($company->company_name ?? '')),
+    $companyAddressLineOne,
+    $companyAddressLineTwo,
+    $companyAddressLineThree,
+])->filter(static fn ($value) => $value !== '')->implode("\n");
 
 $doctorName = trim((string) (($doctor->doctor_firstName ?? '') . ' ' . ($doctor->doctor_lastName ?? '')));
 $doctorName = $doctorName !== '' ? $doctorName : trim((string) ($doctor->doctor_username ?? 'Doctor'));
@@ -96,6 +201,14 @@ $doctorAddress = collect([
     trim((string) ($doctor->doctor_district ?? '')),
     trim((string) ($doctor->doctor_state ?? '')),
 ])->filter(static fn ($value) => $value !== '')->implode(', ');
+$clinicAddress = collect([
+    trim((string) ($clinicRecord->clinic_address ?? '')),
+    collect([
+        trim((string) ($clinicRecord->clinic_postcode ?? '')),
+        trim((string) ($clinicRecord->clinic_district ?? '')),
+    ])->filter(static fn ($value) => $value !== '')->implode(' '),
+    trim((string) ($clinicRecord->clinic_state ?? '')),
+])->filter(static fn ($value) => $value !== '')->implode(', ');
 
 $workerName = trim((string) (($employee->employee_firstName ?? '') . ' ' . ($employee->employee_lastName ?? '')));
 $identityNo = trim((string) (($employee->employee_NRIC ?? '') !== '' ? ($employee->employee_NRIC ?? '') : ($employee->employee_passportNo ?? '')));
@@ -104,14 +217,30 @@ $chemicalName = trim((string) ($chemical->chemicals ?? ''));
 $jobTitle = trim((string) ($occupationalCurrent->job_title ?? ''));
 $workUnit = trim((string) ($summary->name_of_workUnit ?? ''));
 $employmentDuration = trim((string) ($occupationalCurrent->employment_duration ?? ''));
+$employmentDurationDisplay = $formatRoundedDuration($employmentDuration, 'Not recorded');
 $reviewDateRaw = trim((string) ($recommendation->nextReview_date ?? $recommendation->MRPdate_end ?? ''));
 $doctorSignature = trim((string) ($doctor->doctor_sign ?? $declaration->doctor_signature ?? ''));
+$toSignatureDataUrl = static function ($value) {
+    $value = trim((string) ($value ?? ''));
+    if ($value === '') {
+        return '';
+    }
+    if (str_starts_with($value, 'data:image') || str_starts_with($value, 'http://') || str_starts_with($value, 'https://') || str_starts_with($value, '/')) {
+        return $value;
+    }
+
+    return function_exists('asset') ? asset($value) : $value;
+};
 $statusMessage = (string) session('status', '');
+$hasSelectedPatientRecord = $declarationId > 0 && $employeeId > 0 && $surveillanceId > 0;
 
 $startEmployment = '-';
 if ($employmentDuration !== '' && $examDateRaw !== '') {
     try {
-        $examDate = Carbon::parse($examDateRaw);
+        $examDate = $parseReportDate($examDateRaw);
+        if (! $examDate) {
+            throw new \RuntimeException('Unable to parse examination date.');
+        }
         if (preg_match('/(\d+)\s*year/i', $employmentDuration, $match) === 1) {
             $startEmployment = $examDate->copy()->subYears((int) $match[1])->format('d/m/Y');
         } elseif (preg_match('/(\d+)\s*month/i', $employmentDuration, $match) === 1) {
@@ -125,9 +254,20 @@ if ($employmentDuration !== '' && $examDateRaw !== '') {
 $mrpMonths = '-';
 if (! empty($recommendation->MRPdate_start) && ! empty($recommendation->MRPdate_end)) {
     try {
-        $mrpMonthsValue = Carbon::parse((string) $recommendation->MRPdate_start)
-            ->diffInMonths(Carbon::parse((string) $recommendation->MRPdate_end));
-        $mrpMonths = $mrpMonthsValue > 0 ? (string) $mrpMonthsValue : '0';
+        $mrpStartDate = $parseReportDate((string) $recommendation->MRPdate_start);
+        $mrpEndDate = $parseReportDate((string) $recommendation->MRPdate_end);
+        if (! $mrpStartDate || ! $mrpEndDate) {
+            throw new \RuntimeException('Unable to parse MRP dates.');
+        }
+        $totalDays = $mrpStartDate->diffInDays($mrpEndDate);
+        $wholeMonths = intdiv($totalDays, 30);
+        $remainingDays = $totalDays % 30;
+        $mrpDurationParts = [];
+        $mrpDurationParts[] = $wholeMonths . ' month' . ($wholeMonths === 1 ? '' : 's');
+        if ($remainingDays > 0) {
+            $mrpDurationParts[] = $remainingDays . ' day' . ($remainingDays === 1 ? '' : 's');
+        }
+        $mrpMonths = implode(', ', $mrpDurationParts);
     } catch (\Throwable) {
         $mrpMonths = '-';
     }
@@ -209,50 +349,202 @@ if ($otherReason !== '') {
 
 $removalType = trim((string) ($removal->removal_type ?? ''));
 $screenRemovalType = old('removal_type', $removalType);
+$allowedReasonKeys = [
+    'pregnancy',
+    'breastfeeding',
+    'abnormal_bm_bem',
+    'adverse_clinical_findings',
+    'target_organ_abnormality',
+    'other',
+];
+$removalReasonOptions = [
+    'pregnancy' => 'Pregnancy',
+    'breastfeeding' => 'Breastfeeding',
+    'abnormal_bm_bem' => 'Abnormal BM/BEM result',
+    'adverse_clinical_findings' => 'Adverse health effects based on clinical findings',
+    'target_organ_abnormality' => 'Target organ function test abnormality',
+    'other' => 'Specify others',
+];
+$storedRemovalReasonSelection = [];
+$storedRemovalReasonOther = '';
+if (! empty($removal->reasons_recommendations)) {
+    $decodedStoredReasons = json_decode((string) $removal->reasons_recommendations, true);
+    if (is_array($decodedStoredReasons)) {
+        $storedRemovalReasonSelection = array_values(array_filter(
+            array_map(static fn ($value) => trim((string) $value), (array) ($decodedStoredReasons['selected'] ?? [])),
+            static fn ($value) => $value !== '' && in_array($value, $allowedReasonKeys, true)
+        ));
+        $storedRemovalReasonOther = trim((string) ($decodedStoredReasons['other'] ?? ''));
+    }
+}
+$screenSelectedReasons = old('recommendation_reasons', $storedRemovalReasonSelection);
+$screenSelectedReasons = array_values(array_filter(
+    array_map(static fn ($value) => trim((string) $value), (array) $screenSelectedReasons),
+    static fn ($value) => $value !== '' && in_array($value, $allowedReasonKeys, true)
+));
+$screenReasonOther = old('recommendation_reason_other', $storedRemovalReasonOther);
+$storedRemovalIdentityNo = trim((string) ($removal->worker_identity_no ?? ''));
+$storedRemovalDateOfBirth = trim((string) ($removal->worker_date_of_birth ?? ''));
+$storedRemovalSex = trim((string) ($removal->worker_sex ?? ''));
+$storedRemovalCompanyAddress = trim((string) ($removal->company_name_address ?? ''));
+$storedRemovalEmploymentStartDate = trim((string) ($removal->employment_start_date ?? ''));
+$storedRemovalEmploymentDuration = trim((string) ($removal->employment_duration_text ?? ''));
+$storedRemovalHealthHazard = trim((string) ($removal->health_hazard_present ?? ''));
+$storedRemovalWorkUnitDepartment = trim((string) ($removal->work_unit_department ?? ''));
+$storedRemovalDoctorAddress = trim((string) ($removal->doctor_practice_address ?? ''));
+$storedRemovalDoctorEmail = trim((string) ($removal->doctor_email_address ?? ''));
+$storedRemovalDoctorTelephone = trim((string) ($removal->doctor_telephone ?? ''));
+$storedRemovalDoctorFax = trim((string) ($removal->doctor_fax ?? ''));
 
-$certificationSentence = sprintf(
-    'I certify that the above named person examined by me on %s should not continue to work as %s in %s%s for %s months, subject to a review on %s.',
-    $showValue($formatDate($examDateRaw)),
-    $showValue($jobTitle, 'the current assigned role'),
-    $showValue($company->company_name ?? null, 'the workplace'),
-    $workUnit !== '' ? ' (' . $workUnit . ')' : '',
-    $showValue($mrpMonths),
-    $showValue($formatDate($reviewDateRaw))
-);
-$alternativeSentence = sprintf(
-    'In the meantime, the worker should be given alternative work in another department or section which does not expose the worker to %s.',
-    $showValue($chemicalName, 'the identified chemical hazard')
-);
+$editableIdentityNo = old('worker_identity_no', $storedRemovalIdentityNo !== '' ? $storedRemovalIdentityNo : $identityNo);
+$editableDateOfBirth = old('worker_date_of_birth', $formatInputDate($storedRemovalDateOfBirth !== '' ? $storedRemovalDateOfBirth : (string) ($employee->employee_DOB ?? '')));
+$editableSex = old('worker_sex', $storedRemovalSex !== '' ? $storedRemovalSex : (string) ($employee->employee_gender ?? ''));
+$editableCompanyAddress = old('company_name_address', $storedRemovalCompanyAddress !== '' ? $storedRemovalCompanyAddress : $companyAddress);
+$editableEmploymentStartDate = old('employment_start_date', $formatInputDate($storedRemovalEmploymentStartDate !== '' ? $storedRemovalEmploymentStartDate : $startEmployment));
+$editableEmploymentDuration = old('employment_duration_text', $storedRemovalEmploymentDuration !== '' ? $storedRemovalEmploymentDuration : $employmentDurationDisplay);
+$editableHealthHazard = old('health_hazard_present', $storedRemovalHealthHazard !== '' ? $storedRemovalHealthHazard : $chemicalName);
+$editableWorkUnitDepartment = old('work_unit_department', $storedRemovalWorkUnitDepartment !== '' ? $storedRemovalWorkUnitDepartment : $workUnit);
+$editableDoctorAddress = old('doctor_practice_address', $storedRemovalDoctorAddress !== '' ? $storedRemovalDoctorAddress : $doctorAddress);
+$editableDoctorEmail = old('doctor_email_address', $storedRemovalDoctorEmail !== '' ? $storedRemovalDoctorEmail : (string) ($doctor->doctor_email ?? ''));
+$editableDoctorTelephone = old('doctor_telephone', $storedRemovalDoctorTelephone !== '' ? $storedRemovalDoctorTelephone : (string) ($doctor->doctor_telephone ?? ''));
+$editableDoctorFax = old('doctor_fax', $storedRemovalDoctorFax !== '' ? $storedRemovalDoctorFax : (string) ($doctor->doctor_fax ?? ''));
+$editableCompanyDisplayName = trim((string) preg_split('/\r\n|\r|\n/', $editableCompanyAddress)[0]);
+$editableCompanyAddressLines = array_values(array_filter(
+    array_map(static fn ($line) => trim((string) $line), preg_split('/\r\n|\r|\n/', $editableCompanyAddress) ?: []),
+    static fn ($line) => $line !== ''
+));
+$printCompanyName = $editableCompanyDisplayName !== '' ? $editableCompanyDisplayName : trim((string) ($company->company_name ?? ''));
+$fallbackCompanyAddress = collect([
+    trim((string) ($company->company_address ?? '')),
+    collect([
+        trim((string) ($company->company_postcode ?? '')),
+        trim((string) ($company->company_district ?? '')),
+    ])->filter(static fn ($value) => $value !== '')->implode(' '),
+    collect([
+        trim((string) ($company->company_state ?? '')),
+        'Malaysia',
+    ])->filter(static fn ($value) => $value !== '')->implode(', '),
+])->filter(static fn ($value) => $value !== '')->implode(', ');
+$printCompanyAddress = trim(implode(', ', array_slice($editableCompanyAddressLines, 1)));
+if ($printCompanyAddress === '') {
+    $printCompanyAddress = $fallbackCompanyAddress;
+}
+$doctorPracticeDate = Carbon::now()->format('d/m/Y');
+$fieldDisabled = $viewMode ? ' disabled' : '';
+$doctorSignatureSrc = $toSignatureDataUrl($doctorSignature);
+$printDoctorAddress = trim($editableDoctorAddress) !== '' ? $editableDoctorAddress : ($doctorAddress !== '' ? $doctorAddress : $clinicAddress);
+$printDoctorEmail = trim($editableDoctorEmail) !== '' ? $editableDoctorEmail : trim((string) (($doctor->doctor_email ?? '') !== '' ? $doctor->doctor_email : ($clinicRecord->clinic_email ?? '')));
+$printDoctorTelephone = trim($editableDoctorTelephone) !== '' ? $editableDoctorTelephone : trim((string) (($doctor->doctor_telephone ?? '') !== '' ? $doctor->doctor_telephone : ($clinicRecord->clinic_telephone ?? '')));
+$printDoctorFax = trim($editableDoctorFax) !== '' ? $editableDoctorFax : trim((string) (($doctor->doctor_fax ?? '') !== '' ? $doctor->doctor_fax : ($clinicRecord->clinic_fax ?? '')));
+$selectedReasonLabels = array_values(array_map(static fn ($key) => $removalReasonOptions[$key] ?? $key, $screenSelectedReasons));
+$selectedReasonLabels = array_values(array_filter($selectedReasonLabels, static fn ($value) => trim((string) $value) !== ''));
+
+if ($createMode && ! session()->hasOldInput() && $declarationId <= 0) {
+    $screenRemovalType = '';
+    $screenSelectedReasons = [];
+    $screenReasonOther = '';
+    $editableIdentityNo = '';
+    $editableDateOfBirth = '';
+    $editableSex = '';
+    $editableCompanyAddress = '';
+    $editableEmploymentStartDate = '';
+    $editableEmploymentDuration = '';
+    $editableHealthHazard = '';
+    $editableWorkUnitDepartment = '';
+    $editableDoctorAddress = '';
+    $editableDoctorEmail = '';
+    $editableDoctorTelephone = '';
+    $editableDoctorFax = '';
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>USECHH 5i Medical Removal Protection</title>
+<title><?php echo $esc('USECHH5i - ' . $showValue($workerName, 'Patient')); ?></title>
 </head>
 <body>
 <style>
-@page{size:A4 portrait;margin:8mm}
-body{margin:0;padding:18px;background:#fff;color:#0f172a;font-family:"Poppins","Segoe UI",Tahoma,Geneva,Verdana,sans-serif}
-.sheet{display:grid;gap:18px}
-.clinic-report-header{padding:0 0 8px}
-.clinic-report-header img{display:block;width:100%;max-width:100%;max-height:none;height:auto;object-fit:contain}
+@page{size:A4 portrait;margin:12mm 15mm}
+body{margin:0;padding:0;background:#fff;color:#111827;font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:1.4}
+.sheet{display:grid;gap:12px}
+.a4-page{width:100%;box-sizing:border-box}
+.avoid-break{break-inside:avoid;page-break-inside:avoid}
+.page-break{break-before:page;page-break-before:always}
+.no-print{display:block}
+.clinic-report-header{padding:0 0 14px;width:100%}
+.clinic-report-header img{display:block;width:100%;max-width:none;max-height:none;height:auto;object-fit:fill}
 .report-card{background:#fff;overflow:hidden}
-.report-head{padding:6px 0 14px;border-bottom:2px solid #dce8de}
+.report-head{padding:10px 0 24px;border-bottom:0}
 .report-head-top{position:relative;display:block;text-align:center}
 .report-code{position:absolute;right:0;top:0;font-size:14px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#0f172a}
 .report-head-act{font-size:14px;font-weight:700;line-height:1.35}
 .report-head-regulation{margin-top:4px;font-size:15px;font-weight:700;line-height:1.35}
-.report-title{margin:12px 0 0;text-align:center;font-size:18px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
-.section{padding:18px 0;border-top:1px solid #edf2ee}
+.report-title{margin:14px 0 0;text-align:center;font-size:20px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.section{padding:14px 0;border-top:1px solid #edf2ee}
 .section:first-of-type{border-top:0}
-.toggle-form{display:grid;gap:12px}
-.toggle-label{font-size:.82rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#6b7d71}
-.toggle-row{display:flex;gap:24px;flex-wrap:wrap}
-.toggle-chip{display:inline-flex;align-items:center;gap:10px;padding:0;border:0;background:transparent;font-weight:600}
-.toggle-chip input{margin:0}
-.toggle-chip.active{color:#0f172a}
+.section.print-only{border-top:0}
+.toggle-form{display:grid;gap:18px}
+.toggle-label{font-size:.8rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#64756b}
+.selector-shell{display:grid;gap:12px;padding:0}
+.selector-grid{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:end}
+.selector-field{display:grid;gap:8px}
+.selector-field label{font-size:.92rem;font-weight:600;color:#0f172a}
+.selector-select{display:block;width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:10px;padding:12px 14px;font:inherit;background:#fff;color:#0f172a}
+.selector-submit{display:inline-flex;align-items:center;justify-content:center;height:46px;padding:0 18px;border:1px solid #2f9e44;border-radius:10px;background:#2f9e44;color:#fff;font:inherit;font-weight:700;cursor:pointer}
+.selector-note{font-size:.88rem;line-height:1.65;color:#64756b}
+.editor-shell{display:grid;gap:16px}
+.digital-form{padding:0;display:grid;gap:22px}
+.digital-form-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:0}
+.digital-form-title{margin:0;font-size:22px;font-weight:700;letter-spacing:.02em;color:#0f172a}
+.section-divider{padding-top:8px}
+.protection-choice{display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap}
+.protection-radio{display:inline-flex;align-items:center;gap:10px;font-size:.95rem;font-weight:500;color:#1f2937;cursor:pointer}
+.protection-radio input[type="radio"]{width:18px;height:18px;accent-color:#389B5B;flex-shrink:0}
+.digital-panel{padding:0}
+.digital-panel-title{margin:0 0 12px;font-size:1rem;font-weight:700;color:#0f172a}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 18px}
+.form-grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.form-field{display:grid;gap:8px}
+.form-field.full{grid-column:1 / -1}
+.form-label{font-size:.92rem;font-weight:600;color:#0f172a}
+.form-value{display:block;width:100%;box-sizing:border-box;min-height:42px;padding:10px 14px;border:1px solid #d1d5db;border-radius:12px;background:#fff;font-size:.96rem;line-height:1.45;color:#0f172a}
+.form-value.multiline{min-height:72px;white-space:pre-line}
+.form-textarea{display:block;width:100%;box-sizing:border-box;min-height:88px;border:1px solid #d1d5db;border-radius:12px;padding:10px 14px;font:inherit;resize:vertical;background:#fff;color:#0f172a}
+.statement-copy{display:grid;gap:14px;font-size:1rem;line-height:1.8;color:#0f172a}
+.statement-copy p{margin:0}
+.statement-inline-input{display:inline-block;box-sizing:border-box;min-width:220px;max-width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:10px;background:#fff;font:inherit;color:#0f172a;vertical-align:middle}
+.statement-highlight{font-weight:600}
+.reason-title{font-size:15px;font-weight:600}
+.reason-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 24px}
+.reason-option{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid #dfe5ea;border-radius:14px;background:#fff}
+.reason-option input[type="checkbox"]{width:18px;height:18px;margin-top:2px;accent-color:#389B5B;flex-shrink:0}
+.reason-option span{font-size:.9rem;line-height:1.45;color:#1f2937}
+.print-layout{display:grid;gap:14px}
+.print-divider{height:1px;background:#355b66;margin:0}
+.print-info-grid{display:grid;gap:12px}
+.print-info-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px 42px}
+.print-line{display:grid;grid-template-columns:190px 14px minmax(0,1fr);align-items:start;gap:10px;font-size:11px;line-height:1.45}
+.print-line.full{grid-template-columns:190px 14px minmax(0,1fr)}
+.print-line-label{font-weight:700}
+.print-line-value{white-space:pre-line}
+.print-copy{display:grid;gap:10px;font-size:11px;line-height:1.55}
+.print-copy p{margin:0}
+.print-section-title{font-size:15px;font-weight:700;letter-spacing:0;color:#111827}
+.print-reasons-list{margin:0;padding-left:22px;font-size:11px;line-height:1.45}
+.print-reasons-list li{margin:0 0 2px}
+.print-signature-wrap{display:grid;justify-content:end;gap:8px;margin-top:2px}
+.print-signature-wrap img{max-width:170px;max-height:48px;object-fit:contain;justify-self:end}
+.print-meta{display:grid;gap:3px;justify-items:end;text-align:right;font-size:11px;line-height:1.35}
+.print-meta strong{font-weight:700}
+.print-note-bottom{margin-top:0;font-size:11px;line-height:1.35;color:#334155;text-align:center}
+.print-footer-block{display:grid;gap:16px}
+.print-note-footer{margin-top:auto;padding-top:10px}
+.print-section-spacer{height:10px}
+.signature-row{display:grid;grid-template-columns:1fr 220px;gap:36px;align-items:end;padding-top:18px}
+.signature-line{border-top:1.4px solid #334155;padding-top:6px;text-align:center;font-size:14px}
+.digital-note{font-size:12.5px;line-height:1.55;color:#334155;text-align:center}
 .detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 24px}
 .detail-line{display:grid;grid-template-columns:170px 1fr;gap:12px;align-items:start;padding:6px 0}
 .detail-line.full{grid-column:1 / -1}
@@ -274,20 +566,72 @@ body{margin:0;padding:18px;background:#fff;color:#0f172a;font-family:"Poppins","
 .meta-row strong{display:block;font-size:.8rem;letter-spacing:.04em;text-transform:uppercase;color:#6b7d71;margin-bottom:4px}
 .muted{color:#64756b}
 .flash{margin:0 0 8px;padding:10px 14px;border:1px solid #cfe7d4;border-radius:12px;background:#f3fbf4;color:#1f5f35;font-size:.9rem}
-.save-actions{display:flex;justify-content:flex-end}
+.save-actions{display:flex;justify-content:flex-end;padding-top:4px}
 .save-btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 18px;border:1px solid #2f9e44;border-radius:999px;background:#2f9e44;color:#fff;font:inherit;font-weight:700;cursor:pointer}
 .screen-only{display:block}
 .print-only{display:none}
+@media (max-width:900px){
+.selector-grid,
+.form-grid,.form-grid.three,.reason-grid,.signature-row{grid-template-columns:1fr}
+}
 @media print{
-body{padding:0;font-size:12px}
-.sheet{gap:8px}
-.clinic-report-header{padding-bottom:4px}
-.report-head{padding:2px 0 8px}
-.report-code{font-size:12px}
-.report-head-act{font-size:12px}
-.report-head-regulation{font-size:13px}
-.report-title{margin-top:8px;font-size:16px}
-.section{padding:8px 0}
+html,
+body{
+width:210mm;
+min-height:297mm;
+margin:0;
+padding:0;
+}
+body{
+background:#fff;
+font-family:Arial,Helvetica,sans-serif;
+font-size:11px;
+line-height:1.4;
+-webkit-print-color-adjust:exact;
+print-color-adjust:exact;
+}
+.sheet{gap:2px}
+.a4-page{
+width:100%;
+box-sizing:border-box;
+}
+.avoid-break{
+break-inside:avoid;
+page-break-inside:avoid;
+}
+.page-break{
+break-before:page;
+page-break-before:always;
+}
+.no-print{
+display:none!important;
+}
+.clinic-report-header{padding-bottom:18px;width:100%}
+.clinic-report-header img{display:block;width:100%;max-width:none;max-height:none;height:auto;object-fit:fill}
+.report-card{display:block;overflow:visible;break-inside:avoid}
+.report-head{padding:4px 0 22px;border-bottom:0}
+.report-code{font-size:11px}
+.report-head-act{font-size:11px;line-height:1.35}
+.report-head-regulation{margin-top:4px;font-size:11px;line-height:1.35}
+.report-title{margin-top:16px;font-size:22px}
+.section{padding:3px 0}
+.section.print-only{border-top:0}
+.print-layout{display:flex;flex-direction:column;min-height:232mm;gap:16px}
+.print-info-grid{gap:14px}
+.print-info-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px 42px}
+.print-line{grid-template-columns:150px 10px minmax(0,1fr);gap:8px;font-size:11px;line-height:1.42}
+.print-line.full{grid-template-columns:150px 10px minmax(0,1fr)}
+.print-copy{gap:10px;font-size:11px;line-height:1.45}
+.print-section-title{font-size:14px;color:#111827}
+.print-reasons-list{padding-left:22px;font-size:11px;line-height:1.4}
+.print-reasons-list li{margin:0 0 2px}
+.print-signature-wrap{gap:6px;margin-top:0}
+.print-signature-wrap img{max-width:170px;max-height:46px}
+.print-meta{gap:2px;font-size:11px;line-height:1.3}
+.print-footer-block{margin-top:16px;gap:12px;padding-top:0}
+.print-note-footer{margin-top:auto;padding-top:12px}
+.print-note-bottom{margin-top:0;font-size:11px;line-height:1.32}
+.print-section-spacer{height:10px}
 .detail-grid{gap:6px 16px}
 .detail-line{grid-template-columns:160px 1fr;gap:8px;padding:2px 0}
 .detail-label{font-size:.72rem}
@@ -299,12 +643,20 @@ body{padding:0;font-size:12px}
 .sign-box img{max-width:165px;max-height:48px;margin-bottom:6px}
 .meta-row{padding:2px 0}
 .meta-row strong{font-size:.72rem;margin-bottom:2px}
-.report-card{break-inside:avoid}
 .screen-only{display:none!important}
 .print-only{display:block}
+    table{width:100%;font-size:9px;border-collapse:collapse}
+    th{font-size:9px;font-weight:700}
 }
 </style>
-<div class="sheet">
+<?php if ($printMode): ?>
+<style>
+    .screen-only{display:none!important}
+    .print-only{display:block!important}
+    body{padding:0;background:#fff}
+</style>
+<?php endif; ?>
+<div class="sheet a4-page">
     <div class="print-only"><?php require __DIR__ . '/partials/clinic_header.php'; ?></div>
 
     <section class="report-card">
@@ -321,95 +673,267 @@ body{padding:0;font-size:12px}
             <div class="flash screen-only"><?php echo $esc($statusMessage); ?></div>
         <?php endif; ?>
 
-        <div class="section screen-only">
+        <div class="section screen-only no-print">
+            <?php if ($createMode || $candidatePatientRows->isNotEmpty()): ?>
+                <form id="usechh5iPatientSelectForm" method="get" action="<?php echo $esc(route('surveillance.report.removal')); ?>" style="display:none;">
+                    <input type="hidden" name="create_mode" value="1">
+                    <input type="hidden" name="company_id" value="<?php echo $esc((string) $companyId); ?>">
+                    <input type="hidden" name="folder_date" value="<?php echo $esc($folderDate); ?>">
+                    <input type="hidden" name="declaration_id" id="usechh5iDeclarationIdInput" value="<?php echo $esc((string) ($selectedPatientOption->declaration_id ?? '')); ?>">
+                </form>
+            <?php endif; ?>
+
             <form class="toggle-form" method="post" action="<?php echo $esc(route('surveillance.report.removal.save')); ?>">
                 <?php echo csrf_field(); ?>
                 <input type="hidden" name="declaration_id" value="<?php echo $esc((string) ($declaration->declaration_id ?? $declarationId)); ?>">
                 <input type="hidden" name="employee_id" value="<?php echo $esc((string) $employeeId); ?>">
                 <input type="hidden" name="company_id" value="<?php echo $esc((string) $companyId); ?>">
                 <input type="hidden" name="surveillance_id" value="<?php echo $esc((string) $surveillanceId); ?>">
-                <div class="toggle-label">Removal Type</div>
-                <div class="toggle-row">
-                    <label class="toggle-chip<?php echo $screenRemovalType === 'Temporary' ? ' active' : ''; ?>">
-                        <input type="radio" name="removal_type" value="Temporary" <?php echo $screenRemovalType === 'Temporary' ? 'checked' : ''; ?>>
-                        <span>Temporary</span>
-                    </label>
-                    <label class="toggle-chip<?php echo $screenRemovalType === 'Permanent' ? ' active' : ''; ?>">
-                        <input type="radio" name="removal_type" value="Permanent" <?php echo $screenRemovalType === 'Permanent' ? 'checked' : ''; ?>>
-                        <span>Permanent</span>
-                    </label>
-                </div>
-                <div class="save-actions">
-                    <button class="save-btn" type="submit">Save Removal Type</button>
+                <div class="editor-shell">
+                    <div class="digital-form">
+                        <div class="digital-form-head">
+                            <div class="digital-form-title">Medical Removal Protection</div>
+                        </div>
+
+                        <div class="digital-panel">
+                            <h3 class="digital-panel-title">Removal Protection Type</h3>
+                            <div class="protection-choice">
+                                <label class="protection-radio">
+                                    <input type="radio" name="removal_type" value="Temporary" <?php echo $screenRemovalType === 'Temporary' ? 'checked' : ''; ?><?php echo $fieldDisabled; ?>>
+                                    <span>Temporary</span>
+                                </label>
+                                <label class="protection-radio">
+                                    <input type="radio" name="removal_type" value="Permanent" <?php echo $screenRemovalType === 'Permanent' ? 'checked' : ''; ?><?php echo $fieldDisabled; ?>>
+                                    <span>Permanent</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="digital-panel section-divider">
+                            <h3 class="digital-panel-title">Patient and Workplace Details</h3>
+                            <div class="form-grid">
+                                <div class="form-field">
+                                    <div class="form-label">Patient Name</div>
+                                    <?php if ($createMode || $candidatePatientRows->isNotEmpty()): ?>
+                                        <select class="selector-select" id="usechh5iPatientSelect"<?php echo $fieldDisabled; ?>>
+                                            <option value="">Select patient name</option>
+                                            <?php foreach ($candidatePatientRows as $candidatePatientRow): ?>
+                                                <?php
+                                                $candidateName = trim((string) (($candidatePatientRow->employee_firstName ?? '') . ' ' . ($candidatePatientRow->employee_lastName ?? '')));
+                                                $candidateSelected = (int) ($candidatePatientRow->declaration_id ?? 0) === (int) ($selectedPatientOption->declaration_id ?? 0);
+                                                ?>
+                                                <option value="<?php echo $esc((string) ($candidatePatientRow->declaration_id ?? '')); ?>"<?php echo $candidateSelected ? ' selected' : ''; ?>>
+                                                    <?php echo $esc($candidateName); ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    <?php else: ?>
+                                        <div class="form-value"><?php echo $esc($showValue($workerName)); ?></div>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="form-field">
+                                    <div class="form-label">NRIC / Passport No.</div>
+                                    <input class="selector-select" type="text" name="worker_identity_no" value="<?php echo $esc($editableIdentityNo); ?>" placeholder="Enter NRIC / passport no."<?php echo $fieldDisabled; ?>>
+                                </div>
+                                <div class="form-field">
+                                    <div class="form-label">Date of Birth</div>
+                                    <input class="selector-select" type="date" name="worker_date_of_birth" value="<?php echo $esc($editableDateOfBirth); ?>"<?php echo $fieldDisabled; ?>>
+                                </div>
+                                <div class="form-field">
+                                    <div class="form-label">Sex</div>
+                                    <input class="selector-select" type="text" name="worker_sex" value="<?php echo $esc($editableSex); ?>" placeholder="Enter sex"<?php echo $fieldDisabled; ?>>
+                                </div>
+                                <div class="form-field full">
+                                    <div class="form-label">Company Name and Address</div>
+                                    <textarea class="form-textarea" name="company_name_address" placeholder="Enter company name and full address"<?php echo $fieldDisabled; ?>><?php echo $esc($editableCompanyAddress); ?></textarea>
+                                </div>
+                                <div class="form-field">
+                                    <div class="form-label">Date of Starting Employment</div>
+                                    <input class="selector-select" type="date" name="employment_start_date" value="<?php echo $esc($editableEmploymentStartDate); ?>"<?php echo $fieldDisabled; ?>>
+                                </div>
+                                <div class="form-field">
+                                    <div class="form-label">Duration of Employment</div>
+                                    <input class="selector-select" type="text" name="employment_duration_text" value="<?php echo $esc($editableEmploymentDuration); ?>" placeholder="Enter duration of employment"<?php echo $fieldDisabled; ?>>
+                                </div>
+                                <div class="form-field full">
+                                    <div class="form-label">Health Hazard Present</div>
+                                    <textarea class="form-textarea" name="health_hazard_present" placeholder="Enter health hazard present"<?php echo $fieldDisabled; ?>><?php echo $esc($editableHealthHazard); ?></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="digital-panel section-divider">
+                            <h3 class="digital-panel-title">Medical Removal Statement</h3>
+                            <div class="statement-copy">
+                                <p>
+                                    I certify that the above named person examined by me on
+                                    <span class="statement-highlight"><?php echo $esc($showValue($formatDate($examDateRaw))); ?></span>
+                                    should not continue to work as
+                                    <span class="statement-highlight"><?php echo $esc($showValue($jobTitle, 'the current assigned role')); ?></span>
+                                    in
+                                    <input class="statement-inline-input" type="text" name="work_unit_department" value="<?php echo $esc($editableWorkUnitDepartment); ?>" placeholder="Enter work unit / department"<?php echo $fieldDisabled; ?>>
+                                    for
+                                    <span class="statement-highlight"><?php echo $esc($showValue($mrpMonths)); ?></span>,
+                                    subject to a review on
+                                    <span class="statement-highlight"><?php echo $esc($showValue($formatDate($reviewDateRaw))); ?></span>.
+                                </p>
+                                <p>
+                                    In the meantime, the worker should be given alternative work in another department or section which does not expose the worker to
+                                    <span class="statement-highlight"><?php echo $esc($showValue($editableHealthHazard, 'the identified chemical hazard')); ?></span>.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="digital-panel section-divider">
+                            <div class="reason-title">The reasons for my recommendations are as follows (Please tick):</div>
+                            <div class="reason-grid" style="margin-top:12px;">
+                                <?php foreach ($removalReasonOptions as $reasonKey => $reasonLabel): ?>
+                                    <label class="reason-option">
+                                        <input type="checkbox" name="recommendation_reasons[]" value="<?php echo $esc($reasonKey); ?>"<?php echo in_array($reasonKey, $screenSelectedReasons, true) ? ' checked' : ''; ?><?php echo $fieldDisabled; ?>>
+                                        <span><?php echo $esc($reasonLabel); ?></span>
+                                    </label>
+                                <?php endforeach; ?>
+                            </div>
+
+                            <div style="margin-top:14px;">
+                                <div class="form-label" style="margin-bottom:8px;">Specify others</div>
+                                <textarea class="form-textarea" name="recommendation_reason_other" placeholder="Insert other recommendation reason here..."<?php echo $fieldDisabled; ?>><?php echo $esc($screenReasonOther); ?></textarea>
+                            </div>
+                        </div>
+
+                        <div class="digital-panel section-divider">
+                            <h3 class="digital-panel-title">Occupational Health Doctor Details</h3>
+                            <div class="form-grid three">
+                                <div class="form-field full">
+                                    <div class="form-label">Name of OHD</div>
+                                    <div class="form-value"><?php echo $esc($doctorName); ?></div>
+                                </div>
+                                <div class="form-field full">
+                                    <div class="form-label">Address of Practice</div>
+                                    <textarea class="form-textarea" name="doctor_practice_address" placeholder="Enter address of practice"<?php echo $fieldDisabled; ?>><?php echo $esc($editableDoctorAddress); ?></textarea>
+                                </div>
+                                <div class="form-field">
+                                    <div class="form-label">Email Address</div>
+                                    <input class="selector-select" type="text" name="doctor_email_address" value="<?php echo $esc($editableDoctorEmail); ?>" placeholder="Enter email address"<?php echo $fieldDisabled; ?>>
+                                </div>
+                                <div class="form-field">
+                                    <div class="form-label">Telephone</div>
+                                    <input class="selector-select" type="text" name="doctor_telephone" value="<?php echo $esc($editableDoctorTelephone); ?>" placeholder="Enter telephone"<?php echo $fieldDisabled; ?>>
+                                </div>
+                                <div class="form-field">
+                                    <div class="form-label">Fax</div>
+                                    <input class="selector-select" type="text" name="doctor_fax" value="<?php echo $esc($editableDoctorFax); ?>" placeholder="Enter fax"<?php echo $fieldDisabled; ?>>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <?php if (! $viewMode): ?>
+                        <div class="save-actions">
+                            <button class="save-btn" type="submit" <?php echo $hasSelectedPatientRecord ? '' : 'disabled style="opacity:.55;cursor:not-allowed;"'; ?>>Save USECHH 5i</button>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </form>
         </div>
 
-        <div class="section">
-            <div class="detail-grid">
-                <div class="detail-line"><div class="detail-label">Removal Type</div><div class="detail-value"><?php echo $esc($showValue($removalType, 'Not selected')); ?></div></div>
-                <div class="detail-line"><div class="detail-label">Examination Date</div><div class="detail-value"><?php echo $esc($formatDate($examDateRaw)); ?></div></div>
-                <div class="detail-line"><div class="detail-label">Name of Worker</div><div class="detail-value"><?php echo $esc($showValue($workerName)); ?></div></div>
-                <div class="detail-line"><div class="detail-label">NRIC / Passport No.</div><div class="detail-value"><?php echo $esc($showValue($identityNo)); ?></div></div>
-                <div class="detail-line"><div class="detail-label">Date of Birth</div><div class="detail-value"><?php echo $esc($formatDate((string) ($employee->employee_DOB ?? ''))); ?></div></div>
-                <div class="detail-line"><div class="detail-label">Sex</div><div class="detail-value"><?php echo $esc($showValue($employee->employee_gender ?? null)); ?></div></div>
-                <div class="detail-line full"><div class="detail-label">Name and Address of Workplace</div><div class="detail-value"><?php echo $esc($showValue($company->company_name ?? null) . ($companyAddress !== '' ? ', ' . $companyAddress : '')); ?></div></div>
-                <div class="detail-line"><div class="detail-label">Date of Starting Employment</div><div class="detail-value"><?php echo $esc($startEmployment); ?></div></div>
-                <div class="detail-line"><div class="detail-label">Duration of Employment</div><div class="detail-value"><?php echo $esc($showValue($employmentDuration, 'Not recorded')); ?></div></div>
-                <div class="detail-line full"><div class="detail-label">Health Hazard Present</div><div class="detail-value"><?php echo $esc($showValue($chemicalName, 'Not recorded')); ?></div></div>
-            </div>
-        </div>
-
-        <div class="section">
-            <div class="narrative"><?php echo $esc($certificationSentence); ?></div>
-            <div class="narrative" style="margin-top:12px;"><?php echo $esc($alternativeSentence); ?></div>
-        </div>
-
-        <div class="section">
-            <div class="detail-line full">
-                <div class="detail-label">Reasons for Recommendation</div>
-                <div class="detail-value" style="width:100%;">
-                    <table class="reason-table">
-                        <tbody>
-                            <?php foreach ($recommendationReasons as $reason): ?>
-                                <tr>
-                                    <td><?php echo $esc($reason['label']); ?></td>
-                                    <td class="reason-status">Yes</td>
-                                    <td><?php echo $esc($reason['detail']); ?></td>
-                                </tr>
-                            <?php endforeach; ?>
-                            <?php if ($recommendationReasons === []): ?>
-                                <tr>
-                                    <td>No abnormal recommendation trigger recorded</td>
-                                    <td class="reason-status no">No</td>
-                                    <td>Review the examination record if a manual follow-up note is required.</td>
-                                </tr>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <div class="section print-only">
-            <div class="signature-section">
-                <div class="signature-stack">
-                    <div class="sign-box">
-                        <?php if ($doctorSignature !== ''): ?>
-                            <img src="<?php echo $esc($doctorSignature); ?>" alt="Doctor signature">
-                        <?php endif; ?>
+        <div class="section print-only avoid-break">
+            <div class="print-layout">
+                <div class="print-info-grid">
+                    <div class="print-info-row">
+                        <div class="print-line"><div class="print-line-label">Patient Name</div><div>:</div><div class="print-line-value"><?php echo $esc($showValue($workerName)); ?></div></div>
+                        <div class="print-line"><div class="print-line-label">NRIC / Passport No.</div><div>:</div><div class="print-line-value"><?php echo $esc($showValue($editableIdentityNo)); ?></div></div>
                     </div>
-                    <div class="doctor-meta">
-                        <div class="meta-row"><strong>Name of OHD</strong><?php echo $esc($doctorName); ?></div>
-                        <div class="meta-row"><strong>OHD Signature Date</strong><?php echo $esc($formatDate((string) ($declaration->doctor_date ?? $examDateRaw))); ?></div>
-                        <div class="meta-row"><strong>Address of Practice</strong><?php echo $esc($showValue($doctorAddress, '-')); ?></div>
-                        <div class="meta-row"><strong>Telephone</strong><?php echo $esc($showValue($doctor->doctor_telephone ?? null)); ?></div>
-                        <div class="meta-row"><strong>Email</strong><?php echo $esc($showValue($doctor->doctor_email ?? null)); ?></div>
+                    <div class="print-info-row">
+                        <div class="print-line"><div class="print-line-label">Date of Birth</div><div>:</div><div class="print-line-value"><?php echo $esc($showValue($editableDateOfBirth !== '' ? $formatDate($editableDateOfBirth) : '')); ?></div></div>
+                        <div class="print-line"><div class="print-line-label">Sex</div><div>:</div><div class="print-line-value"><?php echo $esc($showValue($editableSex)); ?></div></div>
+                    </div>
+                    <div class="print-line full"><div class="print-line-label">Company Name</div><div>:</div><div class="print-line-value"><?php echo $esc($showValue($printCompanyName)); ?></div></div>
+                    <div class="print-line full"><div class="print-line-label">Address</div><div>:</div><div class="print-line-value"><?php echo $esc($showValue($printCompanyAddress)); ?></div></div>
+                    <div class="print-info-row">
+                        <div class="print-line"><div class="print-line-label">Date of Starting Employment</div><div>:</div><div class="print-line-value"><?php echo $esc($showValue($editableEmploymentStartDate !== '' ? $formatDate($editableEmploymentStartDate) : '')); ?></div></div>
+                        <div class="print-line"><div class="print-line-label">Duration of Employment</div><div>:</div><div class="print-line-value"><?php echo $esc($showValue($editableEmploymentDuration)); ?></div></div>
+                    </div>
+                    <div class="print-info-row">
+                        <div class="print-line"><div class="print-line-label">Health Hazard Present</div><div>:</div><div class="print-line-value"><?php echo $esc($showValue($editableHealthHazard)); ?></div></div>
+                        <div class="print-line"><div class="print-line-label">Removal Protection Type</div><div>:</div><div class="print-line-value"><?php echo $esc($showValue($screenRemovalType)); ?></div></div>
+                    </div>
+                </div>
+                <div class="print-section-spacer"></div>
+                <div class="print-copy">
+                    <p>
+                        I certify that the above named person examined by me on
+                        <strong><?php echo $esc($showValue($formatDate($examDateRaw))); ?></strong>
+                        should not continue to work as
+                        <strong><?php echo $esc($showValue($jobTitle, 'the current assigned role')); ?></strong>
+                        in
+                        <strong><?php echo $esc($showValue($editableWorkUnitDepartment)); ?></strong>
+                        for
+                        <strong><?php echo $esc($showValue($mrpMonths)); ?></strong>,
+                        subject to a review on
+                        <strong><?php echo $esc($showValue($formatDate($reviewDateRaw))); ?></strong>.
+                    </p>
+                    <p>
+                        In the meantime, the worker should be given alternative work in another department or section which does not expose the worker to
+                        <strong><?php echo $esc($showValue($editableHealthHazard, 'the identified chemical hazard')); ?></strong>.
+                    </p>
+                </div>
+                <div class="print-section-spacer"></div>
+                <div class="print-section-title">Reasons for Medical Removal</div>
+                <ul class="print-reasons-list">
+                    <?php foreach ($selectedReasonLabels as $selectedReasonLabel): ?>
+                        <li><?php echo $esc($selectedReasonLabel); ?></li>
+                    <?php endforeach; ?>
+                    <?php if (trim($screenReasonOther) !== ''): ?>
+                        <li><?php echo $esc($screenReasonOther); ?></li>
+                    <?php endif; ?>
+                </ul>
+                <div class="print-footer-block">
+                    <div class="print-signature-wrap">
+                        <?php if ($doctorSignatureSrc !== ''): ?>
+                            <img src="<?php echo $esc($doctorSignatureSrc); ?>" alt="Doctor signature">
+                        <?php endif; ?>
+                        <div class="print-meta">
+                            <div><strong>Name of OHD</strong> <?php echo $esc($doctorName); ?></div>
+                            <div><strong>OHD Signature Date</strong> <?php echo $esc($doctorPracticeDate); ?></div>
+                            <div><strong>Address of Practice</strong> <?php echo $esc($showValue($printDoctorAddress, '-')); ?></div>
+                            <div><strong>Telephone</strong> <?php echo $esc($showValue($printDoctorTelephone)); ?></div>
+                            <div><strong>Email</strong> <?php echo $esc($showValue($printDoctorEmail)); ?></div>
+                            <div><strong>Fax</strong> <?php echo $esc($showValue($printDoctorFax)); ?></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="print-note-footer">
+                    <div class="print-note-bottom">
+                        Note: This certificate should be completed in triplicate and the original copy forwarded to the director General, department of Occupational Safety and Health. Putrajaya and must include the actual results of the relevant examination/tests. The quantitative results (e.g. blood lead) the exact Diagrams and measurements units must be clearly stated. Also include a copy of qualitative results (e.g Chest X-ray). Incomplete form will not be accepted.
                     </div>
                 </div>
             </div>
         </div>
     </section>
 </div>
+<?php if (($createMode || $candidatePatientRows->isNotEmpty()) && ! $viewMode): ?>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var patientSelect = document.getElementById('usechh5iPatientSelect');
+    var declarationInput = document.getElementById('usechh5iDeclarationIdInput');
+    var patientForm = document.getElementById('usechh5iPatientSelectForm');
+    if (!patientSelect || !declarationInput || !patientForm) {
+        return;
+    }
+    patientSelect.addEventListener('change', function () {
+        declarationInput.value = patientSelect.value || '';
+        patientForm.submit();
+    });
+});
+</script>
+<?php endif; ?>
+<?php if ($printMode): ?>
+<script>
+window.addEventListener('load', function () {
+    window.print();
+});
+</script>
+<?php endif; ?>
 </body>
 </html>
