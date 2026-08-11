@@ -302,6 +302,93 @@ class PanelController extends Controller
         }
     }
 
+    public function downloadUsechh4Pdf(Request $request)
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        if ($this->isInAdminMode($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($this->requiresClinicSelection($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        $declarationId = (int) $request->query('declaration_id', 0);
+        $employeeId = (int) $request->query('employee_id', 0);
+        $companyId = (int) $request->query('company_id', 0);
+        $surveillanceId = (int) $request->query('surveillance_id', 0);
+
+        $declaration = null;
+        if ($declarationId > 0 && Schema::hasTable('declaration')) {
+            $declaration = DB::table('declaration')->where('declaration_id', $declarationId)->first();
+        }
+        if (! $declaration && Schema::hasTable('declaration')) {
+            $declarationQuery = DB::table('declaration');
+            if ($employeeId > 0) {
+                $declarationQuery->where('employee_id', $employeeId);
+            }
+            if ($companyId > 0) {
+                $declarationQuery->where('company_id', $companyId);
+            }
+            if ($surveillanceId > 0) {
+                $declarationQuery->where('surveillance_id', $surveillanceId);
+            }
+            $declaration = $declarationQuery->orderByDesc('declaration_id')->first();
+        }
+
+        $employeeId = (int) ($declaration->employee_id ?? $employeeId);
+        $companyId = (int) ($declaration->company_id ?? $companyId);
+        $surveillanceId = (int) ($declaration->surveillance_id ?? $surveillanceId);
+        $declarationId = (int) ($declaration->declaration_id ?? $declarationId);
+
+        $company = $companyId > 0 && Schema::hasTable('company')
+            ? DB::table('company')->where('company_id', $companyId)->first()
+            : null;
+        $summaryReport = $surveillanceId > 0 && Schema::hasTable('summary_report')
+            ? DB::table('summary_report')->where('surveillance_id', $surveillanceId)->first()
+            : null;
+
+        $chemicalName = trim((string) ($summaryReport->chemical_name ?? 'USECHH4'));
+        $safeChemicalName = trim(preg_replace('/[\\\\\\/:*?"<>|]+/', '', $chemicalName)) ?: 'USECHH4';
+        $safeChemicalName = preg_replace('/\s+/', ' ', $safeChemicalName ?? '');
+        $filename = 'USECHH4 - ' . trim((string) $safeChemicalName) . '.pdf';
+
+        $viewData = $this->buildViewData($request, $user);
+        $viewData['pdfDownloadMode'] = true;
+        $clinicHeaderPath = trim((string) ($viewData['activeClinic']->clinic_header_path ?? ''));
+        if ($clinicHeaderPath !== '') {
+            $localClinicHeaderPath = public_path(ltrim($clinicHeaderPath, '/\\'));
+            if (is_file($localClinicHeaderPath)) {
+                $viewData['clinicHeaderUrl'] = $localClinicHeaderPath;
+                $viewData['clinicLogoUrl'] = $localClinicHeaderPath;
+            }
+        }
+
+        $queryBag = $request->query;
+        $originalQuery = $queryBag->all();
+        $queryBag->add(array_filter([
+            'declaration_id' => $declarationId,
+            'employee_id' => $employeeId,
+            'company_id' => $companyId,
+            'surveillance_id' => $surveillanceId,
+        ], static fn ($value) => (int) $value > 0));
+        $queryBag->set('view', '1');
+        $queryBag->set('print', '1');
+
+        try {
+            return Pdf::loadView('report.surveillance_summaryReport', $viewData)
+                ->setOption(['isRemoteEnabled' => true, 'isHtml5ParserEnabled' => true])
+                ->setPaper('a4', 'portrait')
+                ->download($filename);
+        } finally {
+            $queryBag->replace($originalQuery);
+        }
+    }
+
     public function downloadUsechh5iiPdf(Request $request)
     {
         $user = $this->requirePanelUser($request);
