@@ -35,43 +35,41 @@ medis_render_navigation_start([
 ]);
 ?>
 <style>
-    .content{padding:4px 6px;overflow:auto;min-height:0;margin-top:0;border:0;background:transparent;border-radius:0}
+    .content{padding:4px 6px;overflow:hidden;min-height:0;margin-top:0;border:0;background:transparent;border-radius:0}
     .head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
     .head h2{margin:0 0 12px;font-size:1.8rem}
     .head p{margin:6px 0 0;color:#6b7280}
     .top-actions{display:flex;gap:10px;flex-wrap:wrap}
-    .btn,.next,.page-btn{display:inline-flex;align-items:center;gap:8px;text-decoration:none;border:1px solid #d1d5db;border-radius:12px;padding:10px 14px;background:#fff;color:#374151}
+    .btn,.next,.page-btn{display:inline-flex;align-items:center;gap:8px;text-decoration:none;border:1px solid #d1d5db;border-radius:10px;padding:8px 12px;background:#fff;color:#374151}
     .next{background:#389B5B;border-color:#389B5B;color:#fff}
-    .toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:18px}
-    .toolbar input{border:1px solid #d1d5db;border-radius:12px;padding:10px 12px;min-width:280px}
-    .table-wrap{margin-top:14px;flex:1;min-height:0;display:flex;align-items:flex-start}
+    .toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:18px;padding:10px 18px;border-top:1px solid #edf0f2;border-bottom:1px solid #edf0f2}
+    .toolbar input{border:1px solid #d1d5db;border-radius:10px;padding:9px 12px;min-width:280px}
+    .table-wrap{margin-top:0;flex:1;min-height:0;display:flex;align-items:flex-start;overflow:auto}
     .table{width:100%;border-collapse:collapse}
-    .table th,.table td{padding:14px 10px;text-align:left;border-top:0}
-    .table th{font-size:.8rem;color:#6b7280;text-transform:uppercase;letter-spacing:.05em}
-    .table thead tr{border-top:1px solid #edf0f2;border-bottom:1px solid #edf0f2}
+    .table th,.table td{padding:10px 18px;text-align:left;border-top:1px solid #edf0f2;vertical-align:middle}
+    .table th{font-size:.78rem;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;background:#fafafa}
     .table-name-link{color:#0f172a;text-decoration:none;font-weight:600}
     .table-name-link:hover{color:#389B5B;text-decoration:underline}
-    .filler-row td{height:56px;color:transparent;user-select:none}
+    .filler-row td{height:42px;color:transparent;user-select:none}
     .empty{padding:22px 10px;color:#6b7280;text-align:center}
     .action-icons{display:flex;gap:10px}
     .icon-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8}
     .icon-btn{color:#111827}
     .icon-btn.delete{color:#ef4444}
-    .bottom{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:18px}
-    .pager{color:#6b7280;font-size:.84rem}
-    .pager-group{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-    .page-btn{cursor:pointer;padding:8px 12px}
+    .bottom{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-top:auto;padding:8px 18px;border-top:1px solid #edf0f2;background:#fff}
+    .pager{color:#6b7280;font-size:.78rem}
+    .pager-group{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+    .page-btn{align-items:center;justify-content:center;min-width:32px;height:32px;cursor:pointer;padding:0 10px;border-color:#d6e4d9;background:#f7fbf8;color:#2f4b36;font-weight:600;font-size:.82rem}
     .page-btn[disabled]{opacity:.45;cursor:not-allowed}
     .page-btn.is-active{background:#389B5B;border-color:#389B5B;color:#fff}
-    .page-numbers{display:flex;gap:8px;flex-wrap:wrap}
+    .page-numbers{display:flex;gap:6px;flex-wrap:wrap}
     @media(max-width:1100px){.stepper{padding:14px}.step-list{grid-template-columns:repeat(3,minmax(0,1fr))}.step-label{max-width:none}}
 </style>
 <style>
     .flow{height:calc(100dvh - 204px);min-height:calc(100dvh - 204px);display:flex}
     .content{margin-top:0;overflow:hidden;height:100%;width:100%;display:flex;flex-direction:column}
-    .bottom{margin-top:auto;padding-top:18px}
     @media(max-width:1180px){.flow{height:auto;min-height:auto}.content{height:auto;min-height:auto}}
-    @media(max-width:760px){.content{padding:0}}
+    @media(max-width:760px){.content{padding:0}.toolbar input{min-width:100%}.bottom{align-items:flex-start;flex-direction:column}}
 </style>
 
 <div class="flow">
