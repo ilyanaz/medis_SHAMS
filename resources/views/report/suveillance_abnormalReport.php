@@ -720,8 +720,8 @@ body {
         </tbody>
     </table>
 
-    <div class="pdf-note">
-        Prepared by <?php echo $esc($doctorName !== '' ? $doctorName : 'Occupational Health Doctor'); ?>. This USECHH 5ii report is grouped by chemical name and examination date based on patients with saved USECHH 5i records.
+    <div class="pdf-note" style="text-align:center;">
+        Submit this form together with USECHH 4 form within 30 days of completion of the medical surveillance to The Director General, Department of Occupational Safety and Health, Putrajaya. This form can be downloaded from http://www.dosh.gov.my Continue in separate sheet if required.
     </div>
 </div>
 </body>
