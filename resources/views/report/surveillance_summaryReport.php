@@ -49,6 +49,19 @@ $selectedCandidate = $candidateRows->first(function ($row) use ($declarationId, 
         || ((int) ($row->surveillance_id ?? 0) === $surveillanceId && $surveillanceId > 0);
 });
 
+$shouldAutoSelectFirstCandidate = ! $selectedCandidate
+    && ! request()->session()->hasOldInput()
+    && ($createMode || $declarationId <= 0)
+    && $candidateRows->isNotEmpty();
+
+if ($shouldAutoSelectFirstCandidate) {
+    $selectedCandidate = $candidateRows->first();
+    $declarationId = (int) ($selectedCandidate->declaration_id ?? 0);
+    $employeeId = (int) ($selectedCandidate->employee_id ?? 0);
+    $companyId = (int) ($selectedCandidate->company_id ?? $companyId);
+    $surveillanceId = (int) ($selectedCandidate->surveillance_id ?? 0);
+}
+
 $isFreshCreate = $createMode && ! $selectedCandidate && ! request()->session()->hasOldInput();
 
 $declaration = $declarationId > 0 && DB::getSchemaBuilder()->hasTable('declaration')
