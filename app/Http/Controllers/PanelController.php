@@ -3192,6 +3192,10 @@ class PanelController extends Controller
             + (int) ($validated['no_ofWorkersRecommended_J'] ?? ($record->no_ofWorkersRecommended_J ?? 0))
             + (int) ($validated['no_ofWorkersRecommended_K'] ?? ($record->no_ofWorkersRecommended_K ?? 0));
 
+        $normalizedDecision = $this->normalizeSummaryReportDecision(
+            trim((string) ($validated['decision'] ?? ($record->decision ?? '')))
+        );
+
         $payload = [
             'employee_id' => $employeeId ?? ($record->employee_id ?? null),
             'company_id' => $companyId ?? ($record->company_id ?? null),
@@ -3223,7 +3227,7 @@ class PanelController extends Controller
             'specify_K' => trim((string) ($validated['specify_K'] ?? ($record->specify_K ?? ''))),
             'totalNo_MRP' => $validated['totalNo_MRP'] ?? $recommendedTotal,
             'recommendation' => trim((string) ($validated['recommendation'] ?? ($record->recommendation ?? ''))),
-            'decision' => trim((string) ($validated['decision'] ?? ($record->decision ?? ''))),
+            'decision' => $normalizedDecision,
             'justification_decision' => trim((string) ($validated['justification_decision'] ?? ($record->justification_decision ?? ''))),
             'date_of_implementation' => $validated['date_of_implementation'] ?? ($record->date_of_implementation ?? null),
         ];
@@ -5713,6 +5717,52 @@ class PanelController extends Controller
     {
         $value = trim((string) ($value ?? ''));
         return $value !== '' ? $value : null;
+    }
+
+    protected function normalizeSummaryReportDecision(?string $decision): ?string
+    {
+        $decision = trim((string) ($decision ?? ''));
+        if ($decision === '') {
+            return null;
+        }
+
+        $allowedValues = [];
+
+        try {
+            $column = DB::selectOne("SHOW COLUMNS FROM `summary_report` LIKE 'decision'");
+            $type = (string) ($column->Type ?? '');
+            if (preg_match("/^enum\\((.*)\\)$/i", $type, $matches) === 1) {
+                $allowedValues = str_getcsv($matches[1], ',', "'");
+            }
+        } catch (\Throwable $exception) {
+            $allowedValues = [];
+        }
+
+        if ($allowedValues === []) {
+            $allowedValues = ['Continue MS', 'Stop MS'];
+        }
+
+        foreach ($allowedValues as $allowedValue) {
+            if (strcasecmp($decision, (string) $allowedValue) === 0) {
+                return (string) $allowedValue;
+            }
+        }
+
+        $aliases = [
+            'continue ms' => ['continue ms', 'continue', 'continue medical surveillance'],
+            'stop ms' => ['stop ms', 'stop', 'stop medical surveillance'],
+        ];
+
+        $normalizedInput = strtolower($decision);
+        foreach ($allowedValues as $allowedValue) {
+            $allowedKey = strtolower((string) $allowedValue);
+            $candidateAliases = $aliases[$allowedKey] ?? [$allowedKey];
+            if (in_array($normalizedInput, $candidateAliases, true)) {
+                return (string) $allowedValue;
+            }
+        }
+
+        return null;
     }
 
     protected function resolveSurveillanceIdForDeclaration(object $declaration): int
