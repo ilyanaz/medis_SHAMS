@@ -421,6 +421,7 @@ body{margin:0;padding:0;background:#fff;color:#111827;font-family:Arial,Helvetic
 .usechh4-print-table .value-wide{width:67%}
 .usechh4-print-table .single-line-label{white-space:nowrap}
 .usechh4-print-table .single-line-value{white-space:nowrap}
+.usechh4-print-table .multiline-value{white-space:pre-line}
 .usechh4-print-box-table{width:100%;border-collapse:collapse;margin-top:12px;font-size:11px}
 .usechh4-print-box-table td{border:1px solid #123524;padding:9px 10px}
 .usechh4-print-checks{margin-top:12px}
@@ -443,7 +444,9 @@ body{margin:0;padding:0;background:#fff;color:#111827;font-family:Arial,Helvetic
 .usechh4-print-declare{margin-top:12px}
 .usechh4-print-doctor{width:100%;border-collapse:collapse;margin-top:8px;font-size:11px}
 .usechh4-print-doctor td{padding:4px 6px 4px 0;vertical-align:top}
-.usechh4-print-doctor .label{width:26%;font-weight:700}
+.usechh4-print-doctor .label{width:22%;font-weight:700}
+.usechh4-print-doctor .sep{width:2%;padding-right:2px}
+.usechh4-print-doctor .value{padding-left:0}
 .usechh4-print-sign-block{margin-top:18px;font-size:11px;color:#111827}
 .usechh4-print-sign-line{display:flex;align-items:center;gap:8px}
 .usechh4-print-sign-line .label{font-weight:700;min-width:72px}
@@ -493,7 +496,7 @@ body{margin:0;padding:0;background:#fff;color:#111827;font-family:Arial,Helvetic
                 <tr>
                     <td class="label single-line-label">Address of Workplace</td>
                     <td class="sep">:</td>
-                    <td class="value-wide single-line-value" colspan="4"><?php echo $esc($showValue($companyAddressSingleLine)); ?></td>
+                    <td class="value-wide multiline-value" colspan="4"><?php echo $esc($showValue($companyAddressText)); ?></td>
                 </tr>
             </table>
 
@@ -622,35 +625,31 @@ body{margin:0;padding:0;background:#fff;color:#111827;font-family:Arial,Helvetic
                         <tr>
                             <td class="label">Name of Occupational Health Doctor</td>
                             <td class="sep">:</td>
-                            <td><?php echo $esc($showValue($doctorName)); ?></td>
+                            <td class="value"><?php echo $esc($showValue($doctorName)); ?></td>
                         </tr>
                         <tr>
                             <td class="label">OHD Registration No.</td>
                             <td class="sep">:</td>
-                            <td><?php echo $esc($showValue($doctorRegistration)); ?></td>
+                            <td class="value"><?php echo $esc($showValue($doctorRegistration)); ?></td>
                         </tr>
                         <tr>
                             <td class="label">Name of Practice &amp; Address</td>
                             <td class="sep">:</td>
-                            <td style="white-space:pre-line;"><?php echo $esc($showValue($editableClinicAddress)); ?></td>
+                            <td class="value" style="white-space:pre-line;"><?php echo $esc($showValue($editableClinicAddress)); ?></td>
                         </tr>
                         <tr>
                             <td class="label">Tel No.</td>
                             <td class="sep">:</td>
-                            <td><?php echo $esc($showValue($clinicRecord->clinic_tel ?? '')); ?></td>
+                            <td class="value"><?php echo $esc($showValue($clinicRecord->clinic_tel ?? '')); ?></td>
                         </tr>
                         <tr>
                             <td class="label">Email Address</td>
                             <td class="sep">:</td>
-                            <td><?php echo $esc($showValue($clinicRecord->clinic_email ?? '')); ?></td>
+                            <td class="value"><?php echo $esc($showValue($clinicRecord->clinic_email ?? '')); ?></td>
                         </tr>
                     </table>
 
                     <div class="usechh4-print-sign-block avoid-break">
-                        <div class="usechh4-print-sign-line">
-                            <span class="label">Date:</span>
-                            <span class="value"><?php echo $esc($downloadDateText); ?></span>
-                        </div>
                         <div class="usechh4-print-sign-image">
                             <?php if (trim((string) ($doctor->doctor_sign ?? '')) !== ''): ?>
                                 <img src="<?php echo $esc(trim((string) ($doctor->doctor_sign ?? ''))); ?>" alt="Doctor signature">
@@ -659,6 +658,10 @@ body{margin:0;padding:0;background:#fff;color:#111827;font-family:Arial,Helvetic
                         <div class="usechh4-print-sign-line">
                             <span class="label">Signature:</span>
                             <span class="value"></span>
+                        </div>
+                        <div class="usechh4-print-sign-line">
+                            <span class="label">Date:</span>
+                            <span class="value"><?php echo $esc($downloadDateText); ?></span>
                         </div>
                     </div>
 
