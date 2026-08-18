@@ -247,6 +247,7 @@ body {
 .pdf-title {
     margin: 14px 0 18px;
     text-align: center;
+    position: relative;
 }
 
 .pdf-title .law {
@@ -257,6 +258,14 @@ body {
 .pdf-title .main {
     margin-top: 7px;
     font-size: 18px;
+    font-weight: 700;
+}
+
+.pdf-code {
+    position: absolute;
+    right: 0;
+    top: 0;
+    font-size: 11px;
     font-weight: 700;
 }
 
@@ -518,6 +527,7 @@ body {
         <?php require dirname(__DIR__) . '/partials/clinic_header.php'; ?>
     </div>
     <div class="pdf-title">
+        <div class="pdf-code">USECHH 2</div>
         <div class="law">Occupational Safety and Health Act 1994 (Act 514)</div>
         <div class="law">Use and Standard of Exposure of Chemical Hazardous to Health Regulations 2000</div>
         <div class="main">SUMMARY REPORTS OF EMPLOYEE</div>

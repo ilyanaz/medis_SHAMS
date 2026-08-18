@@ -473,7 +473,7 @@ if ($createMode && ! session()->hasOldInput() && $declarationId <= 0) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title><?php echo $esc('USECHH5i - ' . $showValue($workerName, 'Patient')); ?></title>
+<title><?php echo $esc('USECHH 5i - ' . $showValue($workerName, 'Patient')); ?></title>
 </head>
 <body>
 <style>
