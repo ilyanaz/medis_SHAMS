@@ -441,6 +441,9 @@ class PanelController extends Controller
         $filename = 'USECHH2 - ' . trim((string) $safeEmployeeName) . '.pdf';
 
         $viewData = $this->buildViewData($request, $user);
+        $viewData = array_merge($viewData, $this->buildUsechh2ReportContext($request, $user, true), [
+            'pdfDownloadMode' => true,
+        ]);
         $clinicHeaderPath = trim((string) ($viewData['activeClinic']->clinic_header_path ?? ''));
         if ($clinicHeaderPath !== '') {
             $localClinicHeaderPath = public_path(ltrim($clinicHeaderPath, '/\\'));
@@ -643,7 +646,8 @@ class PanelController extends Controller
         );
         $usechh2Context = array_merge(
             $baseViewData,
-            $legacyContext->compose('report.surveillance_fitnessReport.summaryEmpReport', [], $request)
+            $this->buildUsechh2ReportContext($request, $this->resolvePanelUser($request), true),
+            ['pdfDownloadMode' => true]
         );
         $usechh3Context = array_merge($baseViewData, [
             'declaration' => $declaration,
@@ -667,7 +671,7 @@ class PanelController extends Controller
             ],
             [
                 'title' => 'USECHH 2',
-                'selector' => '.sheet',
+                'selector' => '.pdf-page',
                 'html' => view('report.surveillance_fitnessReport.summaryEmpReport', $usechh2Context)->render(),
             ],
             [
@@ -3478,6 +3482,111 @@ class PanelController extends Controller
         ));
     }
 
+    public function surveillanceSummaryEmployeeReport(Request $request): View|RedirectResponse
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        if ($this->isInAdminMode($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($this->requiresClinicSelection($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        $viewData = $this->buildViewData($request, $user);
+
+        return view('report.surveillance_fitnessReport.summaryEmpReport', array_merge(
+            $viewData,
+            $this->buildUsechh2ReportContext($request, $user, true)
+        ));
+    }
+
+    public function saveSurveillanceSummaryEmployeeReport(Request $request): RedirectResponse
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        if ($this->isInAdminMode($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($this->requiresClinicSelection($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        $validated = $request->validate([
+            'summary_employee_report_id' => ['nullable', 'integer', 'min:1'],
+            'employee_id' => ['required', 'integer', 'min:1'],
+            'company_id' => ['required', 'integer', 'min:1'],
+            'group_chemical' => ['required', 'string'],
+            'items' => ['nullable', 'array'],
+            'items.*.item_id' => ['nullable', 'integer', 'min:1'],
+            'items.*.assessment_type' => ['nullable', 'string'],
+            'items.*.history_effect' => ['nullable', 'string'],
+            'items.*.clinical_findings' => ['nullable', 'string'],
+            'items.*.target_organ_function' => ['nullable', 'string'],
+            'items.*.bei_determinants' => ['nullable', 'string'],
+            'items.*.work_relatedness' => ['nullable', 'string'],
+            'items.*.conclusion' => ['nullable', 'string'],
+            'items.*.mrp_date' => ['nullable', 'string'],
+        ]);
+
+        if (! Schema::hasTable('summary_employee_report') || ! Schema::hasTable('summary_employee_report_items')) {
+            return back()->withErrors(['usechh2' => 'USECHH 2 tables are not available yet. Please run the migration first.']);
+        }
+
+        $context = $this->buildUsechh2ReportContext($request, $user, true);
+        $report = $context['usechh2Report'] ?? null;
+        if (! $report) {
+            return back()->withErrors(['usechh2' => 'Unable to locate the USECHH 2 report group for saving.']);
+        }
+
+        $submittedItems = is_array($validated['items'] ?? null) ? $validated['items'] : [];
+        foreach ($submittedItems as $submittedItem) {
+            $itemId = (int) ($submittedItem['item_id'] ?? 0);
+            if ($itemId <= 0) {
+                continue;
+            }
+
+            DB::table('summary_employee_report_items')
+                ->where('summary_employee_report_item_id', $itemId)
+                ->where('summary_employee_report_id', $report->summary_employee_report_id)
+                ->update([
+                    'assessment_type' => $submittedItem['assessment_type'] ?? null,
+                    'history_effect' => $submittedItem['history_effect'] ?? null,
+                    'clinical_findings' => $submittedItem['clinical_findings'] ?? null,
+                    'target_organ_function' => $submittedItem['target_organ_function'] ?? null,
+                    'bei_determinants' => $submittedItem['bei_determinants'] ?? null,
+                    'work_relatedness' => $submittedItem['work_relatedness'] ?? null,
+                    'conclusion' => $submittedItem['conclusion'] ?? null,
+                    'mrp_date' => $submittedItem['mrp_date'] ?? null,
+                    'updated_at' => now(),
+                ]);
+        }
+
+        DB::table('summary_employee_report')
+            ->where('summary_employee_report_id', $report->summary_employee_report_id)
+            ->update(['updated_at' => now()]);
+
+        $companyName = trim((string) DB::table('company')->where('company_id', (int) $validated['company_id'])->value('company_name'));
+        $latestDate = trim((string) ($context['usechh2LatestDateRaw'] ?? ''));
+
+        return redirect()
+            ->route('general.report.folder', array_filter([
+                'module' => 'surveillance',
+                'company' => $companyName,
+                'date' => $latestDate,
+                'tab' => 'usechh 2',
+            ], static fn ($value) => $value !== ''))
+            ->with('status', 'USECHH 2 report saved successfully.');
+    }
+
     public function saveSurveillanceAbnormalReport(Request $request): RedirectResponse
     {
         $user = $this->requirePanelUser($request);
@@ -4049,6 +4158,305 @@ class PanelController extends Controller
         }
 
         return redirect()->route('panel.dashboard');
+    }
+
+    protected function buildUsechh2ReportContext(Request $request, ?User $user, bool $persistReport): array
+    {
+        $declarationId = (int) $request->query('declaration_id', $request->input('declaration_id', 0));
+        $employeeId = (int) $request->query('employee_id', $request->input('employee_id', 0));
+        $companyId = (int) $request->query('company_id', $request->input('company_id', 0));
+        $surveillanceId = (int) $request->query('surveillance_id', $request->input('surveillance_id', 0));
+        $groupChemical = trim((string) $request->query('group_chemical', $request->input('group_chemical', '')));
+        $viewMode = (bool) $request->query('view', false);
+
+        $declaration = null;
+        if ($declarationId > 0 && Schema::hasTable('declaration')) {
+            $declaration = DB::table('declaration')->where('declaration_id', $declarationId)->first();
+        }
+        if (! $declaration && Schema::hasTable('declaration')) {
+            $declaration = DB::table('declaration')
+                ->when($employeeId > 0, fn ($builder) => $builder->where('employee_id', $employeeId))
+                ->when($companyId > 0, fn ($builder) => $builder->where('company_id', $companyId))
+                ->when($surveillanceId > 0, fn ($builder) => $builder->where('surveillance_id', $surveillanceId))
+                ->orderByDesc('declaration_id')
+                ->first();
+        }
+
+        $declarationId = (int) ($declaration->declaration_id ?? $declarationId);
+        $employeeId = (int) ($declaration->employee_id ?? $employeeId);
+        $companyId = (int) ($declaration->company_id ?? $companyId);
+        $surveillanceId = (int) ($declaration->surveillance_id ?? $surveillanceId);
+
+        $company = $companyId > 0 && Schema::hasTable('company')
+            ? DB::table('company')->where('company_id', $companyId)->first()
+            : null;
+        $employee = $employeeId > 0 && Schema::hasTable('employee')
+            ? DB::table('employee')->where('employee_id', $employeeId)->first()
+            : null;
+        $chemicalInfo = $surveillanceId > 0 && Schema::hasTable('chemical_information')
+            ? DB::table('chemical_information')->where('surveillance_id', $surveillanceId)->first()
+            : null;
+
+        if ($groupChemical === '') {
+            $groupChemical = trim((string) ($chemicalInfo->chemicals ?? ''));
+        }
+
+        $doctor = $this->resolvedSurveillanceDoctorRecord($request, $user, $declaration);
+        $report = null;
+        if (
+            $persistReport
+            && $employeeId > 0
+            && $companyId > 0
+            && $groupChemical !== ''
+            && Schema::hasTable('summary_employee_report')
+        ) {
+            $report = DB::table('summary_employee_report')
+                ->where('employee_id', $employeeId)
+                ->where('company_id', $companyId)
+                ->where('chemical_name', $groupChemical)
+                ->first();
+
+            if (! $report) {
+                $reportId = DB::table('summary_employee_report')->insertGetId([
+                    'employee_id' => $employeeId,
+                    'company_id' => $companyId,
+                    'chemical_name' => $groupChemical,
+                    'doctor_id' => $doctor->doctor_id ?? null,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+                $report = DB::table('summary_employee_report')->where('summary_employee_report_id', $reportId)->first();
+            }
+        }
+
+        $candidateRows = $this->buildUsechh2CandidateRows($employeeId, $companyId, $groupChemical, $doctor);
+        $reportItems = [];
+
+        if ($report && Schema::hasTable('summary_employee_report_items')) {
+            $candidateIds = array_values(array_filter(array_map(
+                static fn (array $row): int => (int) ($row['surveillance_id'] ?? 0),
+                $candidateRows
+            )));
+
+            $existingItems = DB::table('summary_employee_report_items')
+                ->where('summary_employee_report_id', $report->summary_employee_report_id)
+                ->get()
+                ->keyBy('surveillance_id');
+
+            foreach ($candidateRows as $index => $candidateRow) {
+                $survId = (int) ($candidateRow['surveillance_id'] ?? 0);
+                $existingItem = $existingItems->get($survId);
+
+                $payload = [
+                    'summary_employee_report_id' => $report->summary_employee_report_id,
+                    'declaration_id' => $candidateRow['declaration_id'] ?? null,
+                    'employee_id' => $candidateRow['employee_id'] ?? null,
+                    'surveillance_id' => $candidateRow['surveillance_id'] ?? null,
+                    'ms_date' => $candidateRow['ms_date_raw'] ?? null,
+                    'assessment_type' => $existingItem->assessment_type ?? $candidateRow['assessment_type'],
+                    'history_effect' => $existingItem->history_effect ?? $candidateRow['history_effect'],
+                    'clinical_findings' => $existingItem->clinical_findings ?? $candidateRow['clinical_findings'],
+                    'target_organ_function' => $existingItem->target_organ_function ?? $candidateRow['target_organ_function'],
+                    'bei_determinants' => $existingItem->bei_determinants ?? $candidateRow['bei_determinants'],
+                    'work_relatedness' => $existingItem->work_relatedness ?? $candidateRow['work_relatedness'],
+                    'conclusion' => $existingItem->conclusion ?? $candidateRow['conclusion'],
+                    'mrp_date' => $existingItem->mrp_date ?? $candidateRow['mrp_date'],
+                    'doctor_name' => $candidateRow['doctor_name'],
+                    'doctor_registration_no' => $candidateRow['doctor_registration_no'],
+                    'sort_order' => $index + 1,
+                    'updated_at' => now(),
+                ];
+
+                if ($existingItem) {
+                    DB::table('summary_employee_report_items')
+                        ->where('summary_employee_report_item_id', $existingItem->summary_employee_report_item_id)
+                        ->update($payload);
+                } else {
+                    $payload['created_at'] = now();
+                    DB::table('summary_employee_report_items')->insert($payload);
+                }
+            }
+
+            if ($candidateIds !== []) {
+                DB::table('summary_employee_report_items')
+                    ->where('summary_employee_report_id', $report->summary_employee_report_id)
+                    ->whereNotIn('surveillance_id', $candidateIds)
+                    ->delete();
+            }
+
+            $reportItems = DB::table('summary_employee_report_items')
+                ->where('summary_employee_report_id', $report->summary_employee_report_id)
+                ->orderBy('sort_order')
+                ->orderBy('summary_employee_report_item_id')
+                ->get()
+                ->map(static function ($item): array {
+                    return [
+                        'summary_employee_report_item_id' => $item->summary_employee_report_item_id,
+                        'declaration_id' => $item->declaration_id,
+                        'employee_id' => $item->employee_id,
+                        'surveillance_id' => $item->surveillance_id,
+                        'ms_date' => trim((string) $item->ms_date) !== '' && strtotime((string) $item->ms_date)
+                            ? date('d/m/Y', strtotime((string) $item->ms_date))
+                            : (trim((string) $item->ms_date) !== '' ? (string) $item->ms_date : 'Not recorded'),
+                        'assessment_type' => (string) ($item->assessment_type ?? ''),
+                        'history_effect' => (string) ($item->history_effect ?? ''),
+                        'clinical_findings' => (string) ($item->clinical_findings ?? ''),
+                        'target_organ_function' => (string) ($item->target_organ_function ?? ''),
+                        'bei_determinants' => (string) ($item->bei_determinants ?? ''),
+                        'work_relatedness' => (string) ($item->work_relatedness ?? ''),
+                        'conclusion' => (string) ($item->conclusion ?? ''),
+                        'mrp_date' => (string) ($item->mrp_date ?? ''),
+                        'doctor' => trim((string) ($item->doctor_registration_no ?? '')) !== ''
+                            ? trim((string) ($item->doctor_name ?? '')) . "\n" . 'Reg. No. ' . trim((string) ($item->doctor_registration_no ?? ''))
+                            : (string) ($item->doctor_name ?? ''),
+                    ];
+                })
+                ->all();
+        } else {
+            $reportItems = $candidateRows;
+        }
+
+        return [
+            'usechh2Report' => $report,
+            'usechh2Items' => $reportItems,
+            'usechh2Company' => $company,
+            'usechh2Employee' => $employee,
+            'usechh2Chemical' => $groupChemical,
+            'usechh2Doctor' => $doctor,
+            'usechh2ViewMode' => $viewMode,
+            'usechh2DownloadMode' => (bool) $request->query('download', false),
+            'usechh2DeclarationId' => $declarationId,
+            'usechh2CompanyId' => $companyId,
+            'usechh2SurveillanceId' => $surveillanceId,
+            'usechh2EmployeeId' => $employeeId,
+            'usechh2LatestDateRaw' => $candidateRows[0]['ms_date_raw'] ?? '',
+        ];
+    }
+
+    protected function buildUsechh2CandidateRows(int $employeeId, int $companyId, string $groupChemical, ?object $doctor): array
+    {
+        if (
+            $employeeId <= 0
+            || $companyId <= 0
+            || $groupChemical === ''
+            || ! Schema::hasTable('declaration')
+            || ! Schema::hasTable('chemical_information')
+        ) {
+            return [];
+        }
+
+        $declarations = DB::table('declaration')
+            ->join('chemical_information', 'chemical_information.surveillance_id', '=', 'declaration.surveillance_id')
+            ->leftJoin('recommendation', 'recommendation.surveillance_id', '=', 'declaration.surveillance_id')
+            ->where('declaration.employee_id', $employeeId)
+            ->where('declaration.company_id', $companyId)
+            ->where('chemical_information.chemicals', $groupChemical)
+            ->when(
+                Schema::hasColumn('recommendation', 'is_final'),
+                static fn ($builder) => $builder->where('recommendation.is_final', 1)
+            )
+            ->orderByRaw('COALESCE(chemical_information.examination_date, declaration.doctor_date, declaration.employee_date) desc')
+            ->orderByDesc('declaration.declaration_id')
+            ->get([
+                'declaration.declaration_id',
+                'declaration.employee_id',
+                'declaration.company_id',
+                'declaration.surveillance_id',
+                'declaration.doctor_id',
+                'declaration.employee_date',
+                'declaration.doctor_date',
+                'chemical_information.examination_type',
+                'chemical_information.examination_date',
+            ]);
+
+        $doctorName = trim((string) (($doctor->doctor_firstName ?? '') . ' ' . ($doctor->doctor_lastName ?? '')));
+        $doctorName = $doctorName !== '' ? $doctorName : trim((string) ($doctor->doctor_username ?? ''));
+        $doctorRegNo = trim((string) ($doctor->OHD_registrationNo ?? $doctor->MMC_no ?? ''));
+
+        $rows = [];
+        foreach ($declarations as $index => $declaration) {
+            $rowSurveillanceId = (int) $declaration->surveillance_id;
+            $findings = Schema::hasTable('ms_findings')
+                ? DB::table('ms_findings')->where('surveillance_id', $rowSurveillanceId)->first()
+                : null;
+            $targetOrgan = Schema::hasTable('target_organ')
+                ? DB::table('target_organ')->where('surveillance_id', $rowSurveillanceId)->first()
+                : null;
+            $biological = Schema::hasTable('biological_monitoring')
+                ? DB::table('biological_monitoring')->where('surveillance_id', $rowSurveillanceId)->first()
+                : null;
+            $recommendation = Schema::hasTable('recommendation')
+                ? DB::table('recommendation')->where('surveillance_id', $rowSurveillanceId)->first()
+                : null;
+
+            $targetParts = [];
+            foreach ([
+                'blood_count_result' => 'Full Blood Count',
+                'renal_function_result' => 'Renal Function Test',
+                'liver_function_result' => 'Liver Function Test',
+                'chest_xray_result' => 'Chest X-Ray',
+            ] as $column => $label) {
+                $value = trim((string) ($targetOrgan->{$column} ?? ''));
+                if ($value !== '') {
+                    $targetParts[] = $label . ': ' . $value;
+                }
+            }
+            if (trim((string) ($targetOrgan->spirometry_FEV_FVC ?? '')) !== '') {
+                $targetParts[] = 'Spirometry FEV/FVC: ' . trim((string) $targetOrgan->spirometry_FEV_FVC);
+            }
+            if (Schema::hasTable('target_organ_other_tests')) {
+                $otherTargetTests = DB::table('target_organ_other_tests')
+                    ->where('surveillance_id', $rowSurveillanceId)
+                    ->orderBy('sort_order')
+                    ->orderBy('other_target_test_id')
+                    ->get(['test_name', 'result']);
+
+                foreach ($otherTargetTests as $otherTargetTest) {
+                    $testName = trim((string) ($otherTargetTest->test_name ?? ''));
+                    $testResult = trim((string) ($otherTargetTest->result ?? ''));
+                    if ($testName !== '') {
+                        $targetParts[] = $testResult !== '' ? $testName . ': ' . $testResult : $testName;
+                    }
+                }
+            }
+
+            $workRelatedValues = array_values(array_filter([
+                trim((string) ($findings->CF_work_related ?? '')),
+                trim((string) ($findings->TO_work_related ?? '')),
+                trim((string) ($findings->BM_work_related ?? '')),
+            ], static fn ($value) => $value !== ''));
+            $workRelatedness = 'Not recorded';
+            if ($workRelatedValues !== []) {
+                $workRelatedness = count(array_unique(array_map('strtolower', $workRelatedValues))) === 1
+                    ? trim((string) $workRelatedValues[0])
+                    : implode(' / ', $workRelatedValues);
+            }
+
+            $msDateRaw = trim((string) ($declaration->examination_date ?? $declaration->doctor_date ?? $declaration->employee_date ?? ''));
+            $rows[] = [
+                'declaration_id' => (int) $declaration->declaration_id,
+                'employee_id' => (int) $declaration->employee_id,
+                'surveillance_id' => $rowSurveillanceId,
+                'ms_date_raw' => $msDateRaw,
+                'ms_date' => $msDateRaw !== '' && strtotime($msDateRaw) ? date('d/m/Y', strtotime($msDateRaw)) : ($msDateRaw !== '' ? $msDateRaw : 'Not recorded'),
+                'assessment_type' => trim((string) ($declaration->examination_type ?? '')) ?: 'Not recorded',
+                'history_effect' => trim((string) ($findings->history_of_health ?? '')) ?: 'Not recorded',
+                'clinical_findings' => trim((string) ($findings->clinical_findings ?? '')) ?: 'Not recorded',
+                'target_organ_function' => $targetParts !== [] ? implode("\n", $targetParts) : 'Not recorded',
+                'bei_determinants' => trim((string) ($biological->baseline_annual ?? $biological->baseline_results ?? $biological->biological_exposure ?? '')) ?: 'Not recorded',
+                'work_relatedness' => $workRelatedness,
+                'conclusion' => trim((string) ($findings->conclusion_fitness ?? '')) ?: 'Not recorded',
+                'mrp_date' => trim((string) ($recommendation->MRPdate_start ?? $recommendation->nextReview_date ?? '')) ?: 'Not recorded',
+                'doctor_name' => $doctorName !== '' ? $doctorName : 'Occupational Health Doctor',
+                'doctor_registration_no' => $doctorRegNo,
+                'doctor' => $doctorRegNo !== ''
+                    ? ($doctorName !== '' ? $doctorName : 'Occupational Health Doctor') . "\n" . 'Reg. No. ' . $doctorRegNo
+                    : ($doctorName !== '' ? $doctorName : 'Occupational Health Doctor'),
+            ];
+        }
+
+        return $rows;
     }
 
     protected function buildUsechh5iiReportContext(Request $request, ?User $user, bool $persistReport): array
