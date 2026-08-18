@@ -63,6 +63,7 @@ medis_render_navigation_start([
     .page-btn[disabled]{opacity:.45;cursor:not-allowed}
     .page-btn.is-active{background:#389B5B;border-color:#389B5B;color:#fff}
     .page-numbers{display:flex;gap:6px;flex-wrap:wrap}
+    .page-ellipsis{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:32px;color:#94a3b8;font-weight:700}
     @media(max-width:1100px){.stepper{padding:14px}.step-list{grid-template-columns:repeat(3,minmax(0,1fr))}.step-label{max-width:none}}
 </style>
 <style>
@@ -145,7 +146,7 @@ medis_render_navigation_start([
     const nextBtn = document.getElementById('companyNextBtn');
     const pageNumbers = document.getElementById('companyPageNumbers');
     if (!body || !pager || !rows.length) { return; }
-    const perPage = 5;
+    const perPage = 7;
     let currentPage = 1;
     const fillerClass = 'filler-row';
 
@@ -195,7 +196,27 @@ medis_render_navigation_start([
         if (nextBtn) { nextBtn.disabled = currentPage === totalPages || total === 0; }
         if (pageNumbers) {
             pageNumbers.innerHTML = '';
-            for (let page = 1; page <= totalPages; page += 1) {
+            const visiblePages = [];
+            const pushPage = function(page){
+                if (page >= 1 && page <= totalPages && visiblePages.indexOf(page) === -1) {
+                    visiblePages.push(page);
+                }
+            };
+            pushPage(1);
+            for (let page = currentPage - 1; page <= currentPage + 1; page += 1) {
+                pushPage(page);
+            }
+            pushPage(totalPages);
+            visiblePages.sort(function(a, b){ return a - b; });
+
+            let previousVisible = 0;
+            visiblePages.forEach(function(page){
+                if (previousVisible && page - previousVisible > 1) {
+                    const ellipsis = document.createElement('span');
+                    ellipsis.className = 'page-ellipsis';
+                    ellipsis.textContent = '...';
+                    pageNumbers.appendChild(ellipsis);
+                }
                 const button = document.createElement('button');
                 button.type = 'button';
                 button.className = 'page-btn' + (page === currentPage ? ' is-active' : '');
@@ -205,7 +226,8 @@ medis_render_navigation_start([
                     render();
                 });
                 pageNumbers.appendChild(button);
-            }
+                previousVisible = page;
+            });
         }
     };
 

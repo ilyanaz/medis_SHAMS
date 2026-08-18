@@ -212,6 +212,7 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
 .page-btn[disabled]{opacity:.45;cursor:not-allowed}
 .page-btn.is-active{background:#389B5B;border-color:#389B5B;color:#fff;box-shadow:none}
 .page-numbers{display:flex;gap:6px;flex-wrap:wrap}
+.page-ellipsis{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:32px;color:#94a3b8;font-weight:700}
 .empty-row td{text-align:center;color:#6b7280}
 @media(max-width:1180px){.flow{height:auto;min-height:auto}.content{height:auto;min-height:auto}}
 @media(max-width:980px){.toolbar{align-items:stretch}.toolbar-left,.toolbar-right{width:100%}.toolbar-right{justify-content:flex-start}.search{width:100%}.subfilter-bar{gap:14px}.filter-panel{top:96px;right:16px}}
@@ -628,7 +629,27 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
         if (nextBtn) { nextBtn.disabled = currentPage === totalPages || total === 0; }
         if (pageNumbers) {
             pageNumbers.innerHTML = '';
-            for (let page = 1; page <= totalPages; page += 1) {
+            const visiblePages = [];
+            const pushPage = function(page){
+                if (page >= 1 && page <= totalPages && visiblePages.indexOf(page) === -1) {
+                    visiblePages.push(page);
+                }
+            };
+            pushPage(1);
+            for (let page = currentPage - 1; page <= currentPage + 1; page += 1) {
+                pushPage(page);
+            }
+            pushPage(totalPages);
+            visiblePages.sort(function(a, b){ return a - b; });
+
+            let previousVisible = 0;
+            visiblePages.forEach(function(page){
+                if (previousVisible && page - previousVisible > 1) {
+                    const ellipsis = document.createElement('span');
+                    ellipsis.className = 'page-ellipsis';
+                    ellipsis.textContent = '...';
+                    pageNumbers.appendChild(ellipsis);
+                }
                 const button = document.createElement('button');
                 button.type = 'button';
                 button.className = 'page-btn' + (page === currentPage ? ' is-active' : '');
@@ -638,7 +659,8 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
                     renderRows();
                 });
                 pageNumbers.appendChild(button);
-            }
+                previousVisible = page;
+            });
         }
         syncColumnVisibility();
         syncSelectionUi();
