@@ -13,7 +13,7 @@ $folderModule = strtolower(trim((string) ($folderModule ?? 'surveillance')));
 $folderCompany = trim((string) ($folderCompany ?? ''));
 $folderDate = trim((string) ($folderDate ?? ''));
 $initialTab = strtolower(trim((string) request()->query('tab', 'all')));
-if (! in_array($initialTab, ['all', 'usechh 4', 'usechh 5i', 'usechh 5ii'], true)) {
+if (! in_array($initialTab, ['all', 'usechh 1', 'usechh 2', 'usechh 3', 'usechh 4', 'usechh 5i', 'usechh 5ii'], true)) {
     $initialTab = 'all';
 }
 $sourceRows = $folderModule === 'audiometry'
@@ -100,7 +100,7 @@ $tabbedRows = array_merge(
         return $row;
     }, array_values(array_filter($folderRows, static function (array $row): bool {
         $filter = strtolower(trim((string) ($row['filter'] ?? '')));
-        if (! in_array($filter, ['usechh 4', 'usechh 5i', 'usechh 5ii'], true)) {
+        if (! in_array($filter, ['usechh 1', 'usechh 2', 'usechh 3', 'usechh 4', 'usechh 5i', 'usechh 5ii'], true)) {
             return false;
         }
 
@@ -197,6 +197,9 @@ medis_render_navigation_start([
     <section class="manage-card">
         <div class="subfilter-bar" id="folderTabs">
             <button class="subfilter-btn<?php echo $initialTab === 'all' ? ' active' : ''; ?>" type="button" data-tab="all">All</button>
+            <button class="subfilter-btn<?php echo $initialTab === 'usechh 1' ? ' active' : ''; ?>" type="button" data-tab="usechh 1">USECHH 1</button>
+            <button class="subfilter-btn<?php echo $initialTab === 'usechh 2' ? ' active' : ''; ?>" type="button" data-tab="usechh 2">USECHH 2</button>
+            <button class="subfilter-btn<?php echo $initialTab === 'usechh 3' ? ' active' : ''; ?>" type="button" data-tab="usechh 3">USECHH 3</button>
             <button class="subfilter-btn<?php echo $initialTab === 'usechh 4' ? ' active' : ''; ?>" type="button" data-tab="usechh 4">USECHH 4</button>
             <button class="subfilter-btn<?php echo $initialTab === 'usechh 5i' ? ' active' : ''; ?>" type="button" data-tab="usechh 5i">USECHH 5I</button>
             <button class="subfilter-btn<?php echo $initialTab === 'usechh 5ii' ? ' active' : ''; ?>" type="button" data-tab="usechh 5ii">USECHH 5II</button>
