@@ -4683,7 +4683,10 @@ class PanelController extends Controller
 
         $clinicId = (int) $request->session()->get('active_clinic_id', 0);
         if ($clinicId > 0 && Schema::hasColumn('company', 'clinic_id')) {
-            $query->where('clinic_id', $clinicId);
+            $query->where(function ($scoped) use ($clinicId): void {
+                $scoped->where('clinic_id', $clinicId)
+                    ->orWhereNull('clinic_id');
+            });
         }
 
         return $query->first();
@@ -4699,7 +4702,10 @@ class PanelController extends Controller
 
         $clinicId = (int) $request->session()->get('active_clinic_id', 0);
         if ($clinicId > 0 && Schema::hasColumn('employee', 'clinic_id')) {
-            $query->where('clinic_id', $clinicId);
+            $query->where(function ($scoped) use ($clinicId): void {
+                $scoped->where('clinic_id', $clinicId)
+                    ->orWhereNull('clinic_id');
+            });
         }
 
         $patient = $query->first();

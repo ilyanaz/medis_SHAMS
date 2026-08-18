@@ -163,11 +163,18 @@ class LegacyClinicContext
             ->orderBy('company_id');
 
         if ($clinicId !== null && Schema::hasColumn('company', 'clinic_id')) {
-            $query->where('clinic_id', $clinicId);
+            $query->where(function ($scoped) use ($clinicId): void {
+                $scoped->where('clinic_id', $clinicId)
+                    ->orWhereNull('clinic_id');
+            });
         }
 
         if ($companyModule !== null && Schema::hasColumn('company', 'company_module')) {
-            $query->where('company_module', $companyModule);
+            $query->where(function ($scoped) use ($companyModule): void {
+                $scoped->where('company_module', $companyModule)
+                    ->orWhereNull('company_module')
+                    ->orWhere('company_module', '');
+            });
         }
 
         return $query->get();
@@ -187,11 +194,18 @@ class LegacyClinicContext
 
         $query = DB::table('company')->where('company_id', $companyId);
         if ($clinicId !== null && Schema::hasColumn('company', 'clinic_id')) {
-            $query->where('clinic_id', $clinicId);
+            $query->where(function ($scoped) use ($clinicId): void {
+                $scoped->where('clinic_id', $clinicId)
+                    ->orWhereNull('clinic_id');
+            });
         }
 
         if ($companyModule !== null && Schema::hasColumn('company', 'company_module')) {
-            $query->where('company_module', $companyModule);
+            $query->where(function ($scoped) use ($companyModule): void {
+                $scoped->where('company_module', $companyModule)
+                    ->orWhereNull('company_module')
+                    ->orWhere('company_module', '');
+            });
         }
 
         return $query->first();
@@ -248,7 +262,10 @@ class LegacyClinicContext
             ->orderBy('employee_id');
 
         if ($clinicId !== null && Schema::hasColumn('employee', 'clinic_id')) {
-            $query->where('clinic_id', $clinicId);
+            $query->where(function ($scoped) use ($clinicId): void {
+                $scoped->where('clinic_id', $clinicId)
+                    ->orWhereNull('clinic_id');
+            });
         }
 
         if ($selectedCompany) {
@@ -292,7 +309,10 @@ class LegacyClinicContext
 
         $query = DB::table('employee')->where('employee_id', $employeeId);
         if ($clinicId !== null && Schema::hasColumn('employee', 'clinic_id')) {
-            $query->where('clinic_id', $clinicId);
+            $query->where(function ($scoped) use ($clinicId): void {
+                $scoped->where('clinic_id', $clinicId)
+                    ->orWhereNull('clinic_id');
+            });
         }
         if ($selectedCompany) {
             if (Schema::hasColumn('employee', 'company_id')) {
