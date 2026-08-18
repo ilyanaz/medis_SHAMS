@@ -211,9 +211,11 @@ class PanelController extends Controller
             $baseViewData,
             $legacyContext->compose('report.surveillance_fitnessReport.summaryEmpReport', [], $request)
         );
-        $usechh3Context = array_merge($baseViewData, [
-            'declaration' => $declaration,
-        ]);
+        $usechh3Context = array_merge(
+            $baseViewData,
+            $this->buildUsechh3ReportContext($request, $user),
+            ['pdfDownloadMode' => true]
+        );
         $combinedSections = $this->buildCombinedUsechhAllSections($baseViewData, $legacyContext, $request, $declaration);
 
         return view('report.PDF_USECHH_ALL', array_merge($baseViewData, [
@@ -472,6 +474,73 @@ class PanelController extends Controller
         }
     }
 
+    public function downloadUsechh3Pdf(Request $request)
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        if ($this->isInAdminMode($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($this->requiresClinicSelection($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        $declarationId = (int) $request->query('declaration_id', 0);
+        $employeeId = (int) $request->query('employee_id', 0);
+        $companyId = (int) $request->query('company_id', 0);
+        $surveillanceId = (int) $request->query('surveillance_id', 0);
+
+        $declaration = null;
+        if ($declarationId > 0 && Schema::hasTable('declaration')) {
+            $declaration = DB::table('declaration')->where('declaration_id', $declarationId)->first();
+        }
+        if (! $declaration && Schema::hasTable('declaration')) {
+            $declarationQuery = DB::table('declaration');
+            if ($employeeId > 0) {
+                $declarationQuery->where('employee_id', $employeeId);
+            }
+            if ($companyId > 0) {
+                $declarationQuery->where('company_id', $companyId);
+            }
+            if ($surveillanceId > 0) {
+                $declarationQuery->where('surveillance_id', $surveillanceId);
+            }
+            $declaration = $declarationQuery->orderByDesc('declaration_id')->first();
+        }
+
+        $employeeId = (int) ($declaration->employee_id ?? $employeeId);
+        $employee = $employeeId > 0 && Schema::hasTable('employee')
+            ? DB::table('employee')->where('employee_id', $employeeId)->first()
+            : null;
+        $employeeName = trim((string) (($employee->employee_firstName ?? '') . ' ' . ($employee->employee_lastName ?? '')));
+        $safeEmployeeName = trim(preg_replace('/[\\\\\\/:*?"<>|]+/', '', $employeeName)) ?: 'Worker';
+        $safeEmployeeName = preg_replace('/\s+/', ' ', $safeEmployeeName ?? '');
+        $filename = 'USECHH3 - ' . trim((string) $safeEmployeeName) . '.pdf';
+
+        $viewData = array_merge(
+            $this->buildViewData($request, $user),
+            $this->buildUsechh3ReportContext($request, $user),
+            ['pdfDownloadMode' => true]
+        );
+        $clinicHeaderPath = trim((string) ($viewData['activeClinic']->clinic_header_path ?? ''));
+        if ($clinicHeaderPath !== '') {
+            $localClinicHeaderPath = public_path(ltrim($clinicHeaderPath, '/\\'));
+            if (is_file($localClinicHeaderPath)) {
+                $viewData['clinicHeaderUrl'] = $localClinicHeaderPath;
+                $viewData['clinicLogoUrl'] = $localClinicHeaderPath;
+            }
+        }
+
+        return Pdf::loadView('report.surveillance_fitnessReport', $viewData)
+            ->setOption(['isRemoteEnabled' => true, 'isHtml5ParserEnabled' => true])
+            ->setPaper('a4', 'portrait')
+            ->download($filename);
+    }
+
     public function downloadUsechh5iiPdf(Request $request)
     {
         $user = $this->requirePanelUser($request);
@@ -649,9 +718,11 @@ class PanelController extends Controller
             $this->buildUsechh2ReportContext($request, $this->resolvePanelUser($request), true),
             ['pdfDownloadMode' => true]
         );
-        $usechh3Context = array_merge($baseViewData, [
-            'declaration' => $declaration,
-        ]);
+        $usechh3Context = array_merge(
+            $baseViewData,
+            $this->buildUsechh3ReportContext($request, $this->resolvePanelUser($request)),
+            ['pdfDownloadMode' => true]
+        );
 
         return [
             [
@@ -676,7 +747,7 @@ class PanelController extends Controller
             ],
             [
                 'title' => 'USECHH 3',
-                'selector' => '.sheet',
+                'selector' => '.pdf-page',
                 'html' => view('report.surveillance_fitnessReport', $usechh3Context)->render(),
             ],
         ];
@@ -3123,6 +3194,9 @@ class PanelController extends Controller
             'company_id' => ['nullable', 'integer', 'min:1'],
             'declaration_id' => ['nullable', 'integer', 'min:1'],
             'remarks' => ['nullable', 'string'],
+            'doctor_practice_address' => ['nullable', 'string'],
+            'doctor_email_address' => ['nullable', 'string'],
+            'doctor_telephone' => ['nullable', 'string'],
         ]);
 
         if (! Schema::hasTable('fitness_report')) {
@@ -3131,6 +3205,9 @@ class PanelController extends Controller
 
         $surveillanceId = (int) $validated['surveillance_id'];
         $remarks = trim((string) ($validated['remarks'] ?? ''));
+        $doctorPracticeAddress = trim((string) ($validated['doctor_practice_address'] ?? ''));
+        $doctorEmailAddress = trim((string) ($validated['doctor_email_address'] ?? ''));
+        $doctorTelephone = trim((string) ($validated['doctor_telephone'] ?? ''));
 
         $record = DB::table('fitness_report')
             ->where('surveillance_id', $surveillanceId)
@@ -3143,11 +3220,17 @@ class PanelController extends Controller
                     'remarks' => $remarks,
                     'employee_id' => $validated['employee_id'] ?? $record->employee_id,
                     'company_id' => $validated['company_id'] ?? $record->company_id,
+                    'doctor_practice_address' => $doctorPracticeAddress !== '' ? $doctorPracticeAddress : null,
+                    'doctor_email_address' => $doctorEmailAddress !== '' ? $doctorEmailAddress : null,
+                    'doctor_telephone' => $doctorTelephone !== '' ? $doctorTelephone : null,
                 ]);
         } else {
             DB::table('fitness_report')->insert([
                 'result' => 'Pending review',
                 'remarks' => $remarks,
+                'doctor_practice_address' => $doctorPracticeAddress !== '' ? $doctorPracticeAddress : null,
+                'doctor_email_address' => $doctorEmailAddress !== '' ? $doctorEmailAddress : null,
+                'doctor_telephone' => $doctorTelephone !== '' ? $doctorTelephone : null,
                 'employee_id' => $validated['employee_id'] ?? null,
                 'surveillance_id' => $surveillanceId,
                 'company_id' => $validated['company_id'] ?? null,
@@ -3164,7 +3247,7 @@ class PanelController extends Controller
 
         return redirect()
             ->route('surveillance.report.fitness', $params)
-            ->with('status', 'USECHH 3 remarks saved successfully.');
+            ->with('status', 'USECHH 3 report saved successfully.');
     }
 
     public function saveSurveillanceSummaryReport(Request $request): RedirectResponse
@@ -3502,6 +3585,29 @@ class PanelController extends Controller
         return view('report.surveillance_fitnessReport.summaryEmpReport', array_merge(
             $viewData,
             $this->buildUsechh2ReportContext($request, $user, true)
+        ));
+    }
+
+    public function surveillanceFitnessReport(Request $request): View|RedirectResponse
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        if ($this->isInAdminMode($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($this->requiresClinicSelection($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        $viewData = $this->buildViewData($request, $user);
+
+        return view('report.surveillance_fitnessReport', array_merge(
+            $viewData,
+            $this->buildUsechh3ReportContext($request, $user)
         ));
     }
 
@@ -4334,6 +4440,116 @@ class PanelController extends Controller
         ];
     }
 
+    protected function buildUsechh3ReportContext(Request $request, ?User $user): array
+    {
+        $declarationId = (int) $request->query('declaration_id', $request->input('declaration_id', 0));
+        $employeeId = (int) $request->query('employee_id', $request->input('employee_id', 0));
+        $companyId = (int) $request->query('company_id', $request->input('company_id', 0));
+        $surveillanceId = (int) $request->query('surveillance_id', $request->input('surveillance_id', 0));
+        $viewMode = (bool) $request->query('view', false);
+
+        $declaration = null;
+        if ($declarationId > 0 && Schema::hasTable('declaration')) {
+            $declaration = DB::table('declaration')->where('declaration_id', $declarationId)->first();
+        }
+        if (! $declaration && Schema::hasTable('declaration')) {
+            $declaration = DB::table('declaration')
+                ->when($employeeId > 0, fn ($builder) => $builder->where('employee_id', $employeeId))
+                ->when($companyId > 0, fn ($builder) => $builder->where('company_id', $companyId))
+                ->when($surveillanceId > 0, fn ($builder) => $builder->where('surveillance_id', $surveillanceId))
+                ->orderByDesc('declaration_id')
+                ->first();
+        }
+
+        $declarationId = (int) ($declaration->declaration_id ?? $declarationId);
+        $employeeId = (int) ($declaration->employee_id ?? $employeeId);
+        $companyId = (int) ($declaration->company_id ?? $companyId);
+        $surveillanceId = (int) ($declaration->surveillance_id ?? $surveillanceId);
+
+        $employee = $employeeId > 0 && Schema::hasTable('employee')
+            ? DB::table('employee')->where('employee_id', $employeeId)->first()
+            : null;
+        $company = $companyId > 0 && Schema::hasTable('company')
+            ? DB::table('company')->where('company_id', $companyId)->first()
+            : null;
+        $chemical = $surveillanceId > 0 && Schema::hasTable('chemical_information')
+            ? DB::table('chemical_information')->where('surveillance_id', $surveillanceId)->first()
+            : null;
+        $fitnessReport = $surveillanceId > 0 && Schema::hasTable('fitness_report')
+            ? DB::table('fitness_report')->where('surveillance_id', $surveillanceId)->first()
+            : null;
+        $doctor = $this->resolvedSurveillanceDoctorRecord($request, $user, $declaration);
+
+        $employeeName = trim((string) (($employee->employee_firstName ?? '') . ' ' . ($employee->employee_lastName ?? '')));
+        $companyAddress = trim((string) (($company->company_address ?? '') . ', ' . ($company->company_postcode ?? '') . ' ' . ($company->company_district ?? '') . ', ' . ($company->company_state ?? '')), " ,");
+        $doctorName = trim((string) (($doctor->doctor_firstName ?? '') . ' ' . ($doctor->doctor_lastName ?? '')));
+        $doctorName = $doctorName !== '' ? $doctorName : trim((string) ($doctor->doctor_username ?? 'Doctor'));
+        $doctorRegNo = trim((string) ($doctor->OHD_registrationNo ?? $doctor->MMC_no ?? ''));
+        $doctorSignature = trim((string) ($doctor->doctor_sign ?? $declaration->doctor_signature ?? ''));
+        $activeClinic = $this->activeClinic($request);
+        $formatMultilineAddress = static function (?string $line1, ?string $postcode, ?string $district, ?string $state): string {
+            $line1 = trim((string) $line1);
+            $postcode = trim((string) $postcode);
+            $district = trim((string) $district);
+            $state = trim((string) $state);
+
+            $line2 = trim($postcode . ($postcode !== '' && $district !== '' ? ' ' : '') . $district);
+
+            return implode("\n", array_values(array_filter([
+                $line1 !== '' ? $line1 : null,
+                $line2 !== '' ? $line2 : null,
+                $state !== '' ? $state : null,
+            ])));
+        };
+        $defaultPracticeAddress = $formatMultilineAddress(
+            $activeClinic->clinic_address ?? '',
+            $activeClinic->clinic_postcode ?? '',
+            $activeClinic->clinic_district ?? '',
+            $activeClinic->clinic_state ?? ''
+        );
+        if ($defaultPracticeAddress === '') {
+            $defaultPracticeAddress = $formatMultilineAddress(
+                $doctor->doctor_address ?? '',
+                $doctor->doctor_postcode ?? '',
+                $doctor->doctor_district ?? '',
+                $doctor->doctor_state ?? ''
+            );
+        }
+        $defaultDoctorTelephone = trim((string) ($activeClinic->clinic_telephone ?? ''));
+        $defaultDoctorTelephone = $defaultDoctorTelephone !== '' ? $defaultDoctorTelephone : trim((string) ($doctor->doctor_telephone ?? ''));
+        $defaultDoctorEmail = trim((string) ($activeClinic->clinic_email ?? ''));
+        $defaultDoctorEmail = $defaultDoctorEmail !== '' ? $defaultDoctorEmail : trim((string) ($doctor->doctor_email ?? ''));
+        $practiceAddress = trim((string) ($fitnessReport->doctor_practice_address ?? ''));
+        $practiceAddress = $practiceAddress !== '' ? $practiceAddress : $defaultPracticeAddress;
+        $doctorTelephone = trim((string) ($fitnessReport->doctor_telephone ?? ''));
+        $doctorTelephone = $doctorTelephone !== '' ? $doctorTelephone : $defaultDoctorTelephone;
+        $doctorEmail = trim((string) ($fitnessReport->doctor_email_address ?? ''));
+        $doctorEmail = $doctorEmail !== '' ? $doctorEmail : $defaultDoctorEmail;
+
+        return [
+            'usechh3Declaration' => $declaration,
+            'usechh3Employee' => $employee,
+            'usechh3Company' => $company,
+            'usechh3Chemical' => $chemical,
+            'usechh3FitnessReport' => $fitnessReport,
+            'usechh3Doctor' => $doctor,
+            'usechh3EmployeeName' => $employeeName !== '' ? $employeeName : 'Not recorded',
+            'usechh3CompanyAddress' => $companyAddress !== '' ? $companyAddress : '-',
+            'usechh3DoctorName' => $doctorName,
+            'usechh3DoctorRegNo' => $doctorRegNo,
+            'usechh3DoctorSignature' => $doctorSignature,
+            'usechh3DoctorPracticeAddress' => $practiceAddress,
+            'usechh3DoctorTelephone' => $doctorTelephone,
+            'usechh3DoctorEmail' => $doctorEmail,
+            'usechh3ViewMode' => $viewMode,
+            'usechh3DownloadMode' => (bool) $request->query('download', false),
+            'usechh3DeclarationId' => $declarationId,
+            'usechh3EmployeeId' => $employeeId,
+            'usechh3CompanyId' => $companyId,
+            'usechh3SurveillanceId' => $surveillanceId,
+        ];
+    }
+
     protected function buildUsechh2CandidateRows(int $employeeId, int $companyId, string $groupChemical, ?object $doctor): array
     {
         if (
@@ -4777,6 +4993,9 @@ class PanelController extends Controller
             'clinic_email',
             'clinic_telephone',
             'clinic_address',
+            'clinic_postcode',
+            'clinic_district',
+            'clinic_state',
             'clinic_header_path',
         ]);
     }

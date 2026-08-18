@@ -81,6 +81,7 @@ Route::get('/surveillance/records/{declaration}/delete', [PanelController::class
 Route::delete('/surveillance/records/{declaration}', [PanelController::class, 'destroySurveillanceRecord'])->name('surveillance.record.destroy');
 Route::post('/surveillance/examination', [PanelController::class, 'saveSurveillanceExamination'])->name('surveillance.examination.save');
 Route::post('/surveillance/report/fitness', [PanelController::class, 'saveSurveillanceFitnessReport'])->name('surveillance.report.fitness.save');
+Route::get('/surveillance/report/fitness', [PanelController::class, 'surveillanceFitnessReport'])->name('surveillance.report.fitness');
 Route::post('/surveillance/report/summary', [PanelController::class, 'saveSurveillanceSummaryReport'])->name('surveillance.report.summary.save');
 Route::post('/surveillance/report/removal', [PanelController::class, 'saveSurveillanceRemovalReport'])->name('surveillance.report.removal.save');
 Route::get('/surveillance/report/abnormal', [PanelController::class, 'surveillanceAbnormalReport'])->name('surveillance.report.abnormal');
@@ -91,6 +92,7 @@ Route::view('/audiometry/report/questionnaire', 'report.audiometry_questionnaire
 Route::get('/report/folder', [PanelController::class, 'generalReportFolder'])->name('general.report.folder');
 Route::get('/report/pdf/usechh-all', [PanelController::class, 'combinedUsechhAllPdf'])->name('pdf.usechh-all');
 Route::get('/report/pdf/usechh2/download', [PanelController::class, 'downloadUsechh2Pdf'])->name('pdf.usechh2');
+Route::get('/report/pdf/usechh3/download', [PanelController::class, 'downloadUsechh3Pdf'])->name('pdf.usechh3');
 Route::get('/report/pdf/usechh4/download', [PanelController::class, 'downloadUsechh4Pdf'])->name('pdf.usechh4.download');
 Route::get('/report/pdf/usechh5i/download', [PanelController::class, 'downloadUsechh5iPdf'])->name('pdf.usechh5i.download');
 Route::get('/report/pdf/usechh5ii/download', [PanelController::class, 'downloadUsechh5iiPdf'])->name('pdf.usechh5ii.download');
