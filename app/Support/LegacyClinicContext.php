@@ -719,6 +719,11 @@ class LegacyClinicContext
 
             $reports = [
                 array_merge($base, [
+                    'filter' => 'usechh 1',
+                    'href' => route('surveillance.report.usechh1', $routeParams),
+                    'pdf_href' => route('pdf.usechh1', $routeParams),
+                ]),
+                array_merge($base, [
                     'filter' => 'usechh 2',
                     'href' => route('surveillance.report.summary-employee', $routeParams),
                     'pdf_href' => route('pdf.usechh2', $routeParams),

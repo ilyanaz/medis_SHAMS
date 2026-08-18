@@ -255,6 +255,12 @@ medis_render_navigation_start([
                         $isEmailAllowed = ($row['tab_key'] ?? '') === 'all';
                         $wasEmailed = $isEmailAllowed && isset($emailStatuses[$reportEmailKey($rowReportKey, $row)]);
                         ?>
+                        <?php
+                        $supportsViewMode = in_array(($row['tab_key'] ?? ''), ['usechh 1', 'usechh 2', 'usechh 3', 'usechh 5i', 'usechh 5ii'], true);
+                        $viewHref = $supportsViewMode
+                            ? (($row['href'] ?? '#') . (str_contains((string) ($row['href'] ?? ''), '?') ? '&' : '?') . 'view=1')
+                            : '';
+                        ?>
                         <tr
                             data-tab="<?php echo $esc($row['tab_key'] ?? 'all'); ?>"
                             data-name="<?php echo $esc(strtolower(trim((string) (
@@ -265,7 +271,7 @@ medis_render_navigation_start([
                             data-date-examined="<?php echo $esc((string) ($row['date_examined'] ?? '')); ?>"
                             data-print-href="<?php echo $esc(($row['tab_key'] ?? '') === 'all' ? ($row['combined_pdf_href'] ?? '#') : ($row['pdf_href'] ?? '#')); ?>"
                             data-edit-href="<?php echo $esc(($row['tab_key'] ?? '') === 'all' ? '' : ($row['href'] ?? '#')); ?>"
-                            data-view-href="<?php echo $esc(in_array(($row['tab_key'] ?? ''), ['usechh 5i', 'usechh 5ii'], true) ? (($row['href'] ?? '#') . (str_contains((string) ($row['href'] ?? ''), '?') ? '&' : '?') . 'view=1') : ''); ?>"
+                            data-view-href="<?php echo $esc($viewHref); ?>"
                             data-report-key="<?php echo $esc($rowReportKey); ?>"
                             data-declaration-id="<?php echo $esc((string) ($row['declaration_id'] ?? '')); ?>"
                             data-employee-id="<?php echo $esc((string) ($row['employee_id'] ?? '')); ?>"
@@ -294,9 +300,9 @@ medis_render_navigation_start([
                             <td><?php echo $esc(($row['tab_key'] ?? '') === 'usechh 4' ? ($row['work_unit'] ?? '-') : ($row['chemical_name'] ?? '')); ?></td>
                             <td><?php echo $esc($formatDate((string) ($row['date_examined'] ?? ''))); ?></td>
                             <td>
-                                <?php if (in_array(($row['tab_key'] ?? ''), ['usechh 4', 'usechh 5i', 'usechh 5ii'], true)): ?>
+                                <?php if (in_array(($row['tab_key'] ?? ''), ['usechh 1', 'usechh 2', 'usechh 3', 'usechh 4', 'usechh 5i', 'usechh 5ii'], true)): ?>
                                     <div class="action-icons">
-                                        <a class="action-icon" href="<?php echo $esc(($row['href'] ?? '#') . (str_contains((string) ($row['href'] ?? ''), '?') ? '&' : '?') . 'view=1'); ?>" title="View">
+                                        <a class="action-icon" href="<?php echo $esc($viewHref !== '' ? $viewHref : ($row['href'] ?? '#')); ?>" title="View">
                                             <svg viewBox="0 0 24 24"><path d="M1.5 12s3.8-6.5 10.5-6.5S22.5 12 22.5 12 18.7 18.5 12 18.5 1.5 12 1.5 12Z"></path><circle cx="12" cy="12" r="3.25"></circle></svg>
                                         </a>
                                         <a class="action-icon" href="<?php echo $esc($row['href'] ?? '#'); ?>" title="Edit">
@@ -419,7 +425,7 @@ medis_render_navigation_start([
         if (printBtn) {
             printBtn.disabled = !hasSelectedRows;
             printBtn.classList.toggle('is-disabled', !hasSelectedRows);
-            const isDownloadTab = activeTab === 'usechh 4' || activeTab === 'usechh 5i' || activeTab === 'usechh 5ii';
+            const isDownloadTab = activeTab === 'usechh 1' || activeTab === 'usechh 2' || activeTab === 'usechh 3' || activeTab === 'usechh 4' || activeTab === 'usechh 5i' || activeTab === 'usechh 5ii';
             printBtn.innerHTML = isDownloadTab ? downloadIconSvg : printIconSvg;
             printBtn.title = hasSelectedRows
                 ? (isDownloadTab ? 'Download selected as PDF' : 'Print selected')
@@ -535,7 +541,30 @@ medis_render_navigation_start([
         if (nextBtn) { nextBtn.disabled = currentPage === totalPages || total === 0; }
         if (pageNumbers) {
             pageNumbers.innerHTML = '';
-            for (let page = 1; page <= totalPages; page += 1) {
+            const buildPagination = function(page, totalPageCount){
+                if (totalPageCount <= 7) {
+                    return Array.from({ length: totalPageCount }, function(_, index){
+                        return index + 1;
+                    });
+                }
+                if (page <= 4) {
+                    return [1, 2, 3, 4, 5, 'ellipsis', totalPageCount];
+                }
+                if (page >= totalPageCount - 3) {
+                    return [1, 'ellipsis', totalPageCount - 4, totalPageCount - 3, totalPageCount - 2, totalPageCount - 1, totalPageCount];
+                }
+                return [1, 'ellipsis', page - 1, page, page + 1, 'ellipsis', totalPageCount];
+            };
+            buildPagination(currentPage, totalPages).forEach(function(page){
+                if (page === 'ellipsis') {
+                    const ellipsis = document.createElement('span');
+                    ellipsis.className = 'page-btn';
+                    ellipsis.textContent = '...';
+                    ellipsis.setAttribute('aria-hidden', 'true');
+                    ellipsis.disabled = true;
+                    pageNumbers.appendChild(ellipsis);
+                    return;
+                }
                 const button = document.createElement('button');
                 button.type = 'button';
                 button.className = 'page-btn' + (page === currentPage ? ' is-active' : '');
@@ -545,7 +574,7 @@ medis_render_navigation_start([
                     renderRows();
                 });
                 pageNumbers.appendChild(button);
-            }
+            });
         }
         syncSelectAll();
     };
