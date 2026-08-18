@@ -137,6 +137,7 @@ medis_render_navigation_start([
 .manage-card{border:0;border-radius:0;background:#fff;overflow:hidden;display:flex;flex-direction:column;min-height:0;flex:1}
 .subfilter-bar{display:flex;gap:18px;align-items:center;padding:0 18px;border-bottom:1px solid #edf0f2;flex-wrap:wrap}
 .subfilter-btn{appearance:none;border:0;background:transparent;padding:12px 0 11px;font:inherit;font-weight:600;color:#4b5563;cursor:pointer;position:relative;text-transform:uppercase;font-size:.82rem}
+.subfilter-btn.is-hidden{display:none}
 .subfilter-btn.active{color:#166534}
 .subfilter-btn.active::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:#389B5B;border-radius:999px}
 .toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid #edf0f2;flex-wrap:wrap}
@@ -196,7 +197,7 @@ medis_render_navigation_start([
 
     <section class="manage-card">
         <div class="subfilter-bar" id="folderTabs">
-            <button class="subfilter-btn<?php echo $initialTab === 'all' ? ' active' : ''; ?>" type="button" data-tab="all">All</button>
+            <button class="subfilter-btn is-hidden<?php echo $initialTab === 'all' ? ' active' : ''; ?>" type="button" data-tab="all">All</button>
             <button class="subfilter-btn<?php echo $initialTab === 'usechh 1' ? ' active' : ''; ?>" type="button" data-tab="usechh 1">USECHH 1</button>
             <button class="subfilter-btn<?php echo $initialTab === 'usechh 2' ? ' active' : ''; ?>" type="button" data-tab="usechh 2">USECHH 2</button>
             <button class="subfilter-btn<?php echo $initialTab === 'usechh 3' ? ' active' : ''; ?>" type="button" data-tab="usechh 3">USECHH 3</button>
@@ -243,7 +244,7 @@ medis_render_navigation_start([
                             </div>
                         </th>
                         <th id="folderSecondaryLabel">Chemical Name</th>
-                        <th id="folderTertiaryLabel">Date Examined</th>
+                        <th id="folderTertiaryLabel" class="folder-date-col">Date Examined</th>
                         <th>Action</th>
                     </tr>
                 </thead>
@@ -287,7 +288,7 @@ medis_render_navigation_start([
                                     <div class="patient-cell-text">
                                         <?php if (($row['tab_key'] ?? '') === 'usechh 4'): ?>
                                             <?php echo $esc($row['chemical_name'] ?? ''); ?>
-                                        <?php elseif (in_array(($row['tab_key'] ?? ''), ['all', 'usechh 5i', 'usechh 5ii'], true)): ?>
+                                        <?php elseif (in_array(($row['tab_key'] ?? ''), ['all', 'usechh 1', 'usechh 2', 'usechh 3', 'usechh 5i', 'usechh 5ii'], true)): ?>
                                             <?php echo $esc($row['employee_name'] ?? ''); ?>
                                         <?php else: ?>
                                             <a class="patient-link" href="<?php echo $esc($row['href'] ?? '#'); ?>">
@@ -298,7 +299,7 @@ medis_render_navigation_start([
                                 </div>
                             </td>
                             <td><?php echo $esc(($row['tab_key'] ?? '') === 'usechh 4' ? ($row['work_unit'] ?? '-') : ($row['chemical_name'] ?? '')); ?></td>
-                            <td><?php echo $esc($formatDate((string) ($row['date_examined'] ?? ''))); ?></td>
+                            <td class="folder-date-col"><?php echo $esc($formatDate((string) ($row['date_examined'] ?? ''))); ?></td>
                             <td>
                                 <?php if (in_array(($row['tab_key'] ?? ''), ['usechh 1', 'usechh 2', 'usechh 3', 'usechh 4', 'usechh 5i', 'usechh 5ii'], true)): ?>
                                     <div class="action-icons">
@@ -350,6 +351,7 @@ medis_render_navigation_start([
     const primaryLabel = document.getElementById('folderPrimaryLabel');
     const secondaryLabel = document.getElementById('folderSecondaryLabel');
     const tertiaryLabel = document.getElementById('folderTertiaryLabel');
+    const dateCells = Array.prototype.slice.call(document.querySelectorAll('.folder-date-col'));
     const usechh4Candidates = <?php echo json_encode(array_values(array_map(static function (array $row): array {
         return [
             'company_id' => (string) ($row['company_id'] ?? ''),
@@ -486,7 +488,15 @@ medis_render_navigation_start([
         }
 
         if (tertiaryLabel) {
-            tertiaryLabel.textContent = activeTab === 'usechh 4' ? 'Date Examined' : 'Date Examined';
+            tertiaryLabel.textContent = 'Date Examined';
+        }
+
+        dateCells.forEach(function(cell){
+            cell.style.display = activeTab === 'all' ? 'none' : '';
+        });
+
+        if (emptyRow && emptyRow.children[0]) {
+            emptyRow.children[0].colSpan = activeTab === 'all' ? 3 : 4;
         }
     };
 
