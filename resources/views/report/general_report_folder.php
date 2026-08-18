@@ -12,9 +12,9 @@ $esc = static fn($v) => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
 $folderModule = strtolower(trim((string) ($folderModule ?? 'surveillance')));
 $folderCompany = trim((string) ($folderCompany ?? ''));
 $folderDate = trim((string) ($folderDate ?? ''));
-$initialTab = strtolower(trim((string) request()->query('tab', 'all')));
+$initialTab = strtolower(trim((string) request()->query('tab', 'usechh 1')));
 if (! in_array($initialTab, ['all', 'usechh 1', 'usechh 2', 'usechh 3', 'usechh 4', 'usechh 5i', 'usechh 5ii'], true)) {
-    $initialTab = 'all';
+    $initialTab = 'usechh 1';
 }
 $sourceRows = $folderModule === 'audiometry'
     ? (array) ($audiometryReportRows ?? [])

@@ -223,6 +223,50 @@ class PanelController extends Controller
         ]));
     }
 
+    public function downloadUsechh1Pdf(Request $request)
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        if ($this->isInAdminMode($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($this->requiresClinicSelection($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        $baseViewData = $this->buildViewData($request, $user);
+        $legacyContext = app(\App\Support\LegacyClinicContext::class);
+        $viewData = array_merge(
+            $baseViewData,
+            $legacyContext->compose('report.surveillance_usechh1Report', [], $request),
+            ['pdfMode' => true]
+        );
+
+        $employee = $viewData['employeeData'] ?? (object) [];
+        $workerName = trim((string) (($employee->employee_firstName ?? '') . ' ' . ($employee->employee_lastName ?? '')));
+        $safeWorkerName = trim(preg_replace('/[\\\\\\/:*?"<>|]+/', '', $workerName)) ?: 'Worker';
+        $safeWorkerName = preg_replace('/\s+/', ' ', $safeWorkerName ?? '');
+        $filename = 'USECHH1 - ' . trim((string) $safeWorkerName) . '.pdf';
+
+        $clinicHeaderPath = trim((string) ($viewData['activeClinic']->clinic_header_path ?? ''));
+        if ($clinicHeaderPath !== '') {
+            $localClinicHeaderPath = public_path(ltrim($clinicHeaderPath, '/\\'));
+            if (is_file($localClinicHeaderPath)) {
+                $viewData['clinicHeaderUrl'] = $localClinicHeaderPath;
+                $viewData['clinicLogoUrl'] = $localClinicHeaderPath;
+            }
+        }
+
+        return Pdf::loadView('report.surveillance_usechh1Report', $viewData)
+            ->setOption(['isRemoteEnabled' => true, 'isHtml5ParserEnabled' => true])
+            ->setPaper('a4', 'portrait')
+            ->download($filename);
+    }
+
     public function downloadUsechh5iPdf(Request $request)
     {
         $user = $this->requirePanelUser($request);
@@ -3609,6 +3653,46 @@ class PanelController extends Controller
             $viewData,
             $this->buildUsechh3ReportContext($request, $user)
         ));
+    }
+
+    public function surveillanceSummaryReport(Request $request): View|RedirectResponse
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        if ($this->isInAdminMode($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($this->requiresClinicSelection($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        $viewData = $this->buildViewData($request, $user);
+
+        return view('report.surveillance_summaryReport', $viewData);
+    }
+
+    public function surveillanceRemovalReport(Request $request): View|RedirectResponse
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        if ($this->isInAdminMode($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($this->requiresClinicSelection($request, $user)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        $viewData = $this->buildViewData($request, $user);
+
+        return view('report.surveillance_removalReport', $viewData);
     }
 
     public function saveSurveillanceSummaryEmployeeReport(Request $request): RedirectResponse
