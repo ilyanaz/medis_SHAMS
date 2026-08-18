@@ -327,52 +327,69 @@ class LegacyClinicContext
             return [];
         }
 
-        $query = DB::table('declaration')
-            ->leftJoin('employee', 'employee.employee_id', '=', 'declaration.employee_id')
-            ->leftJoin('company', 'company.company_id', '=', 'declaration.company_id')
-            ->leftJoin('chemical_information', 'chemical_information.surveillance_id', '=', 'declaration.surveillance_id')
-            ->leftJoin('history_of_health', 'history_of_health.surveillance_id', '=', 'declaration.surveillance_id')
-            ->leftJoin('clinical_findings', 'clinical_findings.surveillance_id', '=', 'declaration.surveillance_id')
-            ->leftJoin('physical_examination', 'physical_examination.surveillance_id', '=', 'declaration.surveillance_id')
-            ->leftJoin('target_organ', 'target_organ.surveillance_id', '=', 'declaration.surveillance_id')
-            ->leftJoin('biological_monitoring', 'biological_monitoring.surveillance_id', '=', 'declaration.surveillance_id')
-            ->leftJoin('fitness_respirator', 'fitness_respirator.surveillance_id', '=', 'declaration.surveillance_id')
-            ->leftJoin('ms_findings', 'ms_findings.surveillance_id', '=', 'declaration.surveillance_id')
-            ->leftJoin('recommendation', 'recommendation.surveillance_id', '=', 'declaration.surveillance_id')
-            ->leftJoin('summary_report', 'summary_report.surveillance_id', '=', 'declaration.surveillance_id')
-            ->select([
-                'declaration.*',
-                'employee.employee_firstName',
-                'employee.employee_lastName',
-                'employee.employee_NRIC',
-                'employee.employee_passportNo',
-                'employee.employee_telephone',
-                'company.company_name',
-                'chemical_information.chemicals',
-                  'summary_report.summaryReport_id',
-                  'summary_report.name_of_workUnit',
-                'chemical_information.examination_type',
-                'chemical_information.examination_date',
-                'clinical_findings.result_clinical_findings',
-                'physical_examination.weight',
-                'physical_examination.height',
-                'physical_examination.others',
-                'target_organ.blood_count_result',
-                'target_organ.renal_function_result',
-                'target_organ.liver_function_result',
-                'target_organ.chest_xray_result',
-                'biological_monitoring.baseline_results',
-                'biological_monitoring.baseline_annual',
-                'biological_monitoring.blood_result_files',
-                'biological_monitoring.manual_completed',
-                'fitness_respirator.fitness_result',
-                'ms_findings.history_of_health',
-                'recommendation.recommencation_type',
-                'recommendation.employee_signature as recommendation_employee_signature',
-                'recommendation.employee_signature_date as recommendation_employee_signature_date',
-                'recommendation.is_final as recommendation_is_final',
-            ])
-            ->orderByDesc('declaration.declaration_id');
+        $query = DB::table('declaration');
+
+        $joins = [
+            ['employee', 'employee.employee_id', 'declaration.employee_id'],
+            ['company', 'company.company_id', 'declaration.company_id'],
+            ['chemical_information', 'chemical_information.surveillance_id', 'declaration.surveillance_id'],
+            ['history_of_health', 'history_of_health.surveillance_id', 'declaration.surveillance_id'],
+            ['clinical_findings', 'clinical_findings.surveillance_id', 'declaration.surveillance_id'],
+            ['physical_examination', 'physical_examination.surveillance_id', 'declaration.surveillance_id'],
+            ['target_organ', 'target_organ.surveillance_id', 'declaration.surveillance_id'],
+            ['biological_monitoring', 'biological_monitoring.surveillance_id', 'declaration.surveillance_id'],
+            ['fitness_respirator', 'fitness_respirator.surveillance_id', 'declaration.surveillance_id'],
+            ['ms_findings', 'ms_findings.surveillance_id', 'declaration.surveillance_id'],
+            ['recommendation', 'recommendation.surveillance_id', 'declaration.surveillance_id'],
+            ['summary_report', 'summary_report.surveillance_id', 'declaration.surveillance_id'],
+        ];
+
+        foreach ($joins as [$table, $left, $right]) {
+            if (Schema::hasTable($table)) {
+                $query->leftJoin($table, $left, '=', $right);
+            }
+        }
+
+        $optionalSelect = static function (string $table, string $column, ?string $alias = null) {
+            $selectAlias = $alias ?? $column;
+
+            return Schema::hasTable($table) && Schema::hasColumn($table, $column)
+                ? $table.'.'.$column.($alias ? ' as '.$alias : '')
+                : DB::raw('NULL as '.$selectAlias);
+        };
+
+        $query->select([
+            'declaration.*',
+            $optionalSelect('employee', 'employee_firstName'),
+            $optionalSelect('employee', 'employee_lastName'),
+            $optionalSelect('employee', 'employee_NRIC'),
+            $optionalSelect('employee', 'employee_passportNo'),
+            $optionalSelect('employee', 'employee_telephone'),
+            $optionalSelect('company', 'company_name'),
+            $optionalSelect('chemical_information', 'chemicals'),
+            $optionalSelect('summary_report', 'summaryReport_id'),
+            $optionalSelect('summary_report', 'name_of_workUnit'),
+            $optionalSelect('chemical_information', 'examination_type'),
+            $optionalSelect('chemical_information', 'examination_date'),
+            $optionalSelect('clinical_findings', 'result_clinical_findings'),
+            $optionalSelect('physical_examination', 'weight'),
+            $optionalSelect('physical_examination', 'height'),
+            $optionalSelect('physical_examination', 'others'),
+            $optionalSelect('target_organ', 'blood_count_result'),
+            $optionalSelect('target_organ', 'renal_function_result'),
+            $optionalSelect('target_organ', 'liver_function_result'),
+            $optionalSelect('target_organ', 'chest_xray_result'),
+            $optionalSelect('biological_monitoring', 'baseline_results'),
+            $optionalSelect('biological_monitoring', 'baseline_annual'),
+            $optionalSelect('biological_monitoring', 'blood_result_files'),
+            $optionalSelect('biological_monitoring', 'manual_completed'),
+            $optionalSelect('fitness_respirator', 'fitness_result'),
+            $optionalSelect('ms_findings', 'history_of_health'),
+            $optionalSelect('recommendation', 'recommencation_type'),
+            $optionalSelect('recommendation', 'employee_signature', 'recommendation_employee_signature'),
+            $optionalSelect('recommendation', 'employee_signature_date', 'recommendation_employee_signature_date'),
+            $optionalSelect('recommendation', 'is_final', 'recommendation_is_final'),
+        ])->orderByDesc('declaration.declaration_id');
 
         if ($selectedCompany) {
             $query->where('declaration.company_id', $selectedCompany->company_id);
