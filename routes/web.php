@@ -147,7 +147,6 @@ $legacyViewRoutes = [
     'surveillance.employee.delete' => 'action.delete_surveillanceEmp',
     'surveillance.confirm' => 'surveillance.surveillance_list',
     'surveillance.report' => 'report.surveillance_usechh1Report',
-    'surveillance.report.abnormal' => 'report.suveillance_abnormalReport',
     'surveillance.report.summary' => 'report.surveillance_summaryReport',
     'surveillance.report.summary-employee' => 'report.surveillance_fitnessReport.summaryEmpReport',
     'surveillance.report.removal' => 'report.surveillance_removalReport',
