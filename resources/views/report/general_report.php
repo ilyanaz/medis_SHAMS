@@ -150,7 +150,7 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
 .module-bar{display:flex;gap:12px;padding:10px 18px;border-bottom:1px solid #edf0f2;flex-wrap:wrap}
 .module-btn{appearance:none;border:1px solid #d1d5db;background:#fff;border-radius:12px;padding:10px 20px;font:inherit;font-weight:700;color:#374151;cursor:pointer;min-width:150px}
 .module-btn.active{background:#eef7f0;border-color:#b8d8c4;color:#166534}
-.subfilter-bar{display:flex;gap:18px;align-items:center;padding:0 18px;border-bottom:1px solid #edf0f2;flex-wrap:wrap}
+.subfilter-bar{display:none}
 .subfilter-btn{appearance:none;border:0;background:transparent;padding:10px 0 9px;font:inherit;font-weight:600;color:#4b5563;cursor:pointer;position:relative;text-transform:uppercase;font-size:.82rem}
 .subfilter-btn.active{color:#166534}
 .subfilter-btn.active::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:#389B5B;border-radius:999px}
@@ -175,36 +175,16 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
 .clear-btn,.apply-btn{display:inline-flex;align-items:center;justify-content:center;border-radius:12px;padding:10px 14px;font:inherit;cursor:pointer;text-decoration:none}
 .clear-btn{border:1px solid #d1d5db;background:#fff;color:#374151}
 .apply-btn{border:1px solid #389B5B;background:#389B5B;color:#fff}
-.selection-bar{display:flex;align-items:center;gap:12px;padding:8px 18px;border-bottom:1px solid #edf0f2;background:#f8fbf8}
-.selection-bar span{font-size:.9rem;font-weight:600;color:#166534}
-.check-col{width:52px;text-align:center}
-.check-col input{width:16px;height:16px;accent-color:#389B5B;cursor:pointer}
 .manage-card-body{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}
 .table-shell{flex:1;min-height:0;overflow:auto}
 .report-table{width:100%;border-collapse:collapse}
 .report-table th,.report-table td{padding:10px 18px;text-align:left;border-top:1px solid #edf0f2;vertical-align:middle}
 .report-table th{font-size:.78rem;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;background:#fafafa}
-.folder-row td{padding:0;border-top:1px solid #dfe8e2;border-bottom:1px solid #edf0f2;background:#f8fbf8}
-.folder-link{width:100%;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 18px;border:0;background:transparent;color:#166534;text-align:left;cursor:pointer;font:inherit;text-decoration:none}
-.folder-main{display:flex;align-items:center;gap:10px;min-width:0}
-.folder-icon{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;background:#e7f4ea;color:#2f7a46;flex-shrink:0}
-.folder-icon svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8}
-.folder-text{display:grid;gap:2px;min-width:0}
-.folder-name{font-size:.84rem;font-weight:700;color:#166534;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.folder-date{font-size:.75rem;color:#64748b;font-weight:600}
-.folder-meta{display:flex;align-items:center;gap:10px;flex-shrink:0}
-.folder-count{display:inline-flex;align-items:center;justify-content:center;min-width:84px;height:28px;padding:0 10px;border-radius:999px;background:#eaf5ed;color:#2f7a46;font-size:.74rem;font-weight:700}
-.folder-chevron{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;color:#64748b}
-.folder-chevron svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2}
+.summary-link{color:#166534;font-weight:700;text-decoration:none}
+.summary-link:hover{text-decoration:underline}
+.summary-date{color:#475569;font-weight:600}
+.summary-count{display:inline-flex;align-items:center;justify-content:center;min-width:84px;height:28px;padding:0 10px;border-radius:999px;background:#eaf5ed;color:#2f7a46;font-size:.74rem;font-weight:700}
 .filler-row td{height:42px;color:transparent;user-select:none}
-.status{display:inline-flex;align-items:center;border-radius:999px;padding:5px 10px;font-weight:700;font-size:.76rem}
-.status.completed{background:#dcfce7;color:#166534}
-.status.pending,.status.incomplete{background:#fef3c7;color:#92400e}
-.status.na{background:#e5e7eb;color:#4b5563}
-.action-icons{display:flex;gap:10px;align-items:center}
-.icon-btn{display:inline-flex;align-items:center;justify-content:center;background:transparent;border:0;padding:0;color:#111827;cursor:pointer;text-decoration:none}
-.icon-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8}
-.icon-btn.delete{color:#ef4444}
 .table-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 18px;border-top:1px solid #edf0f2;flex-wrap:wrap;margin-top:auto;flex-shrink:0;background:#fff}
 .pager{color:#6b7280;font-size:.78rem}
 .pager-group{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
@@ -215,9 +195,8 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
 .page-ellipsis{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:32px;color:#94a3b8;font-weight:700}
 .empty-row td{text-align:center;color:#6b7280}
 @media(max-width:1180px){.flow{height:auto;min-height:auto}.content{height:auto;min-height:auto}}
-@media(max-width:980px){.toolbar{align-items:stretch}.toolbar-left,.toolbar-right{width:100%}.toolbar-right{justify-content:flex-start}.search{width:100%}.subfilter-bar{gap:14px}.filter-panel{top:96px;right:16px}}
+@media(max-width:980px){.toolbar{align-items:stretch}.toolbar-left,.toolbar-right{width:100%}.toolbar-right{justify-content:flex-start}.search{width:100%}.filter-panel{top:96px;right:16px}}
 @media(max-width:640px){.filter-grid{grid-template-columns:1fr}.filter-panel{top:88px;width:calc(100vw - 24px);right:12px}}
-.hide-usechh1{display:none!important}.hide-usechh1-extra{display:none!important}
 </style>
 <div class="flow"><div class="content"><div class="report-shell">
     <section class="report-head">
@@ -283,46 +262,19 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
             </div>
         </div>
 
-        <div class="selection-bar" id="selectionBar" style="display:none;"><span id="selectionCount">0 selected</span></div>
-
         <div class="manage-card-body">
             <div class="table-shell">
                 <table class="report-table">
                     <thead>
                         <tr>
-                            <th class="check-col"><input type="checkbox" id="selectAllRows" aria-label="Select all visible rows"></th>
-                            <th class="col-employee">Patient Name</th>
-                            <th class="col-company">Company Name</th>
-                            <th class="col-usechh1-extra">No Phone</th>
-                            <th class="col-usechh1-extra">IC / Passport No</th>
-                            <th class="col-chemical">Chemical Name</th>
-                            <th class="col-date">Date Examined</th>
-                            <th class="col-status">Status</th>
-                            <th>Action</th>
+                            <th>Company Name</th>
+                            <th>Date Examined</th>
+                            <th>No. of Records</th>
                         </tr>
                     </thead>
                     <tbody id="reportTableBody">
-                        <?php foreach ($rows as $row): ?>
-                            <tr data-module="<?php echo $esc($row['module']); ?>" data-filter="<?php echo $esc($row['filter']); ?>" data-company="<?php echo $esc(strtolower($row['company'])); ?>" data-company-label="<?php echo $esc($row['company']); ?>" data-status="<?php echo $esc($row['status_key']); ?>" data-date="<?php echo $esc($row['date_examined']); ?>" data-pdf-href="<?php echo $esc($row['pdf_href'] ?? ''); ?>">
-                                <td class="check-col"><input class="row-select" type="checkbox" aria-label="Select <?php echo $esc($row['employee_name']); ?>"></td>
-                                <td class="col-employee"><?php echo $esc($row['employee_name']); ?></td>
-                                <td class="col-company"><?php echo $esc($row['company']); ?></td>
-                                <td class="col-usechh1-extra"><?php echo $esc($row['phone_no'] ?? '-'); ?></td>
-                                <td class="col-usechh1-extra"><?php echo $esc($row['identity_no'] ?? '-'); ?></td>
-                                <td class="col-chemical"><?php echo $esc($row['chemical_name']); ?></td>
-                                <td class="col-date"><?php echo $esc(date('d M Y', strtotime($row['date_examined']))); ?></td>
-                                <td class="col-status"><span class="status <?php echo $esc($row['status_key']); ?>"><?php echo $esc($row['status']); ?></span></td>
-                                <td>
-                                    <div class="action-icons">
-                                        <a class="icon-btn" href="<?php echo $esc($row['href']); ?>" title="View"><svg viewBox="0 0 24 24"><path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6-10-6-10-6z"></path><circle cx="12" cy="12" r="3"></circle></svg></a>
-                                        <a class="icon-btn" href="<?php echo $esc($row['href']); ?>" title="Edit"><svg viewBox="0 0 24 24"><path d="M4 20h4l10-10-4-4L4 16v4z"></path><path d="M13 7l4 4"></path></svg></a>
-                                        <button class="icon-btn delete" type="button" data-name="<?php echo $esc($row['employee_name']); ?>" title="Delete"><svg viewBox="0 0 24 24"><path d="M4 7h16"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M6 7l1 13h10l1-13"></path><path d="M9 7V4h6v3"></path></svg></button>
-                                    </div>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
                         <tr class="empty-row" id="reportEmptyRow" style="display:none;">
-                            <td colspan="9">No report records match the selected filter.</td>
+                            <td colspan="3">No report records match the selected filter.</td>
                         </tr>
                     </tbody>
                 </table>
@@ -354,17 +306,14 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
     const filterDate = document.getElementById('filterDate');
     const filterApplyBtn = document.getElementById('filterApplyBtn');
     const filterClearBtn = document.getElementById('filterClearBtn');
-    const rows = Array.prototype.slice.call(document.querySelectorAll('#reportTableBody tr[data-module]'));
-    const selectAllRows = document.getElementById('selectAllRows');
-    const selectionBar = document.getElementById('selectionBar');
-    const selectionCount = document.getElementById('selectionCount');
     const bulkExportBtn = document.getElementById('bulkExportBtn');
     const pager = document.getElementById('reportPager');
     const emptyRow = document.getElementById('reportEmptyRow');
     const prevBtn = document.getElementById('reportPrevBtn');
     const nextBtn = document.getElementById('reportNextBtn');
     const pageNumbers = document.getElementById('reportPageNumbers');
-    const deleteButtons = Array.prototype.slice.call(document.querySelectorAll('.icon-btn.delete'));
+    const body = document.getElementById('reportTableBody');
+    const rows = <?php echo json_encode(array_values($rows), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
     const filtersByModule = {
         surveillance: ['all','usechh 1','usechh 2','usechh 3','usechh 4','usechh 5i','usechh 5ii'],
         audiometry: ['all','questionnaire','report']
@@ -374,7 +323,6 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
     let currentPage = 1;
     const perPage = 5;
     const fillerClass = 'filler-row';
-    const folderClass = 'folder-row';
     const folderRouteBase = <?php echo json_encode(function_exists('route') ? route('general.report.folder') : '#'); ?>;
 
     const titleCase = function(value){
@@ -414,68 +362,14 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
         });
     };
 
-    const getVisibleRows = function(){
-        return rows.filter(function(row){ return row.style.display !== 'none'; });
-    };
-
-    const syncColumnVisibility = function(){
-        const showUsechh1Extras = activeModule === 'surveillance' && activeFilter === 'usechh 1';
-        const hideChemicalStatusDate = activeModule === 'surveillance' && activeFilter === 'usechh 1';
-        const hideChemicalOnly = activeModule === 'audiometry';
-        const isUsechh5ii = activeModule === 'surveillance' && activeFilter === 'usechh 5ii';
-        document.querySelectorAll('.col-chemical').forEach(function(cell){
-            cell.classList.toggle('hide-usechh1', hideChemicalStatusDate || hideChemicalOnly);
-        });
-        document.querySelectorAll('.col-date').forEach(function(cell){
-            cell.classList.toggle('hide-usechh1', hideChemicalStatusDate);
-        });
-        document.querySelectorAll('.col-status').forEach(function(cell){
-            cell.classList.toggle('hide-usechh1', hideChemicalStatusDate || isUsechh5ii);
-        });
-        document.querySelectorAll('.col-employee').forEach(function(cell){
-            cell.classList.toggle('hide-usechh1', isUsechh5ii);
-        });
-        document.querySelectorAll('.col-usechh1-extra').forEach(function(cell){
-            cell.classList.toggle('hide-usechh1-extra', !showUsechh1Extras);
-        });
-    };
-
-    const getSelectedVisibleRows = function(){
-        return getVisibleRows().filter(function(row){
-            const checkbox = row.querySelector('.row-select');
-            return checkbox && checkbox.checked;
-        });
-    };
-
-    const syncSelectionUi = function(){
-        const visibleRows = getVisibleRows();
-        const selectedRows = getSelectedVisibleRows();
-        if (selectionBar) {
-            selectionBar.style.display = selectedRows.length ? 'flex' : 'none';
-        }
-        if (selectionCount) {
-            selectionCount.textContent = selectedRows.length + ' selected';
-        }
-        if (selectAllRows) {
-            selectAllRows.checked = visibleRows.length > 0 && selectedRows.length === visibleRows.length;
-            selectAllRows.indeterminate = selectedRows.length > 0 && selectedRows.length < visibleRows.length;
-        }
-    };
-
     const exportSelectedRows = function(){
-        const selectedRows = getSelectedVisibleRows();
-        if (!selectedRows.length) {
-            alert('Please select at least one report to print.');
+        const visibleGroups = getGroupedRows(getFilteredRows());
+        if (!visibleGroups.length) {
+            alert('No report folders are available to print.');
             return;
         }
-        const pdfUrls = selectedRows.map(function(row){
-            return (row.getAttribute('data-pdf-href') || '').trim();
-        }).filter(Boolean);
-        if (!pdfUrls.length) {
-            alert('No PDF route is available for the selected report.');
-            return;
-        }
-        pdfUrls.forEach(function(url){
+        visibleGroups.forEach(function(group){
+            const url = folderRouteBase + '?module=' + encodeURIComponent(activeModule) + '&company=' + encodeURIComponent(group.companyLabel) + '&date=' + encodeURIComponent(group.dateValue);
             window.open(url, '_blank');
         });
     };
@@ -486,12 +380,13 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
         const statusValue = (filterStatus.value || '').trim().toLowerCase();
         const dateValue = (filterDate.value || '').trim();
         return rows.filter(function(row){
-            const rowModule = row.getAttribute('data-module') || '';
-            const rowFilter = row.getAttribute('data-filter') || '';
-            const rowCompany = row.getAttribute('data-company') || '';
-            const rowStatus = row.getAttribute('data-status') || '';
-            const rowDate = row.getAttribute('data-date') || '';
-            const text = (row.textContent || '').toLowerCase();
+            const rowModule = String(row.module || '');
+            const rowFilter = String(row.filter || '');
+            const rowCompanyLabel = String(row.company || '').trim();
+            const rowCompany = rowCompanyLabel.toLowerCase();
+            const rowStatus = String(row.status_key || '');
+            const rowDate = String(row.date_examined || '').trim();
+            const text = [row.employee_name, row.company, row.chemical_name, row.filter, row.status].join(' ').toLowerCase();
             const matchModule = rowModule === activeModule;
             const matchFilter = activeFilter === 'all' || rowFilter === activeFilter;
             const matchSearch = query === '' || text.indexOf(query) !== -1;
@@ -500,24 +395,22 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
             const matchDate = dateValue === '' || rowDate === dateValue;
             return matchModule && matchFilter && matchSearch && matchCompany && matchStatus && matchDate;
         }).sort(function(left, right){
-            const leftCompany = (left.getAttribute('data-company-label') || '').toLowerCase();
-            const rightCompany = (right.getAttribute('data-company-label') || '').toLowerCase();
+            const leftCompany = String(left.company || '').toLowerCase();
+            const rightCompany = String(right.company || '').toLowerCase();
             if (leftCompany !== rightCompany) {
                 return leftCompany.localeCompare(rightCompany);
             }
-            const leftDate = (left.getAttribute('data-date') || '').trim();
-            const rightDate = (right.getAttribute('data-date') || '').trim();
+            const leftDate = String(left.date_examined || '').trim();
+            const rightDate = String(right.date_examined || '').trim();
             if (leftDate !== rightDate) {
                 return rightDate.localeCompare(leftDate);
             }
-            return (left.textContent || '').localeCompare(right.textContent || '');
+            return String(left.employee_name || '').localeCompare(String(right.employee_name || ''));
         });
     };
 
     const clearFillers = function(){
-        Array.prototype.slice.call(document.querySelectorAll('#reportTableBody .' + fillerClass + ', #reportTableBody .' + folderClass)).forEach(function(row){
-            row.remove();
-        });
+        Array.prototype.slice.call(body.querySelectorAll('.' + fillerClass + ', .summary-row')).forEach(function(row){ row.remove(); });
     };
 
     const buildFolderKey = function(companyLabel, dateValue){
@@ -531,41 +424,39 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
         return parts[2] + ' ' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(parts[1]) - 1] + ' ' + parts[0];
     };
 
-    const appendFolderRow = function(companyLabel, dateValue, count){
-        const folderRow = document.createElement('tr');
-        folderRow.className = folderClass;
-        const cell = document.createElement('td');
-        cell.colSpan = 9;
-        const link = document.createElement('a');
-        link.className = 'folder-link';
-        link.href = folderRouteBase + '?module=' + encodeURIComponent(activeModule) + '&company=' + encodeURIComponent(companyLabel) + '&date=' + encodeURIComponent(dateValue);
-        link.innerHTML = '' +
-            '<span class="folder-main">' +
-                '<span class="folder-icon" aria-hidden="true">' +
-                    '<svg viewBox="0 0 24 24"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H10l2 2h6.5A2.5 2.5 0 0 1 21 9.5v7A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z"></path></svg>' +
-                '</span>' +
-                '<span class="folder-text">' +
-                    '<span class="folder-name">' + companyLabel + '</span>' +
-                    '<span class="folder-date">Examination Date: ' + formatGroupDate(dateValue) + '</span>' +
-                '</span>' +
-            '</span>' +
-            '<span class="folder-meta">' +
-                '<span class="folder-count">' + count + ' record' + (count === 1 ? '' : 's') + '</span>' +
-                '<span class="folder-chevron" aria-hidden="true">' +
-                    '<svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"></path></svg>' +
-                '</span>' +
-            '</span>';
-        cell.appendChild(link);
-        folderRow.appendChild(cell);
-        document.getElementById('reportTableBody').appendChild(folderRow);
+    const appendSummaryRow = function(companyLabel, dateValue, count){
+        const row = document.createElement('tr');
+        row.className = 'summary-row';
+
+        const companyCell = document.createElement('td');
+        const companyLink = document.createElement('a');
+        companyLink.className = 'summary-link';
+        companyLink.href = folderRouteBase + '?module=' + encodeURIComponent(activeModule) + '&company=' + encodeURIComponent(companyLabel) + '&date=' + encodeURIComponent(dateValue);
+        companyLink.textContent = companyLabel;
+        companyCell.appendChild(companyLink);
+
+        const dateCell = document.createElement('td');
+        dateCell.className = 'summary-date';
+        dateCell.textContent = formatGroupDate(dateValue);
+
+        const countCell = document.createElement('td');
+        const countBadge = document.createElement('span');
+        countBadge.className = 'summary-count';
+        countBadge.textContent = count + ' record' + (count === 1 ? '' : 's');
+        countCell.appendChild(countBadge);
+
+        row.appendChild(companyCell);
+        row.appendChild(dateCell);
+        row.appendChild(countCell);
+        body.appendChild(row);
     };
 
-    const getFolderGroups = function(filteredRows){
+    const getGroupedRows = function(filteredRows){
         const groupedRows = [];
         const groups = {};
         filteredRows.forEach(function(row){
-            const companyLabel = (row.getAttribute('data-company-label') || 'No company').trim() || 'No company';
-            const dateValue = (row.getAttribute('data-date') || '').trim();
+            const companyLabel = String(row.company || 'No company').trim() || 'No company';
+            const dateValue = String(row.date_examined || '').trim();
             const groupKey = buildFolderKey(companyLabel, dateValue);
             if (!groups[groupKey]) {
                 groups[groupKey] = {
@@ -586,35 +477,29 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
         for (let i = 0; i < count; i += 1) {
             const filler = document.createElement('tr');
             filler.className = fillerClass;
-            for (let col = 0; col < 9; col += 1) {
+            for (let col = 0; col < 3; col += 1) {
                 const cell = document.createElement('td');
                 cell.innerHTML = '&nbsp;';
                 filler.appendChild(cell);
             }
-            document.getElementById('reportTableBody').appendChild(filler);
+            body.appendChild(filler);
         }
     };
 
     const renderRows = function(){
         clearFillers();
         const filteredRows = getFilteredRows();
-        const folderGroups = getFolderGroups(filteredRows);
-        const total = folderGroups.length;
+        const groupedRows = getGroupedRows(filteredRows);
+        const total = groupedRows.length;
         const totalPages = Math.max(1, Math.ceil(total / perPage));
         if (currentPage > totalPages) { currentPage = totalPages; }
         if (currentPage < 1) { currentPage = 1; }
         const start = (currentPage - 1) * perPage;
         const end = Math.min(start + perPage, total);
 
-        rows.forEach(function(row){
-            row.style.display = 'none';
-            const checkbox = row.querySelector('.row-select');
-            if (checkbox) { checkbox.checked = false; }
-        });
-
-        const visibleGroups = folderGroups.slice(start, end);
+        const visibleGroups = groupedRows.slice(start, end);
         visibleGroups.forEach(function(group){
-            appendFolderRow(group.companyLabel, group.dateValue, group.rows.length);
+            appendSummaryRow(group.companyLabel, group.dateValue, group.rows.length);
         });
 
         if (total > 0 && visibleGroups.length < perPage) {
@@ -624,7 +509,7 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
         if (emptyRow) {
             emptyRow.style.display = total === 0 ? '' : 'none';
         }
-        pager.textContent = total === 0 ? 'Showing 0 folders' : 'Showing ' + (start + 1) + '-' + end + ' of ' + total + ' folders';
+        pager.textContent = total === 0 ? 'Showing 0 records' : 'Showing ' + (start + 1) + '-' + end + ' of ' + total + ' records';
         if (prevBtn) { prevBtn.disabled = currentPage === 1 || total === 0; }
         if (nextBtn) { nextBtn.disabled = currentPage === totalPages || total === 0; }
         if (pageNumbers) {
@@ -662,8 +547,6 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
                 previousVisible = page;
             });
         }
-        syncColumnVisibility();
-        syncSelectionUi();
     };
 
     moduleButtons.forEach(function(btn){
@@ -676,30 +559,6 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
             renderRows();
         });
     });
-
-    rows.forEach(function(row){
-        const checkbox = row.querySelector('.row-select');
-        if (checkbox) {
-            checkbox.addEventListener('change', syncSelectionUi);
-        }
-    });
-
-    deleteButtons.forEach(function(btn){
-        btn.addEventListener('click', function(){
-            const name = btn.getAttribute('data-name') || 'this record';
-            alert('Delete action for ' + name + ' can be connected once the report routes and database actions are restored.');
-        });
-    });
-
-    if (selectAllRows) {
-        selectAllRows.addEventListener('change', function(){
-            getVisibleRows().forEach(function(row){
-                const checkbox = row.querySelector('.row-select');
-                if (checkbox) { checkbox.checked = selectAllRows.checked; }
-            });
-            syncSelectionUi();
-        });
-    }
 
     if (filterToggleBtn) {
         filterToggleBtn.addEventListener('click', function(){
