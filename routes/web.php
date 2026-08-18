@@ -153,7 +153,6 @@ $legacyViewRoutes = [
     'surveillance.confirm' => 'surveillance.surveillance_list',
     'surveillance.report' => 'report.surveillance_usechh1Report',
     'surveillance.report.summary' => 'report.surveillance_summaryReport',
-    'surveillance.report.summary-employee' => 'report.surveillance_fitnessReport.summaryEmpReport',
     'surveillance.report.removal' => 'report.surveillance_removalReport',
     'surveillance.report.fitness' => 'report.surveillance_fitnessReport',
     'surveillance.report.usechh1' => 'report.surveillance_usechh1Report',
