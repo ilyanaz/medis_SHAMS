@@ -2803,10 +2803,6 @@ class PanelController extends Controller
         $needsMrpDates = collect($storedRecommendationLines)
             ->contains(static fn ($line) => trim((string) $line) === 'Permanent Medical Removal Protection');
 
-        if (trim((string) ($recommendationData->nextReview_date ?? '')) === '') {
-            return false;
-        }
-
         if ($needsMrpDates && (
             trim((string) ($recommendationData->MRPdate_start ?? '')) === ''
             || trim((string) ($recommendationData->MRPdate_end ?? '')) === ''
@@ -6643,7 +6639,6 @@ class PanelController extends Controller
             'findings' => trim((string) $request->input('history_of_health', '')) !== '' && trim((string) $request->input('conclusion_fitness', '')) !== '',
             'recommendation' => (
                 (! empty($selectedRecommendationTypes) || trim((string) $request->input('recommendation_type_other', '')) !== '')
-                && trim((string) $request->input('nextReview_date', '')) !== ''
                 && (! $needsMrpDates || (
                     trim((string) $request->input('MRPdate_start', '')) !== ''
                     && trim((string) $request->input('MRPdate_end', '')) !== ''
@@ -6686,7 +6681,6 @@ class PanelController extends Controller
             'findings' => ! empty($context['msFindings']) && trim((string) ($context['msFindings']->history_of_health ?? '')) !== '',
             'recommendation' => ! empty($context['recommendationData'])
                 && trim((string) ($context['recommendationData']->recommencation_type ?? '')) !== ''
-                && trim((string) ($context['recommendationData']->nextReview_date ?? '')) !== ''
                 && (! $needsMrpDates || (
                     trim((string) ($context['recommendationData']->MRPdate_start ?? '')) !== ''
                     && trim((string) ($context['recommendationData']->MRPdate_end ?? '')) !== ''
@@ -6780,7 +6774,6 @@ class PanelController extends Controller
             'medication_history_status',
             'admitted_history_status',
             'family_history_status',
-            'others_history_status',
             'current_job_title',
             'current_employment_duration',
             'current_chemical_exposure_duration',
