@@ -1306,12 +1306,11 @@ class PanelController extends Controller
             $surveillanceId = 0;
         }
 
-        $company = $companyId ? DB::table('company')->where('company_id', $companyId)->first() : null;
         $chemicalInfo = $surveillanceId > 0 && Schema::hasTable('chemical_information')
             ? DB::table('chemical_information')->where('surveillance_id', $surveillanceId)->first()
             : null;
 
-        $folderDate = trim((string) ($declaration->employee_date ?? $declaration->doctor_date ?? $request->input('folder_date', $chemicalInfo->examination_date ?? '')));
+        $folderDate = trim((string) ($validated['employee_date'] ?? $validated['doctor_date'] ?? $request->input('folder_date', $chemicalInfo->examination_date ?? '')));
 
         return redirect()
             ->route('general.report.folder', array_filter([
