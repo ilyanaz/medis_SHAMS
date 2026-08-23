@@ -84,6 +84,12 @@ class LegacyClinicContext
                     'personalSocialHistoryData' => $existing['personalSocialHistoryData'] ?? DB::table('personal_social_history')->where('employee_id', $selectedEmployee->employee_id)->orderByDesc('perSocHistory_id')->first(),
                     'trainingHistoryData' => $existing['trainingHistoryData'] ?? DB::table('training_history')->where('employee_id', $selectedEmployee->employee_id)->orderByDesc('trainingHistory_id')->first(),
                 ]);
+
+                $payload = array_merge(
+                    $payload,
+                    $existing,
+                    $this->surveillanceEmployeeReportContext($request, $selectedCompany, $selectedEmployee, $doctor)
+                );
             }
         }
 
@@ -1168,6 +1174,95 @@ class LegacyClinicContext
     {
         return $viewName === 'report.general_report';
     }
+
+    protected function surveillanceEmployeeReportContext(
+        Request $request,
+        ?object $selectedCompany,
+        object $selectedEmployee,
+        ?object $defaultDoctor
+    ): array {
+        $declarationId = (int) $request->query('declaration_id', 0);
+        $surveillanceId = (int) $request->query('surveillance_id', 0);
+        $employeeId = (int) ($selectedEmployee->employee_id ?? 0);
+        $companyId = (int) ($selectedCompany->company_id ?? $request->query('company_id', 0));
+
+        $declaration = null;
+        if ($declarationId > 0 && Schema::hasTable('declaration')) {
+            $declaration = DB::table('declaration')
+                ->where('declaration_id', $declarationId)
+                ->first();
+        }
+
+        if (! $declaration && Schema::hasTable('declaration')) {
+            $declaration = DB::table('declaration')
+                ->where('employee_id', $employeeId)
+                ->when($companyId > 0, static fn ($query) => $query->where('company_id', $companyId))
+                ->when($surveillanceId > 0, static fn ($query) => $query->where('surveillance_id', $surveillanceId))
+                ->orderByDesc('declaration_id')
+                ->first();
+        }
+
+        $declarationId = (int) ($declaration->declaration_id ?? $declarationId);
+        $surveillanceId = (int) ($declaration->surveillance_id ?? $surveillanceId);
+        $companyId = (int) ($declaration->company_id ?? $companyId);
+
+        $company = $selectedCompany;
+        if (! $company && $companyId > 0 && Schema::hasTable('company')) {
+            $company = DB::table('company')->where('company_id', $companyId)->first();
+        }
+
+        $doctor = $defaultDoctor;
+        if (! empty($declaration?->doctor_id) && Schema::hasTable('doctor')) {
+            $doctor = DB::table('doctor')->where('doctor_id', (int) $declaration->doctor_id)->first();
+        }
+
+        $fetchBySurveillance = static function (string $table) use ($surveillanceId): ?object {
+            if ($surveillanceId <= 0 || ! Schema::hasTable($table)) {
+                return null;
+            }
+
+            return DB::table($table)->where('surveillance_id', $surveillanceId)->first();
+        };
+
+        $otherTargetTests = [];
+        if ($surveillanceId > 0 && Schema::hasTable('target_organ_other_tests')) {
+            $otherTargetTests = DB::table('target_organ_other_tests')
+                ->where('surveillance_id', $surveillanceId)
+                ->orderBy('sort_order')
+                ->orderBy('other_target_test_id')
+                ->get(['test_name', 'result', 'comments'])
+                ->map(static fn ($row) => [
+                    'test_name' => trim((string) ($row->test_name ?? '')),
+                    'result' => trim((string) ($row->result ?? '')),
+                    'comments' => trim((string) ($row->comments ?? '')),
+                ])
+                ->filter(static fn ($row) => $row['test_name'] !== '' || $row['result'] !== '' || $row['comments'] !== '')
+                ->values()
+                ->all();
+        }
+
+        return [
+            'declarationData' => $declaration,
+            'companyData' => $company,
+            'doctorData' => $doctor,
+            'doctorSignatureUrl' => $this->assetUrl($doctor->doctor_sign ?? ($declaration->doctor_signature ?? null)),
+            'chemicalInfoData' => $fetchBySurveillance('chemical_information'),
+            'historyOfHealthData' => $fetchBySurveillance('history_of_health'),
+            'clinicalFindingsData' => $fetchBySurveillance('clinical_findings'),
+            'physicalExamData' => $fetchBySurveillance('physical_examination'),
+            'targetOrganData' => $fetchBySurveillance('target_organ'),
+            'biologicalMonitoringData' => $fetchBySurveillance('biological_monitoring'),
+            'fitnessRespiratorData' => $fetchBySurveillance('fitness_respirator'),
+            'msFindingsData' => $fetchBySurveillance('ms_findings'),
+            'recommendationData' => $fetchBySurveillance('recommendation'),
+            'otherTargetTests' => $otherTargetTests,
+            'surveillanceDeclarationId' => $declarationId > 0 ? $declarationId : null,
+            'surveillanceCompanyId' => $companyId > 0 ? $companyId : null,
+            'surveillanceEmployeeId' => $employeeId > 0 ? $employeeId : null,
+            'surveillanceReportId' => $surveillanceId > 0 ? $surveillanceId : null,
+        ];
+    }
+
     protected function audioCommentStatusSelect(): \Illuminate\Contracts\Database\Query\Expression
     {
         $statusColumn = null;

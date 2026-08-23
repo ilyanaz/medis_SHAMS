@@ -2664,7 +2664,7 @@ class PanelController extends Controller
         }
         DB::table('medical_history')->insert($medicalHistoryPayload);
 
-        DB::table('occupational_history')->insert([
+        DB::table('occupational_history')->insert($this->occupationalHistoryPayload([
             'job_title' => trim((string) ($validated['current_job_title'] ?? '')) ?: null,
             'company_name' => trim((string) ($selectedCompany->company_name ?? ($validated['current_company_name'] ?? ''))) ?: null,
             'start_employment_date' => $validated['current_start_employment_date'] ?? null,
@@ -2673,7 +2673,7 @@ class PanelController extends Controller
             'chemical_exposure_incidents' => trim((string) ($validated['current_chemical_exposure_incidents'] ?? '')) ?: null,
             'employee_id' => $employeeId,
             'surveillance_id' => null,
-        ]);
+        ]));
 
         $jobTitles = $validated['occup_job_title'] ?? [];
         $companyNames = $validated['occup_company_name'] ?? [];
@@ -2705,10 +2705,10 @@ class PanelController extends Controller
                 continue;
             }
 
-            DB::table('occupational_history')->insert($payload + [
+            DB::table('occupational_history')->insert($this->occupationalHistoryPayload($payload + [
                 'employee_id' => $employeeId,
                 'surveillance_id' => null,
-            ]);
+            ]));
         }
 
         DB::table('personal_social_history')->insert([
@@ -2987,15 +2987,7 @@ class PanelController extends Controller
             $value = $request->input($column);
             $targetPayload[$column] = is_string($value) ? (trim($value) !== '' ? trim($value) : null) : $value;
         }
-        foreach ([
-            'blood_count_result',
-            'renal_function_result',
-            'liver_function_result',
-            'chest_xray_result',
-        ] as $resultColumn) {
-            $resultValue = trim((string) $request->input($resultColumn, ''));
-            $targetPayload[$resultColumn] = $resultValue !== '' ? $resultValue : null;
-        }
+        $targetPayload = array_merge($targetPayload, $this->targetOrganResultPayload($request));
         $otherTargetTestNames = (array) $request->input('other_target_test_name', []);
         $otherTargetTestResults = (array) $request->input('other_target_test_result', []);
         $otherTargetTestComments = (array) $request->input('other_target_test_comments', []);
@@ -5990,7 +5982,7 @@ class PanelController extends Controller
                 )
                 ->delete();
 
-            $currentPayload = [
+            $currentPayload = $this->occupationalHistoryPayload([
                 'job_title' => $this->nullableTrim($validated['current_job_title'] ?? null),
                 'company_name' => $this->nullableTrim($selectedCompany->company_name ?? ($validated['current_company_name'] ?? null)),
                 'start_employment_date' => $validated['current_start_employment_date'] ?? null,
@@ -5998,7 +5990,7 @@ class PanelController extends Controller
                 'chemical_exposure_duration' => $this->nullableTrim($validated['current_chemical_exposure_duration'] ?? null),
                 'chemical_exposure_incidents' => $this->nullableTrim($validated['current_chemical_exposure_incidents'] ?? null),
                 'employee_id' => $employeeId,
-            ];
+            ]);
             if (Schema::hasColumn('occupational_history', 'surveillance_id')) {
                 $currentPayload['surveillance_id'] = $scopedSurveillanceId;
             }
@@ -6017,14 +6009,14 @@ class PanelController extends Controller
             $rowCount = max(count($jobTitles), count($companyNames), count($startEmploymentDates), count($employmentDurations), count($exposureDurations), count($exposureIncidents));
 
             for ($index = 0; $index < $rowCount; $index++) {
-                $payload = [
+                $payload = $this->occupationalHistoryPayload([
                     'job_title' => $this->nullableTrim($jobTitles[$index] ?? null),
                     'company_name' => $this->nullableTrim($companyNames[$index] ?? null),
                     'start_employment_date' => $startEmploymentDates[$index] ?? null,
                     'employment_duration' => $this->nullableTrim($employmentDurations[$index] ?? null),
                     'chemical_exposure_duration' => $this->nullableTrim($exposureDurations[$index] ?? null),
                     'chemical_exposure_incidents' => $this->nullableTrim($exposureIncidents[$index] ?? null),
-                ];
+                ]);
 
                 if (implode('', array_map(static fn ($value) => (string) ($value ?? ''), $payload)) === '') {
                     continue;
@@ -6509,6 +6501,51 @@ class PanelController extends Controller
     {
         $value = trim((string) ($value ?? ''));
         return $value !== '' ? $value : null;
+    }
+
+    protected function occupationalHistoryPayload(array $payload): array
+    {
+        if (! Schema::hasTable('occupational_history')) {
+            return $payload;
+        }
+
+        if (! Schema::hasColumn('occupational_history', 'start_employment_date')) {
+            unset($payload['start_employment_date']);
+        }
+
+        if (! Schema::hasColumn('occupational_history', 'surveillance_id')) {
+            unset($payload['surveillance_id']);
+        }
+
+        return $payload;
+    }
+
+    protected function targetOrganResultPayload(Request $request): array
+    {
+        if (! Schema::hasTable('target_organ')) {
+            return [];
+        }
+
+        $payload = [];
+        $columnMap = [
+            'blood_count_result' => 'blood_count',
+            'renal_function_result' => 'renal_function',
+            'liver_function_result' => 'liver_function',
+            'chest_xray_result' => 'chest_xray',
+        ];
+
+        foreach ($columnMap as $newColumn => $legacyColumn) {
+            $resultValue = trim((string) $request->input($newColumn, ''));
+            $normalizedValue = $resultValue !== '' ? $resultValue : null;
+
+            if (Schema::hasColumn('target_organ', $newColumn)) {
+                $payload[$newColumn] = $normalizedValue;
+            } elseif (Schema::hasColumn('target_organ', $legacyColumn)) {
+                $payload[$legacyColumn] = $normalizedValue;
+            }
+        }
+
+        return $payload;
     }
 
     protected function normalizeSummaryReportDecision(?string $decision): ?string

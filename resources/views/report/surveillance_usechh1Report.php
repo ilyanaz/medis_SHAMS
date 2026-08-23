@@ -29,10 +29,10 @@ $printUrl = function_exists('route')
     ])
     : 'PDF_USECHH1.php';
 $query = request();
-$declarationId = (int) $query->query('declaration_id', 0);
-$employeeId = (int) ($employee->employee_id ?? $query->query('employee_id', 0));
-$companyId = (int) $query->query('company_id', 0);
-$surveillanceId = (int) $query->query('surveillance_id', 0);
+$declarationId = (int) ($surveillanceDeclarationId ?? $query->query('declaration_id', 0));
+$employeeId = (int) ($surveillanceEmployeeId ?? $employee->employee_id ?? $query->query('employee_id', 0));
+$companyId = (int) ($surveillanceCompanyId ?? $query->query('company_id', 0));
+$surveillanceId = (int) ($surveillanceReportId ?? $query->query('surveillance_id', 0));
 
 $showValue = static function ($value): string {
     $value = trim((string) ($value ?? ''));
@@ -118,31 +118,8 @@ $toSignatureDataUrl = static function ($value) use ($pdfMode, $looksLikeImageSou
 };
 
 $declaration = $declarationData ?? null;
-if (! $declaration && \Illuminate\Support\Facades\Schema::hasTable('declaration')) {
-    $declaration = $declarationId > 0
-        ? \Illuminate\Support\Facades\DB::table('declaration')->where('declaration_id', $declarationId)->first()
-        : null;
-
-    if (! $declaration) {
-        $declaration = \Illuminate\Support\Facades\DB::table('declaration')
-            ->when($employeeId > 0, fn ($row) => $row->where('employee_id', $employeeId))
-            ->when($companyId > 0, fn ($row) => $row->where('company_id', $companyId))
-            ->when($surveillanceId > 0, fn ($row) => $row->where('surveillance_id', $surveillanceId))
-            ->orderByDesc('declaration_id')
-            ->first();
-    }
-}
-
 $company = $companyData ?? null;
-if (! $company && ! empty($declaration->company_id) && \Illuminate\Support\Facades\Schema::hasTable('company')) {
-    $company = \Illuminate\Support\Facades\DB::table('company')->where('company_id', (int) $declaration->company_id)->first();
-}
-
 $doctor = $doctorData ?? null;
-if (! $doctor && ! empty($declaration->doctor_id) && \Illuminate\Support\Facades\Schema::hasTable('doctor')) {
-    $doctor = \Illuminate\Support\Facades\DB::table('doctor')->where('doctor_id', (int) $declaration->doctor_id)->first();
-}
-
 $doctorName = trim((string) (($doctor->doctor_firstName ?? '') . ' ' . ($doctor->doctor_lastName ?? '')));
 $doctorName = $doctorName !== '' ? $doctorName : trim((string) ($doctor->doctor_username ?? 'Doctor'));
 $employeeSignature = $toSignatureDataUrl($declaration->employee_signature ?? '');
@@ -156,66 +133,15 @@ if ($doctorSignatureRaw === '' || (! $looksLikeImageSource($doctorSignatureRaw) 
 $doctorSignature = $toSignatureDataUrl($doctorSignatureRaw);
 
 $chemicalInfo = $chemicalInfoData ?? null;
-if (! $chemicalInfo && $surveillanceId > 0 && \Illuminate\Support\Facades\Schema::hasTable('chemical_information')) {
-    $chemicalInfo = \Illuminate\Support\Facades\DB::table('chemical_information')->where('surveillance_id', $surveillanceId)->first();
-}
-
 $historyOfHealth = $historyOfHealthData ?? null;
-if (! $historyOfHealth && $surveillanceId > 0 && \Illuminate\Support\Facades\Schema::hasTable('history_of_health')) {
-    $historyOfHealth = \Illuminate\Support\Facades\DB::table('history_of_health')->where('surveillance_id', $surveillanceId)->first();
-}
-
 $clinicalFindings = $clinicalFindingsData ?? null;
-if (! $clinicalFindings && $surveillanceId > 0 && \Illuminate\Support\Facades\Schema::hasTable('clinical_findings')) {
-    $clinicalFindings = \Illuminate\Support\Facades\DB::table('clinical_findings')->where('surveillance_id', $surveillanceId)->first();
-}
-
 $physicalExam = $physicalExamData ?? null;
-if (! $physicalExam && $surveillanceId > 0 && \Illuminate\Support\Facades\Schema::hasTable('physical_examination')) {
-    $physicalExam = \Illuminate\Support\Facades\DB::table('physical_examination')->where('surveillance_id', $surveillanceId)->first();
-}
-
 $targetOrgan = $targetOrganData ?? null;
-if (! $targetOrgan && $surveillanceId > 0 && \Illuminate\Support\Facades\Schema::hasTable('target_organ')) {
-    $targetOrgan = \Illuminate\Support\Facades\DB::table('target_organ')->where('surveillance_id', $surveillanceId)->first();
-}
-
 $biologicalMonitoring = $biologicalMonitoringData ?? null;
-if (! $biologicalMonitoring && $surveillanceId > 0 && \Illuminate\Support\Facades\Schema::hasTable('biological_monitoring')) {
-    $biologicalMonitoring = \Illuminate\Support\Facades\DB::table('biological_monitoring')->where('surveillance_id', $surveillanceId)->first();
-}
-
 $fitnessRespirator = $fitnessRespiratorData ?? null;
-if (! $fitnessRespirator && $surveillanceId > 0 && \Illuminate\Support\Facades\Schema::hasTable('fitness_respirator')) {
-    $fitnessRespirator = \Illuminate\Support\Facades\DB::table('fitness_respirator')->where('surveillance_id', $surveillanceId)->first();
-}
-
 $msFindings = $msFindingsData ?? null;
-if (! $msFindings && $surveillanceId > 0 && \Illuminate\Support\Facades\Schema::hasTable('ms_findings')) {
-    $msFindings = \Illuminate\Support\Facades\DB::table('ms_findings')->where('surveillance_id', $surveillanceId)->first();
-}
-
 $recommendationData = $recommendationData ?? null;
-if (! $recommendationData && $surveillanceId > 0 && \Illuminate\Support\Facades\Schema::hasTable('recommendation')) {
-    $recommendationData = \Illuminate\Support\Facades\DB::table('recommendation')->where('surveillance_id', $surveillanceId)->first();
-}
-
-$otherTargetTests = [];
-if ($surveillanceId > 0 && \Illuminate\Support\Facades\Schema::hasTable('target_organ_other_tests')) {
-    $otherTargetTests = \Illuminate\Support\Facades\DB::table('target_organ_other_tests')
-        ->where('surveillance_id', $surveillanceId)
-        ->orderBy('sort_order')
-        ->orderBy('other_target_test_id')
-        ->get(['test_name', 'result', 'comments'])
-        ->map(static fn ($row) => [
-            'test_name' => trim((string) ($row->test_name ?? '')),
-            'result' => trim((string) ($row->result ?? '')),
-            'comments' => trim((string) ($row->comments ?? '')),
-        ])
-        ->filter(static fn ($row) => $row['test_name'] !== '' || $row['result'] !== '' || $row['comments'] !== '')
-        ->values()
-        ->all();
-}
+$otherTargetTests = is_array($otherTargetTests ?? null) ? $otherTargetTests : [];
 
 $historyLabels = [
     'breathing_difficulty' => 'Breathing difficulty',
