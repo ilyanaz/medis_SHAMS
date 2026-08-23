@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
 class DoctorAuthController extends Controller
@@ -49,6 +51,7 @@ class DoctorAuthController extends Controller
             'panel_user_original_role' => (string) $user->role,
             'panel_mode' => 'admin',
         ]);
+        $this->applyAssignedClinicScope($request, $user);
 
         return redirect()->route('admin.dashboard');
     }
@@ -123,5 +126,60 @@ class DoctorAuthController extends Controller
         ])->save();
 
         return true;
+    }
+
+    protected function applyAssignedClinicScope(Request $request, User $user): void
+    {
+        $clinicId = $this->assignedClinicId($user);
+        if ($clinicId === null) {
+            $request->session()->forget('active_clinic_id');
+            $request->session()->put('panel_mode', 'admin');
+
+            return;
+        }
+
+        $request->session()->put([
+            'active_clinic_id' => $clinicId,
+            'panel_mode' => 'clinic',
+        ]);
+    }
+
+    protected function assignedClinicId(User $user): ?int
+    {
+        if (! Schema::hasTable('doctor') || ! Schema::hasTable('clinic') || ! Schema::hasColumn('clinic', 'doctor_id')) {
+            return null;
+        }
+
+        $doctor = DB::table('doctor')
+            ->when(
+                Schema::hasColumn('doctor', 'doctor_email'),
+                static fn ($query) => $query->where('doctor_email', (string) $user->email)
+            )
+            ->when(
+                Schema::hasColumn('doctor', 'doctor_username'),
+                static function ($query) use ($user): void {
+                    $query->orWhere('doctor_username', (string) $user->username);
+                }
+            )
+            ->when(
+                Schema::hasColumn('doctor', 'doctor_status'),
+                static fn ($query) => $query->where('doctor_status', 'active')
+            )
+            ->first();
+
+        if (! $doctor) {
+            return null;
+        }
+
+        $clinicId = DB::table('clinic')
+            ->when(
+                Schema::hasColumn('clinic', 'clinic_status'),
+                static fn ($query) => $query->where('clinic_status', 'active')
+            )
+            ->where('doctor_id', (int) $doctor->doctor_id)
+            ->orderBy('clinic_id')
+            ->value('clinic_id');
+
+        return $clinicId ? (int) $clinicId : null;
     }
 }

@@ -15,6 +15,7 @@ class LegacyClinicContext
         $activeClinic = $this->activeClinic($request);
         $activeClinicId = $this->activeClinicId($request);
         $doctor = $this->linkedDoctor($user);
+        $includeUnscopedClinicData = $this->includeUnscopedClinicData($request, $user, $activeClinicId, $doctor);
 
         $payload = [
             'panelUser' => $user,
@@ -30,9 +31,9 @@ class LegacyClinicContext
 
         $companyModule = $this->companyModuleForView($viewName);
         $companies = $this->needsCompanyContext($viewName)
-            ? $this->companies($activeClinicId, $companyModule)
+            ? $this->companies($activeClinicId, $companyModule, $includeUnscopedClinicData)
             : collect();
-        $selectedCompany = $this->selectedCompany($request, $activeClinicId, $companies, $companyModule);
+        $selectedCompany = $this->selectedCompany($request, $activeClinicId, $companies, $companyModule, $includeUnscopedClinicData);
 
         if ($this->needsCompanyContext($viewName)) {
             $payload['companies'] = $existing['companies'] ?? $companies;
@@ -41,8 +42,8 @@ class LegacyClinicContext
         }
 
         if ($this->needsEmployeeContext($viewName)) {
-            $employees = $this->employees($activeClinicId, $selectedCompany);
-            $selectedEmployee = $this->selectedEmployee($request, $activeClinicId, $selectedCompany, $employees);
+            $employees = $this->employees($activeClinicId, $selectedCompany, $includeUnscopedClinicData);
+            $selectedEmployee = $this->selectedEmployee($request, $activeClinicId, $selectedCompany, $employees, $includeUnscopedClinicData);
 
             $payload['employees'] = $existing['employees'] ?? $employees;
             $payload['employeeTotal'] = $existing['employeeTotal'] ?? $employees->count();
@@ -138,7 +139,7 @@ class LegacyClinicContext
             ->first();
     }
 
-    protected function companies(?int $clinicId, ?string $companyModule = null)
+    protected function companies(?int $clinicId, ?string $companyModule = null, bool $includeUnscopedClinicData = true)
     {
         if (! Schema::hasTable('company')) {
             return collect();
@@ -163,10 +164,14 @@ class LegacyClinicContext
             ->orderBy('company_id');
 
         if ($clinicId !== null && Schema::hasColumn('company', 'clinic_id')) {
-            $query->where(function ($scoped) use ($clinicId): void {
-                $scoped->where('clinic_id', $clinicId)
-                    ->orWhereNull('clinic_id');
-            });
+            if ($includeUnscopedClinicData) {
+                $query->where(function ($scoped) use ($clinicId): void {
+                    $scoped->where('clinic_id', $clinicId)
+                        ->orWhereNull('clinic_id');
+                });
+            } else {
+                $query->where('clinic_id', $clinicId);
+            }
         }
 
         if ($companyModule !== null && Schema::hasColumn('company', 'company_module')) {
@@ -180,7 +185,7 @@ class LegacyClinicContext
         return $query->get();
     }
 
-    protected function selectedCompany(Request $request, ?int $clinicId, $companies, ?string $companyModule = null): ?object
+    protected function selectedCompany(Request $request, ?int $clinicId, $companies, ?string $companyModule = null, bool $includeUnscopedClinicData = true): ?object
     {
         $companyId = (int) $request->query('company_id', 0);
         if ($companyId <= 0) {
@@ -194,10 +199,14 @@ class LegacyClinicContext
 
         $query = DB::table('company')->where('company_id', $companyId);
         if ($clinicId !== null && Schema::hasColumn('company', 'clinic_id')) {
-            $query->where(function ($scoped) use ($clinicId): void {
-                $scoped->where('clinic_id', $clinicId)
-                    ->orWhereNull('clinic_id');
-            });
+            if ($includeUnscopedClinicData) {
+                $query->where(function ($scoped) use ($clinicId): void {
+                    $scoped->where('clinic_id', $clinicId)
+                        ->orWhereNull('clinic_id');
+                });
+            } else {
+                $query->where('clinic_id', $clinicId);
+            }
         }
 
         if ($companyModule !== null && Schema::hasColumn('company', 'company_module')) {
@@ -230,7 +239,7 @@ class LegacyClinicContext
         return null;
     }
 
-    protected function employees(?int $clinicId, ?object $selectedCompany)
+    protected function employees(?int $clinicId, ?object $selectedCompany, bool $includeUnscopedClinicData = true)
     {
         if (! Schema::hasTable('employee')) {
             return collect();
@@ -262,10 +271,14 @@ class LegacyClinicContext
             ->orderBy('employee_id');
 
         if ($clinicId !== null && Schema::hasColumn('employee', 'clinic_id')) {
-            $query->where(function ($scoped) use ($clinicId): void {
-                $scoped->where('clinic_id', $clinicId)
-                    ->orWhereNull('clinic_id');
-            });
+            if ($includeUnscopedClinicData) {
+                $query->where(function ($scoped) use ($clinicId): void {
+                    $scoped->where('clinic_id', $clinicId)
+                        ->orWhereNull('clinic_id');
+                });
+            } else {
+                $query->where('clinic_id', $clinicId);
+            }
         }
 
         if ($selectedCompany) {
@@ -295,7 +308,7 @@ class LegacyClinicContext
         return $query->get();
     }
 
-    protected function selectedEmployee(Request $request, ?int $clinicId, ?object $selectedCompany, $employees): ?object
+    protected function selectedEmployee(Request $request, ?int $clinicId, ?object $selectedCompany, $employees, bool $includeUnscopedClinicData = true): ?object
     {
         $employeeId = (int) $request->query('employee_id', 0);
         if ($employeeId <= 0) {
@@ -309,10 +322,14 @@ class LegacyClinicContext
 
         $query = DB::table('employee')->where('employee_id', $employeeId);
         if ($clinicId !== null && Schema::hasColumn('employee', 'clinic_id')) {
-            $query->where(function ($scoped) use ($clinicId): void {
-                $scoped->where('clinic_id', $clinicId)
-                    ->orWhereNull('clinic_id');
-            });
+            if ($includeUnscopedClinicData) {
+                $query->where(function ($scoped) use ($clinicId): void {
+                    $scoped->where('clinic_id', $clinicId)
+                        ->orWhereNull('clinic_id');
+                });
+            } else {
+                $query->where('clinic_id', $clinicId);
+            }
         }
         if ($selectedCompany) {
             if (Schema::hasColumn('employee', 'company_id')) {
@@ -1167,6 +1184,22 @@ class LegacyClinicContext
     protected function needsGeneralReportContext(string $viewName): bool
     {
         return $viewName === 'report.general_report';
+    }
+
+    protected function includeUnscopedClinicData(Request $request, ?User $user, ?int $activeClinicId, ?object $doctor): bool
+    {
+        if ($activeClinicId === null || ! $user || ! $doctor || strtolower((string) ($user->role ?? '')) !== 'doctor') {
+            return true;
+        }
+
+        if (! Schema::hasTable('clinic') || ! Schema::hasColumn('clinic', 'doctor_id')) {
+            return true;
+        }
+
+        return ! DB::table('clinic')
+            ->where('clinic_id', $activeClinicId)
+            ->where('doctor_id', (int) $doctor->doctor_id)
+            ->exists();
     }
 
     protected function audioCommentStatusSelect(): \Illuminate\Contracts\Database\Query\Expression
