@@ -2799,8 +2799,7 @@ class PanelController extends Controller
         }
 
         $storedRecommendationLines = preg_split('/\r\n|\r|\n/', trim((string) ($recommendationData->recommencation_type ?? ''))) ?: [];
-        $needsMrpDates = collect($storedRecommendationLines)
-            ->contains(static fn ($line) => trim((string) $line) === 'Permanent Medical Removal Protection');
+        $needsMrpDates = $this->recommendationNeedsMrpDates($storedRecommendationLines);
 
         if ($needsMrpDates && (
             trim((string) ($recommendationData->MRPdate_start ?? '')) === ''
@@ -6548,6 +6547,17 @@ class PanelController extends Controller
         return $payload;
     }
 
+    protected function recommendationNeedsMrpDates(array $recommendationTypes): bool
+    {
+        $normalizedTypes = array_map(
+            static fn ($value) => trim((string) $value),
+            $recommendationTypes
+        );
+
+        return in_array('Permanent Medical Removal Protection', $normalizedTypes, true)
+            || in_array('Temporary Medical Removal Protection', $normalizedTypes, true);
+    }
+
     protected function normalizeSummaryReportDecision(?string $decision): ?string
     {
         $decision = trim((string) ($decision ?? ''));
@@ -6654,7 +6664,7 @@ class PanelController extends Controller
 
         $patientDone = $this->isPatientSectionCompleteFromValues(static fn (string $key): string => trim((string) $request->input($key, '')));
         $selectedRecommendationTypes = array_values(array_filter((array) $request->input('recommendation_types', []), static fn ($value) => trim((string) $value) !== ''));
-        $needsMrpDates = in_array('Permanent Medical Removal Protection', array_map(static fn ($value) => trim((string) $value), $selectedRecommendationTypes), true);
+        $needsMrpDates = $this->recommendationNeedsMrpDates($selectedRecommendationTypes);
 
         return [
             'patient' => $patientDone,
@@ -6690,8 +6700,7 @@ class PanelController extends Controller
             static fn (string $key): string => trim((string) ($patientFormData[$key] ?? ''))
         );
         $storedRecommendationLines = preg_split('/\r\n|\r|\n/', trim((string) ($context['recommendationData']->recommencation_type ?? ''))) ?: [];
-        $needsMrpDates = collect($storedRecommendationLines)
-            ->contains(static fn ($line) => trim((string) $line) === 'Permanent Medical Removal Protection');
+        $needsMrpDates = $this->recommendationNeedsMrpDates($storedRecommendationLines);
 
         return [
             'patient' => $patientDone,
