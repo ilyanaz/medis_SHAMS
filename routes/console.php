@@ -2,7 +2,6 @@
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
-use App\Support\IsolatedDoctorProvisioner;
 use App\Support\SystemSampleDataBuilder;
 
 Artisan::command('inspire', function () {
@@ -53,23 +52,3 @@ Artisan::command('medis:seed-audiometry-employee {employee_id : Employee ID to p
     $this->line('Doctor login kept for testing: ' . $summary['doctor_username']);
     $this->line('Audiometry ID: ' . ($summary['audiometry_id'] ?? 'n/a'));
 })->purpose('Create or refresh a complete sample audiometry questionnaire and examination record set for one employee');
-
-Artisan::command('medis:provision-doctor {username : Login username for the doctor test account} {password : Login password for the doctor test account} {--email= : Optional login email} {--clinic= : Optional clinic name} {--company= : Optional company name}', function () {
-    $summary = app(IsolatedDoctorProvisioner::class)->provision(
-        (string) $this->argument('username'),
-        (string) $this->argument('password'),
-        array_filter([
-            'email' => $this->option('email'),
-            'clinic_name' => $this->option('clinic'),
-            'company_name' => $this->option('company'),
-        ], static fn ($value) => is_string($value) && trim($value) !== '')
-    );
-
-    $this->info('Doctor test account is ready.');
-    $this->line("Username: {$summary['username']}");
-    $this->line("Email: {$summary['email']}");
-    $this->line("Clinic: {$summary['clinic_name']} (#{$summary['clinic_id']})");
-    if ($summary['company_id'] !== null) {
-        $this->line("Company: {$summary['company_name']} (#{$summary['company_id']})");
-    }
-})->purpose('Create or refresh an isolated doctor login with its own clinic and company scope');

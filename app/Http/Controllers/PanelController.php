@@ -57,9 +57,7 @@ class PanelController extends Controller
             'panel_mode' => $this->canUseAdminMode($user) ? 'admin' : 'clinic',
         ]);
 
-        if ($this->isDoctor($user)) {
-            $this->applyAssignedDoctorClinicScope($request, $user);
-        } elseif (! $this->canUseAdminMode($user)) {
+        if (! $this->canUseAdminMode($user)) {
             $defaultClinicId = $this->firstClinicId();
             if ($defaultClinicId !== null) {
                 $request->session()->put('active_clinic_id', $defaultClinicId);
@@ -1615,10 +1613,6 @@ class PanelController extends Controller
         $request->session()->put('panel_mode', 'admin');
 
         $clinicQuery = DB::table('clinic')->select($this->clinicListColumns());
-        $assignedClinicId = $this->assignedDoctorClinicId($user);
-        if ($assignedClinicId !== null) {
-            $clinicQuery->where('clinic_id', $assignedClinicId);
-        }
         if (Schema::hasColumn('clinic', 'clinic_status')) {
             $clinicQuery->orderByDesc('clinic_status');
         }
@@ -1627,7 +1621,7 @@ class PanelController extends Controller
         $viewData['clinics'] = $clinicQuery
             ->orderBy('clinic_name')
             ->get();
-        $viewData['canAddClinic'] = $this->isAdmin($user) && $assignedClinicId === null;
+        $viewData['canAddClinic'] = $this->isAdmin($user);
 
         return view('clinic.clinic_list', $viewData);
     }
@@ -2202,13 +2196,6 @@ class PanelController extends Controller
         $user = $this->requirePanelUser($request);
         if ($user instanceof RedirectResponse) {
             return $user;
-        }
-
-        $assignedClinicId = $this->assignedDoctorClinicId($user);
-        if ($assignedClinicId !== null && $assignedClinicId !== $clinic) {
-            return back()->withErrors([
-                'clinic' => 'This doctor account can only access its assigned clinic.',
-            ]);
         }
 
         $exists = DB::table('clinic')
@@ -5077,48 +5064,6 @@ class PanelController extends Controller
         return $clinicId ? (int) $clinicId : null;
     }
 
-    protected function assignedDoctorClinicId(?User $user): ?int
-    {
-        if (! $user || ! $this->isDoctor($user) || ! Schema::hasTable('clinic') || ! Schema::hasColumn('clinic', 'doctor_id')) {
-            return null;
-        }
-
-        $doctor = $this->linkedDoctorRecord($user);
-        if (! $doctor) {
-            return null;
-        }
-
-        $query = DB::table('clinic')->where('doctor_id', (int) $doctor->doctor_id);
-        if (Schema::hasColumn('clinic', 'clinic_status')) {
-            $query->where('clinic_status', 'active');
-        }
-
-        $clinicId = $query->orderBy('clinic_id')->value('clinic_id');
-
-        return $clinicId ? (int) $clinicId : null;
-    }
-
-    protected function hasAssignedDoctorClinic(?User $user): bool
-    {
-        return $this->assignedDoctorClinicId($user) !== null;
-    }
-
-    protected function applyAssignedDoctorClinicScope(Request $request, User $user): void
-    {
-        $clinicId = $this->assignedDoctorClinicId($user);
-        if ($clinicId === null) {
-            $request->session()->forget('active_clinic_id');
-            $request->session()->put('panel_mode', 'admin');
-
-            return;
-        }
-
-        $request->session()->put([
-            'active_clinic_id' => $clinicId,
-            'panel_mode' => 'clinic',
-        ]);
-    }
-
     protected function clinicSelectColumns(): array
     {
         return $this->existingColumns('clinic', [
@@ -5233,12 +5178,12 @@ class PanelController extends Controller
 
     protected function canManageClinics(?User $user): bool
     {
-        return $this->isAdmin($user) || ($this->isDoctor($user) && ! $this->hasAssignedDoctorClinic($user));
+        return $this->isAdmin($user) || $this->isDoctor($user);
     }
 
     protected function canUseAdminMode(?User $user): bool
     {
-        return $this->isAdmin($user) || ($this->isDoctor($user) && ! $this->hasAssignedDoctorClinic($user));
+        return $this->isAdmin($user) || $this->isDoctor($user);
     }
 
     protected function isInAdminMode(Request $request, ?User $user): bool
