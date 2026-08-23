@@ -5098,6 +5098,11 @@ class PanelController extends Controller
         return $clinicId ? (int) $clinicId : null;
     }
 
+    protected function hasAssignedDoctorClinic(?User $user): bool
+    {
+        return $this->assignedDoctorClinicId($user) !== null;
+    }
+
     protected function applyAssignedDoctorClinicScope(Request $request, User $user): void
     {
         $clinicId = $this->assignedDoctorClinicId($user);
@@ -5228,12 +5233,12 @@ class PanelController extends Controller
 
     protected function canManageClinics(?User $user): bool
     {
-        return $this->isAdmin($user) || $this->isDoctor($user);
+        return $this->isAdmin($user) || ($this->isDoctor($user) && ! $this->hasAssignedDoctorClinic($user));
     }
 
     protected function canUseAdminMode(?User $user): bool
     {
-        return $this->isAdmin($user) || $this->isDoctor($user);
+        return $this->isAdmin($user) || ($this->isDoctor($user) && ! $this->hasAssignedDoctorClinic($user));
     }
 
     protected function isInAdminMode(Request $request, ?User $user): bool

@@ -151,15 +151,60 @@ if (! function_exists('medis_render_navigation_start')) {
         $clinicSwitcherToken = function_exists('csrf_token') ? (string) csrf_token() : '';
         $clinicRecords = [];
         $activeClinic = null;
+        $assignedDoctorClinicId = null;
+        $hasAssignedDoctorClinic = false;
 
         if (class_exists('\\Illuminate\\Support\\Facades\\DB')) {
             try {
+                $doctorId = null;
+                if (($panelOriginalRole === 'doctor' || $panelResolvedRole === 'doctor') && $panelUser && class_exists('\\Illuminate\\Support\\Facades\\Schema')) {
+                    $doctorQuery = \Illuminate\Support\Facades\DB::table('doctor');
+                    $hasDoctorEmail = \Illuminate\Support\Facades\Schema::hasColumn('doctor', 'doctor_email');
+                    $hasDoctorUsername = \Illuminate\Support\Facades\Schema::hasColumn('doctor', 'doctor_username');
+
+                    if ($hasDoctorEmail) {
+                        $doctorQuery->where('doctor_email', (string) ($panelUser->email ?? ''));
+                    }
+
+                    if ($hasDoctorUsername) {
+                        if ($hasDoctorEmail) {
+                            $doctorQuery->orWhere('doctor_username', (string) ($panelUser->username ?? ''));
+                        } else {
+                            $doctorQuery->where('doctor_username', (string) ($panelUser->username ?? ''));
+                        }
+                    }
+
+                    if (\Illuminate\Support\Facades\Schema::hasColumn('doctor', 'doctor_status')) {
+                        $doctorQuery->where('doctor_status', 'active');
+                    }
+
+                    $doctorId = (int) ($doctorQuery->value('doctor_id') ?? 0);
+
+                    if ($doctorId > 0 && \Illuminate\Support\Facades\Schema::hasColumn('clinic', 'doctor_id')) {
+                        $assignedDoctorClinicId = \Illuminate\Support\Facades\DB::table('clinic')
+                            ->when(
+                                \Illuminate\Support\Facades\Schema::hasColumn('clinic', 'clinic_status'),
+                                static fn ($query) => $query->where('clinic_status', 'active')
+                            )
+                            ->where('doctor_id', $doctorId)
+                            ->orderBy('clinic_id')
+                            ->value('clinic_id');
+
+                        $assignedDoctorClinicId = $assignedDoctorClinicId ? (int) $assignedDoctorClinicId : null;
+                        $hasAssignedDoctorClinic = $assignedDoctorClinicId !== null;
+                    }
+                }
+
                 $clinicQuery = \Illuminate\Support\Facades\DB::table('clinic')
                     ->select('clinic_id', 'clinic_name', 'clinic_email');
 
                 if (class_exists('\\Illuminate\\Support\\Facades\\Schema')
                     && \Illuminate\Support\Facades\Schema::hasColumn('clinic', 'clinic_status')) {
                     $clinicQuery->where('clinic_status', 'active');
+                }
+
+                if ($hasAssignedDoctorClinic) {
+                    $clinicQuery->where('clinic_id', $assignedDoctorClinicId);
                 }
 
                 $clinicRecords = $clinicQuery
@@ -187,6 +232,10 @@ if (! function_exists('medis_render_navigation_start')) {
         }
 
         $inAdminMode = $panelMode === 'admin';
+        if ($hasAssignedDoctorClinic) {
+            $inAdminMode = false;
+        }
+        $canAccessAdminPanel = $canAccessAdminPanel && ! $hasAssignedDoctorClinic;
 
         if ($inAdminMode) {
             $displayName = 'Admin';
