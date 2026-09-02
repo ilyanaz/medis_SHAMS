@@ -183,7 +183,6 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
 .summary-link{color:#166534;font-weight:700;text-decoration:none}
 .summary-link:hover{text-decoration:underline}
 .summary-date{color:#475569;font-weight:600}
-.summary-count{display:inline-flex;align-items:center;justify-content:center;min-width:84px;height:28px;padding:0 10px;border-radius:999px;background:#eaf5ed;color:#2f7a46;font-size:.74rem;font-weight:700}
 .filler-row td{height:42px;color:transparent;user-select:none}
 .table-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 18px;border-top:1px solid #edf0f2;flex-wrap:wrap;margin-top:auto;flex-shrink:0;background:#fff}
 .pager{color:#6b7280;font-size:.78rem}
@@ -213,12 +212,7 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
 
         <div class="toolbar">
             <div class="toolbar-left">
-                <input class="search" id="reportSearch" type="text" placeholder="Search employee, company, or chemical">
-            </div>
-            <div class="toolbar-right">
-                <button class="toolbar-btn" id="filterToggleBtn" type="button">Filter</button>
-                <button class="toolbar-btn" type="button">Sort by</button>
-                <button class="toolbar-btn" id="bulkExportBtn" type="button">Print</button>
+                <input class="search" id="reportSearch" type="text" placeholder="Search Company Name">
             </div>
         </div>
 
@@ -269,12 +263,11 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
                         <tr>
                             <th>Company Name</th>
                             <th>Date Examined</th>
-                            <th>No. of Records</th>
                         </tr>
                     </thead>
                     <tbody id="reportTableBody">
                         <tr class="empty-row" id="reportEmptyRow" style="display:none;">
-                            <td colspan="3">No report records match the selected filter.</td>
+                            <td colspan="2">No report records match the selected filter.</td>
                         </tr>
                     </tbody>
                 </table>
@@ -306,7 +299,6 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
     const filterDate = document.getElementById('filterDate');
     const filterApplyBtn = document.getElementById('filterApplyBtn');
     const filterClearBtn = document.getElementById('filterClearBtn');
-    const bulkExportBtn = document.getElementById('bulkExportBtn');
     const pager = document.getElementById('reportPager');
     const emptyRow = document.getElementById('reportEmptyRow');
     const prevBtn = document.getElementById('reportPrevBtn');
@@ -362,18 +354,6 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
         });
     };
 
-    const exportSelectedRows = function(){
-        const visibleGroups = getGroupedRows(getFilteredRows());
-        if (!visibleGroups.length) {
-            alert('No report folders are available to print.');
-            return;
-        }
-        visibleGroups.forEach(function(group){
-            const url = folderRouteBase + '?module=' + encodeURIComponent(activeModule) + '&company=' + encodeURIComponent(group.companyLabel) + '&date=' + encodeURIComponent(group.dateValue);
-            window.open(url, '_blank');
-        });
-    };
-
     const getFilteredRows = function(){
         const query = getMergedSearch();
         const companyValue = (filterCompany.value || '').trim().toLowerCase();
@@ -424,7 +404,7 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
         return parts[2] + ' ' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(parts[1]) - 1] + ' ' + parts[0];
     };
 
-    const appendSummaryRow = function(companyLabel, dateValue, count){
+    const appendSummaryRow = function(companyLabel, dateValue){
         const row = document.createElement('tr');
         row.className = 'summary-row';
 
@@ -439,15 +419,8 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
         dateCell.className = 'summary-date';
         dateCell.textContent = formatGroupDate(dateValue);
 
-        const countCell = document.createElement('td');
-        const countBadge = document.createElement('span');
-        countBadge.className = 'summary-count';
-        countBadge.textContent = count + ' record' + (count === 1 ? '' : 's');
-        countCell.appendChild(countBadge);
-
         row.appendChild(companyCell);
         row.appendChild(dateCell);
-        row.appendChild(countCell);
         body.appendChild(row);
     };
 
@@ -477,7 +450,7 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
         for (let i = 0; i < count; i += 1) {
             const filler = document.createElement('tr');
             filler.className = fillerClass;
-            for (let col = 0; col < 3; col += 1) {
+            for (let col = 0; col < 2; col += 1) {
                 const cell = document.createElement('td');
                 cell.innerHTML = '&nbsp;';
                 filler.appendChild(cell);
@@ -499,7 +472,7 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
 
         const visibleGroups = groupedRows.slice(start, end);
         visibleGroups.forEach(function(group){
-            appendSummaryRow(group.companyLabel, group.dateValue, group.rows.length);
+            appendSummaryRow(group.companyLabel, group.dateValue);
         });
 
         if (total > 0 && visibleGroups.length < perPage) {
@@ -576,7 +549,6 @@ $rows = array_merge($surveillanceReportRows ?? $defaultSurveillanceRows, $audioR
             setFilterOpen(false);
         }
     });
-    if (bulkExportBtn) { bulkExportBtn.addEventListener('click', exportSelectedRows); }
     if (search) { search.addEventListener('input', function(){ currentPage = 1; renderRows(); }); }
     if (filterApplyBtn) { filterApplyBtn.addEventListener('click', function(){ currentPage = 1; renderRows(); setFilterOpen(false); }); }
     if (filterCompany) { filterCompany.addEventListener('change', function(){ currentPage = 1; renderRows(); }); }
