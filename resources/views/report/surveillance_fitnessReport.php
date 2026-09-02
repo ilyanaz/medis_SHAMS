@@ -32,8 +32,10 @@ $fitnessResult = in_array(strtolower($fitnessResult), ['fit', 'not fit'], true)
     ? (strtolower($fitnessResult) === 'fit' ? 'Fit' : 'Not Fit')
     : $fitnessResult;
 $savedRemarks = trim((string) ($fitnessReport->remarks ?? ''));
-$remarksValue = old('remarks', $savedRemarks);
-$remarksPrint = trim((string) ($savedRemarks !== '' ? $savedRemarks : 'NA'));
+$defaultRemarks = trim((string) ($usechh3DefaultRemarks ?? ''));
+$remarksValue = old('remarks', $savedRemarks !== '' ? $savedRemarks : $defaultRemarks);
+$remarksPrint = trim((string) ($savedRemarks !== '' ? $savedRemarks : $defaultRemarks));
+$remarksPrint = $remarksPrint !== '' ? $remarksPrint : 'NA';
 $statusMessage = (string) session('status', '');
 $doctorAddress = trim((string) (($doctor->doctor_address ?? '') . ', ' . ($doctor->doctor_postcode ?? '') . ' ' . ($doctor->doctor_district ?? '') . ', ' . ($doctor->doctor_state ?? '')), " ,");
 $formatDate = static function (?string $value, string $format = 'd/m/Y'): string {

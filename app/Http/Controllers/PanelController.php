@@ -4799,6 +4799,9 @@ class PanelController extends Controller
         $fitnessReport = $surveillanceId > 0 && Schema::hasTable('fitness_report')
             ? DB::table('fitness_report')->where('surveillance_id', $surveillanceId)->first()
             : null;
+        $recommendation = $surveillanceId > 0 && Schema::hasTable('recommendation')
+            ? DB::table('recommendation')->where('surveillance_id', $surveillanceId)->first()
+            : null;
         $doctor = $this->resolvedSurveillanceDoctorRecord($request, $user, $declaration);
 
         $employeeName = trim((string) (($employee->employee_firstName ?? '') . ' ' . ($employee->employee_lastName ?? '')));
@@ -4853,6 +4856,7 @@ class PanelController extends Controller
             'usechh3Company' => $company,
             'usechh3Chemical' => $chemical,
             'usechh3FitnessReport' => $fitnessReport,
+            'usechh3DefaultRemarks' => trim((string) ($recommendation->notes ?? '')),
             'usechh3Doctor' => $doctor,
             'usechh3EmployeeName' => $employeeName !== '' ? $employeeName : 'Not recorded',
             'usechh3CompanyAddress' => $companyAddress !== '' ? $companyAddress : '-',
