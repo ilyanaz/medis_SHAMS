@@ -265,10 +265,25 @@ $splitLines = static function ($value) {
     }
     return preg_split('/\r\n|\r|\n/', $value) ?: [];
 };
+$storedBiologicalExposure = old('biological_exposure', $biologicalMonitoring->biological_exposure ?? '');
 $storedBaseline = old('baseline_results', $biologicalMonitoring->baseline_results ?? '');
 $storedAnnual = old('baseline_annual', $biologicalMonitoring->baseline_annual ?? '');
+$exposureLines = $splitLines($storedBiologicalExposure);
 $baselineLines = $splitLines($storedBaseline);
 $annualLines = $splitLines($storedAnnual);
+
+// Older records stored the determinant together with the baseline result.
+if ($exposureLines === [] || in_array(strtolower(trim((string) $storedBiologicalExposure)), ['yes', 'no'], true)) {
+    $legacyExposureLines = [];
+    $legacyBaselineLines = [];
+    foreach ($baselineLines as $baselineLine) {
+        $parts = explode('::', $baselineLine, 2);
+        $legacyExposureLines[] = trim($parts[0] ?? '');
+        $legacyBaselineLines[] = trim($parts[1] ?? '');
+    }
+    $exposureLines = $legacyExposureLines;
+    $baselineLines = $legacyBaselineLines;
+}
 $uploadedBloodResultFiles = [];
 if (! empty($biologicalMonitoring->blood_result_files ?? null)) {
     $decodedBloodResultFiles = json_decode((string) $biologicalMonitoring->blood_result_files, true);
@@ -278,18 +293,11 @@ if (! empty($biologicalMonitoring->blood_result_files ?? null)) {
 }
 $biologicalManualComplete = old('biological_monitoring_manual_complete', (string) (($biologicalMonitoring->manual_completed ?? 0) ? '1' : '0')) === '1';
 $bioRows = [];
-$bioCount = max(count($baselineLines), count($annualLines), 1);
+$bioCount = max(count($exposureLines), count($baselineLines), count($annualLines), 1);
 for ($i = 0; $i < $bioCount; $i++) {
-    $determinant = '';
-    $baseline = '';
-    if (isset($baselineLines[$i])) {
-        $parts = explode('::', $baselineLines[$i], 2);
-        $determinant = trim($parts[0] ?? '');
-        $baseline = trim($parts[1] ?? '');
-    }
     $bioRows[] = [
-        'determinant' => $determinant,
-        'baseline' => $baseline,
+        'determinant' => trim($exposureLines[$i] ?? ''),
+        'baseline' => trim($baselineLines[$i] ?? ''),
         'annual' => trim($annualLines[$i] ?? ''),
     ];
 }
@@ -531,6 +539,7 @@ var pageTitle=document.getElementById('examPageTitle');
 var appPage=document.querySelector('.app-page');
 var addBioRowBtn=document.getElementById('addBioRow');
 var bioTableBody=document.querySelector('#bioMonitoringTable tbody');
+var biologicalExposureStore=document.getElementById('biologicalExposureStore');
 var baselineStore=document.getElementById('baselineResultsStore');
 var annualStore=document.getElementById('baselineAnnualStore');
 var historyAllNoToggles=Array.prototype.slice.call(document.querySelectorAll('[data-history-all-no]'));
@@ -624,10 +633,10 @@ function buildBloodResultFileRow(){var row=document.createElement('div');row.cla
 function ensureBloodResultFileRow(){if(isReadOnly||!bloodResultFileList){return;}if(totalVisibleBloodResultRows()>0){return;}bloodResultFileList.appendChild(buildBloodResultFileRow());}
 function initializeMedicalHistoryRows(){Array.prototype.slice.call(document.querySelectorAll('[data-medical-history-row]')).forEach(function(row){Array.prototype.slice.call(row.querySelectorAll('[data-medical-history-toggle]')).forEach(function(input){input.addEventListener('change',function(){refreshVisibleStatuses();});});});}
 function patientSectionComplete(){var requiredRadioFields=['diagnosed_history_status','medication_history_status','admitted_history_status','family_history_status','smoking_history','vaping_history','handling_of_chemical','sign_symptoms','chemical_poisoning','proper_PPE','PPE_usage'];if(!everyFilled(requiredRadioFields,radioValue)){return false;}if(fieldValue('input[name="current_job_title"]')===''||fieldValue('input[name="current_employment_duration"]')===''||fieldValue('input[name="current_chemical_exposure_duration"]')===''){return false;}var smokingHistory=radioValue('smoking_history');if((smokingHistory==='Current'||smokingHistory==='Ex-smoker')&&(fieldValue('input[name="years_of_smoking"]')===''||fieldValue('input[name="no_of_cigarettes"]')==='')){return false;}if(radioValue('vaping_history')==='Yes'&&fieldValue('input[name="years_of_vaping"]')===''){return false;}return true;}
-function computeSectionCompletion(index){switch(index){case 0:return patientSectionComplete();case 1:return fieldValue('input[name="company_name"]')!==''&&fieldValue('input[name="chemicals"]')!==''&&fieldValue('select[name="examination_type"]')!==''&&fieldValue('input[name="examination_date"]')!=='';case 2:return radioValue('breathing_difficulty')!=='';case 3:return radioValue('result_clinical_findings')!=='';case 4:return fieldValue('input[name="weight"]')!==''&&fieldValue('input[name="height"]')!==''&&fieldValue('input[name="BMI"]')!=='';case 5:var hasRequiredBuiltIns=everyFilled(['blood_count_result','renal_function_result','liver_function_result'],radioValue);return hasRequiredBuiltIns&&fieldValue('input[name="spirometry_FEV1"]')!==''&&fieldValue('input[name="spirometry_FVC"]')!==''&&fieldValue('input[name="spirometry_FEV_FVC"]')!=='';case 6:if(biologicalManualCompleteInput&&biologicalManualCompleteInput.checked){return true;}buildBioPayload();var baselineLines=(baselineStore&&baselineStore.value?baselineStore.value.split(/\r\n|\r|\n/):[]).filter(function(line){return line.trim()!=='';});var annualLines=(annualStore&&annualStore.value?annualStore.value.split(/\r\n|\r|\n/):[]).filter(function(line){return line.trim()!=='';});var existingFiles=activeExistingBloodResultFiles()>0;var newFiles=activeNewBloodResultFiles()>0;if((existingFiles||newFiles)&&(!baselineLines.length||baselineLines.length===annualLines.length)){return true;}if(!baselineLines.length||baselineLines.length!==annualLines.length){return false;}return baselineLines.every(function(line,idx){var parts=line.split('::');return (parts[0]||'').trim()!==''&&(parts[1]||'').trim()!==''&&(annualLines[idx]||'').trim()!=='';});case 7:return radioValue('fitness_result')!=='';case 8:return radioValue('history_of_health')!==''&&radioValue('conclusion_fitness')!=='';case 9:var selectedRecommendations=recommendationSelected();var hasOtherRecommendation=recommendationOtherToggle&&recommendationOtherToggle.checked&&fieldValue('input[name="recommendation_type_other"]')!=='';var needsMrpDates=hasMedicalRemovalProtection();var hasRequiredDateValues=!needsMrpDates||(fieldValue('input[name="MRPdate_start"]')!==''&&fieldValue('input[name="MRPdate_end"]')!=='');return (selectedRecommendations.length>0||hasOtherRecommendation)&&hasRequiredDateValues;default:return false;}}
+function computeSectionCompletion(index){switch(index){case 0:return patientSectionComplete();case 1:return fieldValue('input[name="company_name"]')!==''&&fieldValue('input[name="chemicals"]')!==''&&fieldValue('select[name="examination_type"]')!==''&&fieldValue('input[name="examination_date"]')!=='';case 2:return radioValue('breathing_difficulty')!=='';case 3:return radioValue('result_clinical_findings')!=='';case 4:return fieldValue('input[name="weight"]')!==''&&fieldValue('input[name="height"]')!==''&&fieldValue('input[name="BMI"]')!=='';case 5:var hasRequiredBuiltIns=everyFilled(['blood_count_result','renal_function_result','liver_function_result'],radioValue);return hasRequiredBuiltIns&&fieldValue('input[name="spirometry_FEV1"]')!==''&&fieldValue('input[name="spirometry_FVC"]')!==''&&fieldValue('input[name="spirometry_FEV_FVC"]')!=='';case 6:if(biologicalManualCompleteInput&&biologicalManualCompleteInput.checked){return true;}buildBioPayload();var exposureLines=(biologicalExposureStore&&biologicalExposureStore.value?biologicalExposureStore.value.split(/\r\n|\r|\n/):[]).filter(function(line){return line.trim()!=='';});var baselineLines=(baselineStore&&baselineStore.value?baselineStore.value.split(/\r\n|\r|\n/):[]).filter(function(line){return line.trim()!=='';});var annualLines=(annualStore&&annualStore.value?annualStore.value.split(/\r\n|\r|\n/):[]).filter(function(line){return line.trim()!=='';});var existingFiles=activeExistingBloodResultFiles()>0;var newFiles=activeNewBloodResultFiles()>0;if((existingFiles||newFiles)&&(!exposureLines.length||exposureLines.length===baselineLines.length&&baselineLines.length===annualLines.length)){return true;}if(!exposureLines.length||exposureLines.length!==baselineLines.length||baselineLines.length!==annualLines.length){return false;}return exposureLines.every(function(line,idx){return line.trim()!==''&&(baselineLines[idx]||'').trim()!==''&&(annualLines[idx]||'').trim()!=='';});case 7:return radioValue('fitness_result')!=='';case 8:return radioValue('history_of_health')!==''&&radioValue('conclusion_fitness')!=='';case 9:var selectedRecommendations=recommendationSelected();var hasOtherRecommendation=recommendationOtherToggle&&recommendationOtherToggle.checked&&fieldValue('input[name="recommendation_type_other"]')!=='';var needsMrpDates=hasMedicalRemovalProtection();var hasRequiredDateValues=!needsMrpDates||(fieldValue('input[name="MRPdate_start"]')!==''&&fieldValue('input[name="MRPdate_end"]')!=='');return (selectedRecommendations.length>0||hasOtherRecommendation)&&hasRequiredDateValues;default:return false;}}
 function refreshVisibleStatuses(){sectionKeys.forEach(function(key,index){setSectionStatus(index,computeSectionCompletion(index));});}
 function refreshBioRemoveButtons(){if(!bioTableBody){return;}var rows=bioTableBody.querySelectorAll('.bio-row');rows.forEach(function(row){var btn=row.querySelector('.bio-remove');if(btn){btn.style.visibility=rows.length>1?'visible':'hidden';}});} 
-function buildBioPayload(){if(!bioTableBody||!baselineStore||!annualStore){return;}var baselineLines=[];var annualLines=[];bioTableBody.querySelectorAll('.bio-row').forEach(function(row){var determinant=(row.querySelector('.bio-determinant')||{}).value||'';var baseline=(row.querySelector('.bio-baseline')||{}).value||'';var annual=(row.querySelector('.bio-annual')||{}).value||'';if(determinant.trim()||baseline.trim()||annual.trim()){baselineLines.push(determinant.trim()+'::'+baseline.trim());annualLines.push(annual.trim());}});baselineStore.value=baselineLines.join('\n');annualStore.value=annualLines.join('\n');}
+function buildBioPayload(){if(!bioTableBody||!baselineStore||!annualStore||!form){return;}if(!biologicalExposureStore){biologicalExposureStore=document.createElement('input');biologicalExposureStore.type='hidden';biologicalExposureStore.name='biological_exposure';biologicalExposureStore.id='biologicalExposureStore';form.appendChild(biologicalExposureStore);}var exposureLines=[];var baselineLines=[];var annualLines=[];bioTableBody.querySelectorAll('.bio-row').forEach(function(row){var determinant=(row.querySelector('.bio-determinant')||{}).value||'';var baseline=(row.querySelector('.bio-baseline')||{}).value||'';var annual=(row.querySelector('.bio-annual')||{}).value||'';if(determinant.trim()||baseline.trim()||annual.trim()){exposureLines.push(determinant.trim());baselineLines.push(baseline.trim());annualLines.push(annual.trim());}});biologicalExposureStore.value=exposureLines.join('\n');baselineStore.value=baselineLines.join('\n');annualStore.value=annualLines.join('\n');}
 function persistExamData(){buildBioPayload();var payload=new FormData(form);payload.set('autosave','1');payload.set('save_mode','draft');isSaving=true;if(nextBtn){nextBtn.disabled=true;}return fetch(form.getAttribute('action'),{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json','X-CSRF-TOKEN':csrfTokenInput?csrfTokenInput.value:''},body:payload}).then(function(response){if(!response.ok){throw new Error('Unable to save examination');}return response.json();}).then(function(data){if(surveillanceIdInput&&data.surveillance_id){surveillanceIdInput.value=data.surveillance_id;}if(declarationIdInput&&data.declaration_id){declarationIdInput.value=data.declaration_id;}updateSectionStatuses(data.sectionStatuses||{});return data;}).finally(function(){isSaving=false;if(nextBtn){nextBtn.disabled=false;}});}
 if(addBioRowBtn&&bioTableBody){addBioRowBtn.addEventListener('click',function(){var row=document.createElement('tr');row.className='bio-row';row.innerHTML='<td class="text-cell"><input type="text" class="bio-determinant" placeholder="Determinant / test name"></td><td class="text-cell"><input type="text" class="bio-baseline" placeholder="Baseline result"></td><td class="text-cell"><input type="text" class="bio-annual" placeholder="Annual result"></td><td class="choice-cell"><button type="button" class="small-btn bio-remove" title="Delete row" aria-label="Delete row"><svg viewBox=\"0 0 24 24\"><path d=\"M4 7h16\"></path><path d=\"M10 11v6\"></path><path d=\"M14 11v6\"></path><path d=\"M6 7l1 13h10l1-13\"></path><path d=\"M9 7V4h6v3\"></path></svg></button></td>';bioTableBody.appendChild(row);refreshBioRemoveButtons();});bioTableBody.addEventListener('click',function(event){var btn=event.target.closest('.bio-remove');if(!btn){return;}var rows=bioTableBody.querySelectorAll('.bio-row');if(rows.length<=1){return;}btn.closest('.bio-row').remove();refreshBioRemoveButtons();});refreshBioRemoveButtons();}
 if(occupationalList){occupationalList.querySelectorAll('[data-occup-row]').forEach(bindOccupationalRow);syncOccupationalTitles();}

@@ -225,11 +225,21 @@ foreach ($historyLabels as $column => $label) {
 }
 
 $biologicalRows = [];
+$exposureRows = preg_split('/\r\n|\r|\n/', trim((string) ($biologicalMonitoring->biological_exposure ?? ''))) ?: [];
 $baselineRows = preg_split('/\r\n|\r|\n/', trim((string) ($biologicalMonitoring->baseline_results ?? ''))) ?: [];
 $annualRows = preg_split('/\r\n|\r|\n/', trim((string) ($biologicalMonitoring->baseline_annual ?? ''))) ?: [];
-$rowCount = max(count($baselineRows), count($annualRows));
+if ($exposureRows === [] || in_array(strtolower(trim((string) ($biologicalMonitoring->biological_exposure ?? ''))), ['yes', 'no'], true)) {
+    $exposureRows = [];
+    foreach ($baselineRows as $index => $baselineRow) {
+        $parts = explode('::', $baselineRow, 2);
+        $exposureRows[$index] = trim($parts[0] ?? '');
+        $baselineRows[$index] = trim($parts[1] ?? '');
+    }
+}
+$rowCount = max(count($exposureRows), count($baselineRows), count($annualRows));
 for ($index = 0; $index < $rowCount; $index += 1) {
     $biologicalRows[] = [
+        'exposure' => trim((string) ($exposureRows[$index] ?? '')),
         'baseline' => trim((string) ($baselineRows[$index] ?? '')),
         'annual' => trim((string) ($annualRows[$index] ?? '')),
     ];
@@ -1320,10 +1330,9 @@ body {
                             <tr><td>NA</td><td>NA</td><td>NA</td></tr>
                         <?php elseif ($biologicalRows !== []): ?>
                             <?php foreach ($biologicalRows as $biologicalRow): ?>
-                                <?php $baselineParts = explode('::', (string) ($biologicalRow['baseline'] ?? ''), 2); ?>
                                 <tr>
-                                    <td><?php echo $esc($showValue($baselineParts[0] ?? null)); ?></td>
-                                    <td><?php echo $esc($showValue($baselineParts[1] ?? ($biologicalRow['baseline'] ?? null))); ?></td>
+                                    <td><?php echo $esc($showValue($biologicalRow['exposure'] ?? null)); ?></td>
+                                    <td><?php echo $esc($showValue($biologicalRow['baseline'] ?? null)); ?></td>
                                     <td><?php echo $esc($showValue($biologicalRow['annual'] ?? null)); ?></td>
                                 </tr>
                             <?php endforeach; ?>

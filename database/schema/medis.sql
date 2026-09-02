@@ -250,7 +250,7 @@ DROP TABLE IF EXISTS `biological_monitoring`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `biological_monitoring` (
   `bioMonitor_id` int NOT NULL AUTO_INCREMENT,
-  `biological_exposure` enum('Yes','No') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `biological_exposure` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
   `baseline_results` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
   `baseline_annual` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
   `blood_result_files` longtext COLLATE utf8mb4_general_ci,

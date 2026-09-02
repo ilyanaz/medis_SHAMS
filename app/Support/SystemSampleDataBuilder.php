@@ -706,9 +706,9 @@ class SystemSampleDataBuilder
                 'employee_id' => $employeeId,
                 'surveillance_id' => $surveillanceId,
             ], [
-                'biological_exposure' => 'No',
-                'baseline_results' => "Lead::12\nMercury::3",
-                'baseline_annual' => "Lead::10\nMercury::2",
+                'biological_exposure' => "Lead\nMercury",
+                'baseline_results' => "12\n3",
+                'baseline_annual' => "10\n2",
             ]);
         }
 

@@ -3041,8 +3041,10 @@ class PanelController extends Controller
         $targetId = $this->upsertSurveillanceChildRow('target_organ', 'target_id', $surveillanceId, $employeeId, $targetPayload);
         $this->syncTargetOrganOtherTests($targetId, $surveillanceId, $employeeId, $otherTargetTests);
 
+        $biologicalExposure = trim((string) $request->input('biological_exposure', ''));
         $baselineResults = trim((string) $request->input('baseline_results', ''));
         $baselineAnnual = trim((string) $request->input('baseline_annual', ''));
+        $biologicalManualComplete = $request->boolean('biological_monitoring_manual_complete');
         $employeeRecord = $employeeId > 0
             ? DB::table('employee')->where('employee_id', $employeeId)->first()
             : null;
@@ -3112,14 +3114,14 @@ class PanelController extends Controller
 
         $mergedBloodResultFiles = array_values(array_unique(array_merge($existingBloodResultFiles, $newBloodResultFiles)));
         $biologicalPayload = [
-            'biological_exposure' => ($baselineResults !== '' || $baselineAnnual !== '' || ! empty($mergedBloodResultFiles)) ? 'Yes' : null,
-            'baseline_results' => $baselineResults !== '' ? $baselineResults : null,
-            'baseline_annual' => $baselineAnnual !== '' ? $baselineAnnual : null,
+            'biological_exposure' => $biologicalManualComplete || $biologicalExposure === '' ? null : $biologicalExposure,
+            'baseline_results' => $biologicalManualComplete || $baselineResults === '' ? null : $baselineResults,
+            'baseline_annual' => $biologicalManualComplete || $baselineAnnual === '' ? null : $baselineAnnual,
             'employee_id' => $employeeId,
             'surveillance_id' => $surveillanceId,
         ];
         if (Schema::hasTable('biological_monitoring') && Schema::hasColumn('biological_monitoring', 'manual_completed')) {
-            $biologicalPayload['manual_completed'] = $request->boolean('biological_monitoring_manual_complete') ? 1 : 0;
+            $biologicalPayload['manual_completed'] = $biologicalManualComplete ? 1 : 0;
         }
         if (Schema::hasTable('biological_monitoring') && Schema::hasColumn('biological_monitoring', 'blood_result_files')) {
             $biologicalPayload['blood_result_files'] = ! empty($mergedBloodResultFiles) ? json_encode($mergedBloodResultFiles) : null;
@@ -4985,7 +4987,7 @@ class PanelController extends Controller
                 'history_effect' => trim((string) ($findings->history_of_health ?? '')) ?: 'Not recorded',
                 'clinical_findings' => trim((string) ($findings->clinical_findings ?? '')) ?: 'Not recorded',
                 'target_organ_function' => $targetParts !== [] ? implode("\n", $targetParts) : 'Not recorded',
-                'bei_determinants' => trim((string) ($biological->baseline_annual ?? $biological->baseline_results ?? $biological->biological_exposure ?? '')) ?: 'Not recorded',
+                'bei_determinants' => trim((string) ($biological->biological_exposure ?? $biological->baseline_results ?? $biological->baseline_annual ?? '')) ?: 'Not recorded',
                 'work_relatedness' => $workRelatedness,
                 'conclusion' => trim((string) ($findings->conclusion_fitness ?? '')) ?: 'Not recorded',
                 'mrp_date' => trim((string) ($recommendation->MRPdate_start ?? '')) ?: 'Not recorded',
@@ -5290,7 +5292,7 @@ class PanelController extends Controller
                 'history_effect' => trim((string) ($findings->history_of_health ?? '')) ?: 'No',
                 'clinical_findings' => trim((string) ($findings->clinical_findings ?? '')) ?: 'No',
                 'target_organ_function' => $targetParts !== [] ? implode(', ', array_values(array_unique($targetParts))) : 'Not recorded',
-                'bm_determinant' => trim((string) ($biological->baseline_annual ?? $biological->baseline_results ?? '')) ?: 'Not recorded',
+                'bm_determinant' => trim((string) ($biological->biological_exposure ?? $biological->baseline_results ?? $biological->baseline_annual ?? '')) ?: 'Not recorded',
                 'work_relatedness' => $workRelatedness,
                 'recommendation_action' => $recommendationParts !== [] ? implode(', ', $recommendationParts) : 'Monitoring',
                 'conclusion' => strtolower($removalType) === 'permanent' ? 'Permanent Unfit' : (trim((string) ($findings->conclusion_fitness ?? '')) ?: 'Temporary Unfit'),
@@ -6907,10 +6909,13 @@ class PanelController extends Controller
 
     protected function surveillanceSectionStatusesFromRequest(Request $request): array
     {
+        $biologicalExposureLines = array_values(array_filter(preg_split('/\r\n|\r|\n/', trim((string) $request->input('biological_exposure', ''))) ?: [], static fn ($line) => trim((string) $line) !== ''));
         $baselineLines = array_values(array_filter(preg_split('/\r\n|\r|\n/', trim((string) $request->input('baseline_results', ''))) ?: [], static fn ($line) => trim((string) $line) !== ''));
         $annualLines = array_values(array_filter(preg_split('/\r\n|\r|\n/', trim((string) $request->input('baseline_annual', ''))) ?: [], static fn ($line) => trim((string) $line) !== ''));
         $biologicalManualDone = $request->boolean('biological_monitoring_manual_complete');
-        $biologicalDone = ! empty($baselineLines) && count($baselineLines) === count($annualLines);
+        $biologicalDone = ! empty($biologicalExposureLines)
+            && count($biologicalExposureLines) === count($baselineLines)
+            && count($baselineLines) === count($annualLines);
         if (! $biologicalDone) {
             $bloodResultFiles = (array) $request->file('blood_result_files', []);
             $biologicalDone = count(array_filter($bloodResultFiles)) > 0;
@@ -6972,7 +6977,8 @@ class PanelController extends Controller
                 && trim((string) ($context['targetOrgan']->spirometry_FEV_FVC ?? '')) !== ''
             ),
             'biological' => ! empty($context['biologicalMonitoring']) && (
-                trim((string) ($context['biologicalMonitoring']->baseline_results ?? '')) !== ''
+                trim((string) ($context['biologicalMonitoring']->biological_exposure ?? '')) !== ''
+                || trim((string) ($context['biologicalMonitoring']->baseline_results ?? '')) !== ''
                 || trim((string) ($context['biologicalMonitoring']->baseline_annual ?? '')) !== ''
                 || trim((string) ($context['biologicalMonitoring']->blood_result_files ?? '')) !== ''
                 || (bool) ($context['biologicalMonitoring']->manual_completed ?? false)
