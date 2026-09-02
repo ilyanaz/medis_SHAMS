@@ -89,7 +89,7 @@ foreach ($folderRows as $row) {
         'surveillance_id' => $row['surveillance_id'] ?? null,
     ], static fn ($value) => (int) $value > 0);
     $row['tab_key'] = 'all';
-    $row['combined_pdf_href'] = function_exists('route') ? route('pdf.usechh-all', $routeParams) : '#';
+    $row['combined_pdf_href'] = function_exists('route') ? route('pdf.usechh-all', array_merge($routeParams, ['download' => 1])) : '#';
     $allRows[] = $row;
 }
 
@@ -197,7 +197,7 @@ medis_render_navigation_start([
 
     <section class="manage-card">
         <div class="subfilter-bar" id="folderTabs">
-            <button class="subfilter-btn is-hidden<?php echo $initialTab === 'all' ? ' active' : ''; ?>" type="button" data-tab="all">All</button>
+            <button class="subfilter-btn<?php echo $initialTab === 'all' ? ' active' : ''; ?>" type="button" data-tab="all">All</button>
             <button class="subfilter-btn<?php echo $initialTab === 'usechh 1' ? ' active' : ''; ?>" type="button" data-tab="usechh 1">USECHH 1</button>
             <button class="subfilter-btn<?php echo $initialTab === 'usechh 2' ? ' active' : ''; ?>" type="button" data-tab="usechh 2">USECHH 2</button>
             <button class="subfilter-btn<?php echo $initialTab === 'usechh 3' ? ' active' : ''; ?>" type="button" data-tab="usechh 3">USECHH 3</button>
@@ -427,7 +427,7 @@ medis_render_navigation_start([
         if (printBtn) {
             printBtn.disabled = !hasSelectedRows;
             printBtn.classList.toggle('is-disabled', !hasSelectedRows);
-            const isDownloadTab = activeTab === 'usechh 1' || activeTab === 'usechh 2' || activeTab === 'usechh 3' || activeTab === 'usechh 4' || activeTab === 'usechh 5i' || activeTab === 'usechh 5ii';
+            const isDownloadTab = activeTab === 'all' || activeTab === 'usechh 1' || activeTab === 'usechh 2' || activeTab === 'usechh 3' || activeTab === 'usechh 4' || activeTab === 'usechh 5i' || activeTab === 'usechh 5ii';
             printBtn.innerHTML = isDownloadTab ? downloadIconSvg : printIconSvg;
             printBtn.title = hasSelectedRows
                 ? (isDownloadTab ? 'Download selected as PDF' : 'Print selected')

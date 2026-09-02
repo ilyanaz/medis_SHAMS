@@ -18,6 +18,7 @@ use Illuminate\Support\Str;
 use Illuminate\View\View;
 use DOMDocument;
 use DOMXPath;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PanelController extends Controller
 {
@@ -150,7 +151,7 @@ class PanelController extends Controller
         return view('report.general_report_folder', $viewData);
     }
 
-    public function combinedUsechhAllPdf(Request $request): View|RedirectResponse
+    public function combinedUsechhAllPdf(Request $request): View|RedirectResponse|StreamedResponse
     {
         $user = $this->requirePanelUser($request);
         if ($user instanceof RedirectResponse) {
@@ -205,6 +206,17 @@ class PanelController extends Controller
         $doctor = ! empty($declaration->doctor_id) && Schema::hasTable('doctor')
             ? DB::table('doctor')->where('doctor_id', (int) $declaration->doctor_id)->first()
             : null;
+
+        if ($request->boolean('download')) {
+            $workerName = trim((string) (($selectedEmployee->employee_firstName ?? '') . ' ' . ($selectedEmployee->employee_lastName ?? '')));
+            $safeWorkerName = trim(preg_replace('/[\\\\\\/:*?"<>|]+/', '', $workerName)) ?: 'Worker';
+            $filename = 'Medical Surveillance Report_' . preg_replace('/\s+/', ' ', $safeWorkerName) . '.pdf';
+            $pdfContent = $this->renderCombinedUsechhAllPdfContent($baseViewData, $legacyContext, $request, $declaration);
+
+            return response()->streamDownload(static function () use ($pdfContent): void {
+                echo $pdfContent;
+            }, $filename, ['Content-Type' => 'application/pdf']);
+        }
 
         $usechh1Context = array_merge(
             $baseViewData,
