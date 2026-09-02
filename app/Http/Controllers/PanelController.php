@@ -277,7 +277,7 @@ class PanelController extends Controller
 
         $clinicHeaderPath = trim((string) ($viewData['activeClinic']->clinic_header_path ?? ''));
         if ($clinicHeaderPath !== '') {
-            $localClinicHeaderPath = public_path(ltrim($clinicHeaderPath, '/\\'));
+            $localClinicHeaderPath = $this->privateStorageAbsolutePath($clinicHeaderPath);
             if (is_file($localClinicHeaderPath)) {
                 $viewData['clinicHeaderUrl'] = $localClinicHeaderPath;
                 $viewData['clinicLogoUrl'] = $localClinicHeaderPath;
@@ -350,7 +350,7 @@ class PanelController extends Controller
         $viewData['pdfDownloadMode'] = true;
         $clinicHeaderPath = trim((string) ($viewData['activeClinic']->clinic_header_path ?? ''));
         if ($clinicHeaderPath !== '') {
-            $localClinicHeaderPath = public_path(ltrim($clinicHeaderPath, '/\\'));
+            $localClinicHeaderPath = $this->privateStorageAbsolutePath($clinicHeaderPath);
             if (is_file($localClinicHeaderPath)) {
                 $viewData['clinicHeaderUrl'] = $localClinicHeaderPath;
                 $viewData['clinicLogoUrl'] = $localClinicHeaderPath;
@@ -436,7 +436,7 @@ class PanelController extends Controller
         $viewData['pdfDownloadMode'] = true;
         $clinicHeaderPath = trim((string) ($viewData['activeClinic']->clinic_header_path ?? ''));
         if ($clinicHeaderPath !== '') {
-            $localClinicHeaderPath = public_path(ltrim($clinicHeaderPath, '/\\'));
+            $localClinicHeaderPath = $this->privateStorageAbsolutePath($clinicHeaderPath);
             if (is_file($localClinicHeaderPath)) {
                 $viewData['clinicHeaderUrl'] = $localClinicHeaderPath;
                 $viewData['clinicLogoUrl'] = $localClinicHeaderPath;
@@ -521,7 +521,7 @@ class PanelController extends Controller
         ]);
         $clinicHeaderPath = trim((string) ($viewData['activeClinic']->clinic_header_path ?? ''));
         if ($clinicHeaderPath !== '') {
-            $localClinicHeaderPath = public_path(ltrim($clinicHeaderPath, '/\\'));
+            $localClinicHeaderPath = $this->privateStorageAbsolutePath($clinicHeaderPath);
             if (is_file($localClinicHeaderPath)) {
                 $viewData['clinicHeaderUrl'] = $localClinicHeaderPath;
                 $viewData['clinicLogoUrl'] = $localClinicHeaderPath;
@@ -601,7 +601,7 @@ class PanelController extends Controller
         );
         $clinicHeaderPath = trim((string) ($viewData['activeClinic']->clinic_header_path ?? ''));
         if ($clinicHeaderPath !== '') {
-            $localClinicHeaderPath = public_path(ltrim($clinicHeaderPath, '/\\'));
+            $localClinicHeaderPath = $this->privateStorageAbsolutePath($clinicHeaderPath);
             if (is_file($localClinicHeaderPath)) {
                 $viewData['clinicHeaderUrl'] = $localClinicHeaderPath;
                 $viewData['clinicLogoUrl'] = $localClinicHeaderPath;
@@ -640,7 +640,7 @@ class PanelController extends Controller
         $filename = 'USECHH5ii - ' . trim((string) $safeChemicalName) . '.pdf';
         $clinicHeaderPath = trim((string) ($viewData['activeClinic']->clinic_header_path ?? ''));
         if ($clinicHeaderPath !== '') {
-            $localClinicHeaderPath = public_path(ltrim($clinicHeaderPath, '/\\'));
+            $localClinicHeaderPath = $this->privateStorageAbsolutePath($clinicHeaderPath);
             if (is_file($localClinicHeaderPath)) {
                 $viewData['clinicHeaderUrl'] = $localClinicHeaderPath;
                 $viewData['clinicLogoUrl'] = $localClinicHeaderPath;
@@ -3108,7 +3108,7 @@ class PanelController extends Controller
             }
 
             $storedFilename = $this->buildBloodResultStoredFilename($uploadedFile, $patientNameForFile, 'surveillance/blood-results');
-            Storage::disk('public')->putFileAs('surveillance/blood-results', $uploadedFile, $storedFilename);
+            Storage::disk('private')->putFileAs('surveillance/blood-results', $uploadedFile, $storedFilename);
             $newBloodResultFiles[] = 'surveillance/blood-results/' . $storedFilename;
         }
 
@@ -3936,10 +3936,11 @@ class PanelController extends Controller
 
         return [
             'clinicName' => $activeClinic?->clinic_name ?? ($this->isAdmin($user) ? 'Admin' : 'Medis SHAMS'),
-            'clinicLogoUrl' => $clinicHeaderPath ? asset($clinicHeaderPath) : null,
+            'clinicLogoUrl' => $this->privateFileUrl($clinicHeaderPath),
             'username' => $user ? $this->displayName($user) : 'User',
             'activeClinic' => $activeClinic,
             'panelUser' => $user,
+            'privateFileUrl' => fn (?string $path): ?string => $this->privateFileUrl($path),
         ];
     }
 
@@ -4462,6 +4463,82 @@ class PanelController extends Controller
                 ])),
             ];
         })->all();
+    }
+
+    public function downloadPrivateFile(Request $request)
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        $token = trim((string) $request->query('token', ''));
+        $token .= str_repeat('=', (4 - strlen($token) % 4) % 4);
+        $path = base64_decode(strtr($token, '-_', '+/'), true);
+        $path = is_string($path) ? $this->privateStoragePath($path) : '';
+        if ($path === '' || ! Storage::disk('private')->exists($path)) {
+            abort(404);
+        }
+
+        if (Str::startsWith($path, 'surveillance/blood-results/')) {
+            $attachment = $this->biologicalMonitoringAttachment($path);
+            if ($attachment === null || $this->findSurveillancePatient($request, (int) $attachment->employee_id) === null) {
+                abort(403);
+            }
+        }
+
+        return response()->file(Storage::disk('private')->path($path), [
+            'Content-Disposition' => 'inline; filename="' . basename($path) . '"',
+        ]);
+    }
+
+    protected function privateFileUrl(?string $path): ?string
+    {
+        $path = $this->privateStoragePath((string) $path);
+        if ($path === '') {
+            return null;
+        }
+
+        return route('private.file.show', [
+            'token' => rtrim(strtr(base64_encode($path), '+/', '-_'), '='),
+        ]);
+    }
+
+    protected function privateStoragePath(string $path): string
+    {
+        $path = ltrim(str_replace('\\', '/', trim($path)), '/');
+        if (Str::startsWith($path, 'storage/')) {
+            $path = substr($path, strlen('storage/'));
+        }
+
+        if ($path === '' || str_contains($path, '..') || ! (Str::startsWith($path, 'uploads/') || Str::startsWith($path, 'surveillance/blood-results/'))) {
+            return '';
+        }
+
+        return $path;
+    }
+
+    protected function privateStorageAbsolutePath(string $path): string
+    {
+        $path = $this->privateStoragePath($path);
+
+        return $path !== '' ? Storage::disk('private')->path($path) : '';
+    }
+
+    protected function biologicalMonitoringAttachment(string $path): ?object
+    {
+        if (! Schema::hasTable('biological_monitoring') || ! Schema::hasColumn('biological_monitoring', 'blood_result_files')) {
+            return null;
+        }
+
+        foreach (DB::table('biological_monitoring')->whereNotNull('blood_result_files')->get(['employee_id', 'blood_result_files']) as $record) {
+            $files = json_decode((string) $record->blood_result_files, true);
+            if (is_array($files) && in_array($path, $files, true)) {
+                return $record;
+            }
+        }
+
+        return null;
     }
 
     protected function requirePanelUser(Request $request): User|RedirectResponse
@@ -6565,9 +6642,9 @@ class PanelController extends Controller
         $filename = $prefix . Str::uuid() . '.' . $extension;
         $directory = trim($directory, '/\\');
 
-        Storage::disk('public')->put($directory . '/' . $filename, $binary);
+        Storage::disk('private')->put($directory . '/' . $filename, $binary);
 
-        return 'storage/' . $directory . '/' . $filename;
+        return $directory . '/' . $filename;
     }
 
     protected function storeUploadedFile($file, string $prefix, string $directory): ?string
@@ -6580,9 +6657,9 @@ class PanelController extends Controller
         $extension = strtolower((string) $file->getClientOriginalExtension());
         $filename = $prefix . Str::uuid() . ($extension !== '' ? '.' . $extension : '');
 
-        Storage::disk('public')->putFileAs($directory, $file, $filename);
+        Storage::disk('private')->putFileAs($directory, $file, $filename);
 
-        return 'storage/' . $directory . '/' . $filename;
+        return $directory . '/' . $filename;
     }
 
     protected function sanitizeStoredFilenamePart(string $value, string $fallback): string
@@ -6609,7 +6686,7 @@ class PanelController extends Controller
         $filename = $combinedName . ($extension !== '' ? '.' . $extension : '');
         $counter = 2;
 
-        while (Storage::disk('public')->exists($directory . '/' . $filename)) {
+        while (Storage::disk('private')->exists($directory . '/' . $filename)) {
             $filename = $combinedName . '_' . $counter . ($extension !== '' ? '.' . $extension : '');
             $counter++;
         }
@@ -6627,11 +6704,17 @@ class PanelController extends Controller
         $normalizedPath = str_replace('\\', '/', $path);
         if (Str::startsWith($normalizedPath, 'storage/')) {
             $storagePath = substr($normalizedPath, strlen('storage/'));
-            if ($storagePath !== '' && Storage::disk('public')->exists($storagePath)) {
-                Storage::disk('public')->delete($storagePath);
+            if ($storagePath !== '' && Storage::disk('private')->exists($storagePath)) {
+                Storage::disk('private')->delete($storagePath);
             }
-        } elseif (Storage::disk('public')->exists($normalizedPath)) {
-            Storage::disk('public')->delete($normalizedPath);
+        } elseif (Storage::disk('private')->exists($normalizedPath)) {
+            Storage::disk('private')->delete($normalizedPath);
+        }
+
+        // Clear legacy public copies while older records are being migrated.
+        $legacyStoragePath = Str::startsWith($normalizedPath, 'storage/') ? substr($normalizedPath, strlen('storage/')) : $normalizedPath;
+        if ($legacyStoragePath !== '' && Storage::disk('public')->exists($legacyStoragePath)) {
+            Storage::disk('public')->delete($legacyStoragePath);
         }
 
         $fullPath = public_path($path);
@@ -7308,13 +7391,13 @@ class PanelController extends Controller
         Request $request,
         User $user
     ): array {
-        $withLocalClinicHeader = static function (array $viewData): array {
+        $withLocalClinicHeader = function (array $viewData): array {
             $clinicHeaderPath = trim((string) ($viewData['activeClinic']->clinic_header_path ?? ''));
             if ($clinicHeaderPath === '') {
                 return $viewData;
             }
 
-            $localClinicHeaderPath = public_path(ltrim($clinicHeaderPath, '/\\'));
+            $localClinicHeaderPath = $this->privateStorageAbsolutePath($clinicHeaderPath);
             if (is_file($localClinicHeaderPath)) {
                 $viewData['clinicHeaderUrl'] = $localClinicHeaderPath;
                 $viewData['clinicLogoUrl'] = $localClinicHeaderPath;
@@ -7402,7 +7485,7 @@ class PanelController extends Controller
                     continue;
                 }
 
-                $absolutePath = Storage::disk('public')->path($relativePath);
+                $absolutePath = Storage::disk('private')->path($relativePath);
                 if (! is_file($absolutePath)) {
                     continue;
                 }

@@ -141,7 +141,7 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
                     <label class="profile-preview-circle" id="doctorPicturePreview" for="doctor_picture_upload" <?php echo $isReadOnly ? 'style="cursor:default"' : ''; ?>>
                         <div class="profile-preview-inner">
                             <span id="doctorPictureInitial" <?php echo $profilePicture !== '' ? 'style="display:none;"' : ''; ?>><?php echo htmlspecialchars($profileInitial, ENT_QUOTES, 'UTF-8'); ?></span>
-                            <img id="doctorPictureImage" alt="Doctor profile preview" src="<?php echo $profilePicture !== '' ? htmlspecialchars(asset($profilePicture), ENT_QUOTES, 'UTF-8') : ''; ?>" style="<?php echo $profilePicture !== '' ? 'display:block;' : 'display:none;'; ?>">
+                            <img id="doctorPictureImage" alt="Doctor profile preview" src="<?php echo $profilePicture !== '' ? htmlspecialchars(($privateFileUrl ?? static fn ($path) => null)($profilePicture) ?? '', ENT_QUOTES, 'UTF-8') : ''; ?>" style="<?php echo $profilePicture !== '' ? 'display:block;' : 'display:none;'; ?>">
                         </div>
                         <?php if (! $isReadOnly): ?>
                             <span class="profile-camera-btn" aria-hidden="true">
@@ -313,7 +313,7 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
 
                 <?php if ($signaturePath !== ''): ?>
                     <div class="signature-preview">
-                        <img id="doctorSignatureImage" src="<?php echo htmlspecialchars(asset($signaturePath), ENT_QUOTES, 'UTF-8'); ?>" alt="Doctor signature preview">
+                        <img id="doctorSignatureImage" src="<?php echo htmlspecialchars(($privateFileUrl ?? static fn ($path) => null)($signaturePath) ?? '', ENT_QUOTES, 'UTF-8'); ?>" alt="Doctor signature preview">
                         <span id="doctorSignatureText">Current saved signature</span>
                     </div>
                 <?php elseif (! $isReadOnly): ?>

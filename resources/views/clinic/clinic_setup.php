@@ -187,7 +187,7 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.clinic_list') ?
 
         <?php if ($headerPreview !== ''): ?>
             <div class="preview-card">
-                <img src="<?php echo htmlspecialchars(asset($headerPreview), ENT_QUOTES, 'UTF-8'); ?>" alt="Clinic header preview">
+                <img src="<?php echo htmlspecialchars(($privateFileUrl ?? static fn ($path) => null)($headerPreview) ?? '', ENT_QUOTES, 'UTF-8'); ?>" alt="Clinic header preview">
                 <span>Current header image</span>
             </div>
         <?php endif; ?>
