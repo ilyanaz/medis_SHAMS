@@ -4688,7 +4688,7 @@ class PanelController extends Controller
                     'bei_determinants' => $existingItem->bei_determinants ?? $candidateRow['bei_determinants'],
                     'work_relatedness' => $existingItem->work_relatedness ?? $candidateRow['work_relatedness'],
                     'conclusion' => $existingItem->conclusion ?? $candidateRow['conclusion'],
-                    'mrp_date' => $existingItem->mrp_date ?? $candidateRow['mrp_date'],
+                    'mrp_date' => $candidateRow['mrp_date'],
                     'doctor_name' => $candidateRow['doctor_name'],
                     'doctor_registration_no' => $candidateRow['doctor_registration_no'],
                     'sort_order' => $index + 1,
@@ -4984,7 +4984,7 @@ class PanelController extends Controller
                 'bei_determinants' => trim((string) ($biological->baseline_annual ?? $biological->baseline_results ?? $biological->biological_exposure ?? '')) ?: 'Not recorded',
                 'work_relatedness' => $workRelatedness,
                 'conclusion' => trim((string) ($findings->conclusion_fitness ?? '')) ?: 'Not recorded',
-                'mrp_date' => trim((string) ($recommendation->MRPdate_start ?? $recommendation->nextReview_date ?? '')) ?: 'Not recorded',
+                'mrp_date' => trim((string) ($recommendation->MRPdate_start ?? '')) ?: 'Not recorded',
                 'doctor_name' => $doctorName !== '' ? $doctorName : 'Occupational Health Doctor',
                 'doctor_registration_no' => $doctorRegNo,
                 'doctor' => $doctorRegNo !== ''
