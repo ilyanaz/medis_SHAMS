@@ -18,6 +18,7 @@ use Illuminate\Support\Str;
 use Illuminate\View\View;
 use DOMDocument;
 use DOMXPath;
+use setasign\Fpdi\Fpdi;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PanelController extends Controller
@@ -211,7 +212,13 @@ class PanelController extends Controller
             $workerName = trim((string) (($selectedEmployee->employee_firstName ?? '') . ' ' . ($selectedEmployee->employee_lastName ?? '')));
             $safeWorkerName = trim(preg_replace('/[\\\\\\/:*?"<>|]+/', '', $workerName)) ?: 'Worker';
             $filename = 'Medical Surveillance Report_' . preg_replace('/\s+/', ' ', $safeWorkerName) . '.pdf';
-            $pdfContent = $this->renderCombinedUsechhAllPdfContent($baseViewData, $legacyContext, $request, $declaration);
+            $pdfDocuments = $this->withReportQueryContext($request, [
+                'declaration_id' => $declarationId,
+                'employee_id' => $employeeId,
+                'company_id' => $companyId,
+                'surveillance_id' => $surveillanceId,
+            ], fn (): array => $this->buildAllTabPdfDocuments($baseViewData, $legacyContext, $request, $user));
+            $pdfContent = $this->mergeReportPdfsWithBloodTestPdfs($pdfDocuments, $surveillanceId);
 
             return response()->streamDownload(static function () use ($pdfContent): void {
                 echo $pdfContent;
@@ -277,10 +284,16 @@ class PanelController extends Controller
             }
         }
 
-        return Pdf::loadView('report.surveillance_usechh1Report', $viewData)
+        $pdfContent = Pdf::loadView('report.surveillance_usechh1Report', $viewData)
             ->setOption(['isRemoteEnabled' => true, 'isHtml5ParserEnabled' => true])
             ->setPaper('a4', 'portrait')
-            ->download($filename);
+            ->output();
+        $surveillanceId = (int) ($viewData['surveillanceReportId'] ?? $request->query('surveillance_id', 0));
+        $pdfContent = $this->mergeReportPdfsWithBloodTestPdfs([$pdfContent], $surveillanceId);
+
+        return response()->streamDownload(static function () use ($pdfContent): void {
+            echo $pdfContent;
+        }, $filename, ['Content-Type' => 'application/pdf']);
     }
 
     public function downloadUsechh5iPdf(Request $request)
@@ -7277,6 +7290,135 @@ class PanelController extends Controller
                 ->setPaper('a4', 'portrait')
                 ->output();
         });
+    }
+
+    protected function buildAllTabPdfDocuments(
+        array $baseViewData,
+        \App\Support\LegacyClinicContext $legacyContext,
+        Request $request,
+        User $user
+    ): array {
+        $withLocalClinicHeader = static function (array $viewData): array {
+            $clinicHeaderPath = trim((string) ($viewData['activeClinic']->clinic_header_path ?? ''));
+            if ($clinicHeaderPath === '') {
+                return $viewData;
+            }
+
+            $localClinicHeaderPath = public_path(ltrim($clinicHeaderPath, '/\\'));
+            if (is_file($localClinicHeaderPath)) {
+                $viewData['clinicHeaderUrl'] = $localClinicHeaderPath;
+                $viewData['clinicLogoUrl'] = $localClinicHeaderPath;
+            }
+
+            return $viewData;
+        };
+
+        $usechh1ViewData = $withLocalClinicHeader(array_merge(
+            $baseViewData,
+            $legacyContext->compose('report.surveillance_usechh1Report', [], $request),
+            ['pdfMode' => true]
+        ));
+        $usechh2ViewData = $withLocalClinicHeader(array_merge(
+            $baseViewData,
+            $this->buildUsechh2ReportContext($request, $user, true),
+            ['pdfDownloadMode' => true]
+        ));
+        $usechh3ViewData = $withLocalClinicHeader(array_merge(
+            $baseViewData,
+            $this->buildUsechh3ReportContext($request, $user),
+            ['pdfDownloadMode' => true]
+        ));
+
+        return [
+            Pdf::loadView('report.surveillance_usechh1Report', $usechh1ViewData)
+                ->setOption(['isRemoteEnabled' => true, 'isHtml5ParserEnabled' => true])
+                ->setPaper('a4', 'portrait')
+                ->output(),
+            Pdf::loadView('report.surveillance_fitnessReport.summaryEmpReport', $usechh2ViewData)
+                ->setOption(['isRemoteEnabled' => true, 'isHtml5ParserEnabled' => true])
+                ->setPaper('a4', 'landscape')
+                ->output(),
+            Pdf::loadView('report.surveillance_fitnessReport', $usechh3ViewData)
+                ->setOption(['isRemoteEnabled' => true, 'isHtml5ParserEnabled' => true])
+                ->setPaper('a4', 'portrait')
+                ->output(),
+        ];
+    }
+
+    protected function mergeReportPdfsWithBloodTestPdfs(array $reportPdfs, int $surveillanceId): string
+    {
+        $temporaryPdfPaths = [];
+        try {
+            foreach ($reportPdfs as $reportPdf) {
+                if (! is_string($reportPdf) || $reportPdf === '') {
+                    continue;
+                }
+
+                $temporaryPdfPath = tempnam(sys_get_temp_dir(), 'medis-report-');
+                if ($temporaryPdfPath === false) {
+                    throw new \RuntimeException('Unable to prepare the combined report PDF.');
+                }
+
+                $temporaryPdfPaths[] = $temporaryPdfPath;
+                if (file_put_contents($temporaryPdfPath, $reportPdf) === false) {
+                    throw new \RuntimeException('Unable to prepare the combined report PDF.');
+                }
+            }
+
+            if ($temporaryPdfPaths === []) {
+                throw new \RuntimeException('No report PDFs are available to merge.');
+            }
+
+            $pdfPaths = $temporaryPdfPaths;
+            $bloodResultPaths = [];
+            if (
+                $surveillanceId > 0
+                && Schema::hasTable('biological_monitoring')
+                && Schema::hasColumn('biological_monitoring', 'blood_result_files')
+            ) {
+                $biologicalMonitoring = DB::table('biological_monitoring')
+                    ->where('surveillance_id', $surveillanceId)
+                    ->first();
+                $storedPaths = json_decode((string) ($biologicalMonitoring->blood_result_files ?? ''), true);
+                $bloodResultPaths = is_array($storedPaths) ? $storedPaths : [];
+            }
+
+            foreach ($bloodResultPaths as $bloodResultPath) {
+                $relativePath = ltrim(str_replace('\\', '/', trim((string) $bloodResultPath)), '/');
+                if (
+                    ! str_starts_with($relativePath, 'surveillance/blood-results/')
+                    || strtolower(pathinfo($relativePath, PATHINFO_EXTENSION)) !== 'pdf'
+                ) {
+                    continue;
+                }
+
+                $absolutePath = Storage::disk('public')->path($relativePath);
+                if (! is_file($absolutePath)) {
+                    continue;
+                }
+
+                $pdfPaths[] = $absolutePath;
+            }
+
+            $mergedPdf = new Fpdi();
+            foreach ($pdfPaths as $pdfPath) {
+                $pageCount = $mergedPdf->setSourceFile($pdfPath);
+                for ($pageNumber = 1; $pageNumber <= $pageCount; $pageNumber++) {
+                    $templateId = $mergedPdf->importPage($pageNumber);
+                    $pageSize = $mergedPdf->getTemplateSize($templateId);
+                    $orientation = $pageSize['width'] > $pageSize['height'] ? 'L' : 'P';
+
+                    $mergedPdf->AddPage($orientation, [$pageSize['width'], $pageSize['height']]);
+                    $mergedPdf->useTemplate($templateId);
+                }
+            }
+
+            return $mergedPdf->Output('S');
+        } finally {
+            foreach ($temporaryPdfPaths as $temporaryPdfPath) {
+                @unlink($temporaryPdfPath);
+            }
+        }
     }
 
     protected function renderPdfFromView(string $viewName, array $viewData, array $queryParams = [], string $orientation = 'portrait'): string
