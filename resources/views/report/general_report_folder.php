@@ -245,7 +245,7 @@ medis_render_navigation_start([
                         </th>
                         <th id="folderSecondaryLabel">Chemical Name</th>
                         <th id="folderTertiaryLabel" class="folder-date-col">Date Examined</th>
-                        <th>Action</th>
+                        <th id="folderActionColumn" class="folder-action-col">Action</th>
                     </tr>
                 </thead>
                 <tbody id="folderTableBody">
@@ -300,7 +300,7 @@ medis_render_navigation_start([
                             </td>
                             <td><?php echo $esc(($row['tab_key'] ?? '') === 'usechh 4' ? ($row['work_unit'] ?? '-') : ($row['chemical_name'] ?? '')); ?></td>
                             <td class="folder-date-col"><?php echo $esc($formatDate((string) ($row['date_examined'] ?? ''))); ?></td>
-                            <td>
+                            <td class="folder-action-col">
                                 <?php if (in_array(($row['tab_key'] ?? ''), ['usechh 1', 'usechh 2', 'usechh 3', 'usechh 4', 'usechh 5i', 'usechh 5ii'], true)): ?>
                                     <div class="action-icons">
                                         <a class="action-icon" href="<?php echo $esc($viewHref !== '' ? $viewHref : ($row['href'] ?? '#')); ?>" title="View">
@@ -352,6 +352,7 @@ medis_render_navigation_start([
     const secondaryLabel = document.getElementById('folderSecondaryLabel');
     const tertiaryLabel = document.getElementById('folderTertiaryLabel');
     const dateCells = Array.prototype.slice.call(document.querySelectorAll('.folder-date-col'));
+    const actionCells = Array.prototype.slice.call(document.querySelectorAll('.folder-action-col'));
     const usechh4Candidates = <?php echo json_encode(array_values(array_map(static function (array $row): array {
         return [
             'company_id' => (string) ($row['company_id'] ?? ''),
@@ -492,12 +493,17 @@ medis_render_navigation_start([
         }
 
         dateCells.forEach(function(cell){
-            cell.style.display = activeTab === 'all' ? 'none' : '';
+            cell.style.display = 'none';
+        });
+
+        actionCells.forEach(function(cell){
+            cell.style.display = activeTab === 'all' || activeTab === 'usechh 1' ? 'none' : '';
         });
 
         if (emptyRow && emptyRow.children[0]) {
-            emptyRow.children[0].colSpan = activeTab === 'all' ? 3 : 4;
+            emptyRow.children[0].colSpan = activeTab === 'all' || activeTab === 'usechh 1' ? 2 : 3;
         }
+
     };
 
     const syncSelectAll = function(){
