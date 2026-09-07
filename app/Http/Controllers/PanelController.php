@@ -2785,13 +2785,7 @@ class PanelController extends Controller
 
     public function surveillanceRecordEdit(Request $request, int $declaration): View|RedirectResponse
     {
-        $declarationRecord = DB::table('declaration')->where('declaration_id', $declaration)->first();
-        $surveillanceId = (int) ($declarationRecord->surveillance_id ?? 0);
-        $recommendationData = $surveillanceId > 0 && Schema::hasTable('recommendation')
-            ? DB::table('recommendation')->where('surveillance_id', $surveillanceId)->first()
-            : null;
-
-        return $this->renderSurveillanceRecordPage($request, $declaration, $this->isRecommendationFinalized($recommendationData));
+        return $this->renderSurveillanceRecordPage($request, $declaration, false);
     }
 
     public function surveillanceRecordDelete(Request $request, int $declaration): View|RedirectResponse
@@ -2917,14 +2911,6 @@ class PanelController extends Controller
         $existingRecommendation = $surveillanceId > 0 && Schema::hasTable('recommendation')
             ? DB::table('recommendation')->where('surveillance_id', $surveillanceId)->first()
             : null;
-
-        if ($this->isRecommendationFinalized($existingRecommendation)) {
-            return $this->surveillanceExamSaveResponse(
-                $request,
-                false,
-                ['error' => 'This surveillance record has been finalized and can no longer be edited.']
-            );
-        }
 
         $declarationPayload = [
             'surveillance_id' => $surveillanceId,
@@ -3184,7 +3170,7 @@ class PanelController extends Controller
                 'clinic_fax' => trim((string) ($activeClinic->clinic_fax ?? '')) ?: null,
                 'clinic_email' => trim((string) ($activeClinic->clinic_email ?? '')) ?: null,
                 'is_final' => $isFinalSave ? 1 : (! empty($existingRecommendation?->is_final) ? 1 : 0),
-                'finalized_at' => $isFinalSave ? now() : ($existingRecommendation->finalized_at ?? null),
+                'finalized_at' => $existingRecommendation->finalized_at ?? ($isFinalSave ? now() : null),
             ];
             foreach ($recommendationOptionalColumns as $column => $value) {
                 if (Schema::hasColumn('recommendation', $column)) {
@@ -6792,11 +6778,11 @@ class PanelController extends Controller
 
         if (($payload['save_mode'] ?? 'draft') === 'final') {
             return redirect()->route('surveillance.record.view', ['declaration' => $payload['declaration_id']])
-                ->with('status', 'Surveillance examination finalized successfully. This record is now locked and available in reports.');
+                ->with('status', 'Surveillance examination saved successfully and available in reports.');
         }
 
         return redirect()->route('surveillance.record.edit', ['declaration' => $payload['declaration_id']])
-            ->with('status', 'Surveillance examination saved as draft successfully.');
+            ->with('status', 'Surveillance examination saved successfully.');
     }
 
     protected function upsertSurveillanceRow(string $table, string $primaryKey, int $id, array $lookup, array $payload): int
