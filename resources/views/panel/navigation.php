@@ -94,17 +94,12 @@ if (! function_exists('medis_render_navigation_start')) {
         $companyUrl = medis_named_route(['panel.company_list']);
         $audiometryUrl = medis_named_route(['audiometry.company']);
         $logoutUrl = medis_named_route(['logout.page', 'panel.logout']);
-        $profileUrl = medis_named_route(['profile']);
-        $settingsUrl = medis_named_route(['settings', 'admin.settings', 'panel.settings']);
-        $accountSettingsUrl = medis_named_route(['account.settings', 'panel.account_settings']);
         $reportUrl = medis_named_route(['general.report', 'surveillance.report']);
-        $examinationUrl = medis_named_route(['general.examination']);
         $surveillanceSubnav = $config['surveillanceSubnav'] ?? [
             ['key' => 'company', 'label' => 'Company', 'href' => medis_named_route(['surveillance.company'])],
             ['key' => 'patient', 'label' => 'Patient', 'href' => medis_named_route(['surveillance.patient', 'surveillance.employee'])],
             ['key' => 'list', 'label' => 'Surveillance List', 'href' => medis_named_route(['surveillance.list'])],
             ['key' => 'declaration', 'label' => 'Declaration', 'href' => medis_named_route(['surveillance.declaration'])],
-            ['key' => 'examination', 'label' => 'Examination', 'href' => medis_named_route(['surveillance.examination'])],
         ];
         $surveillanceSubActive = (string) ($config['surveillanceSubActive'] ?? '');
         $showSurveillanceSubnav = (bool) ($config['showSurveillanceSubnav'] ?? ($active === 'surveillance' && $surveillanceSubActive !== ''));
@@ -211,19 +206,20 @@ if (! function_exists('medis_render_navigation_start')) {
             : ($activeClinic !== null ? 'Current clinic navigation' : 'Pick a clinic to continue');
         $clinicSwitcherInitials = medis_initials($clinicSwitcherLabel);
 
-        $userEmail = strtolower(str_replace(' ', '.', $rawUsername !== '' ? $rawUsername : $displayName)) . '@' . strtolower(preg_replace('/\s+/', '', $clinicName)) . '.com';
+        $userCardName = $rawUsername !== ''
+            ? ucwords(str_replace(['.', '_', '-'], ' ', $rawUsername))
+            : $displayName;
+        $userClinicLabel = trim((string) $clinicName) !== '' ? (string) $clinicName : 'No clinic selected';
 
         $defaultNavItems = [
             ['key' => 'dashboard', 'label' => 'Dashboard', 'href' => $dashboardUrl, 'icon' => 'dashboard'],
             ['key' => 'company', 'label' => 'Company', 'href' => $companyUrl, 'icon' => 'workplaces'],
             ['key' => 'surveillance', 'label' => 'Surveillance', 'href' => $surveillanceUrl, 'icon' => 'surveillance'],
             ['key' => 'audiometry', 'label' => 'Audiometry', 'href' => $audiometryUrl, 'icon' => 'audiometry'],
-            ['key' => 'examination', 'label' => 'Examination', 'href' => $examinationUrl, 'icon' => 'examination'],
             ['key' => 'report', 'label' => 'Report', 'href' => $reportUrl, 'icon' => 'report'],
         ];
 
         $defaultGeneralItems = [
-            ['key' => 'settings', 'label' => 'Settings', 'href' => $settingsUrl, 'icon' => 'settings'],
             ['key' => 'logout', 'label' => 'Logout', 'href' => $logoutUrl, 'icon' => 'logout'],
         ];
 
@@ -659,28 +655,12 @@ if (! function_exists('medis_render_navigation_start')) {
         </div>
         <?php endif; ?>
 
-        <div class="app-user-panel" id="appUserPanel">
-            <button class="app-user-card" id="appUserToggle" type="button" aria-expanded="false">
-                <span class="app-avatar"><?php echo $esc(strtoupper(substr($displayName, 0, 1))); ?></span>
+        <div class="app-user-panel">
+            <div class="app-user-card">
+                <span class="app-avatar"><?php echo $esc(strtoupper(substr($userCardName, 0, 1))); ?></span>
                 <div class="app-user-meta">
-                    <strong><?php echo $esc($displayName); ?></strong>
-                    <span><?php echo $esc($userEmail); ?></span>
-                </div>
-            </button>
-            <div class="app-user-menu" id="appUserMenu">
-                <div class="app-user-menu-header">
-                    <span class="app-avatar"><?php echo $esc(strtoupper(substr($displayName, 0, 2))); ?></span>
-                    <div class="app-user-meta">
-                        <strong><?php echo $esc($displayName); ?></strong>
-                        <span><?php echo $esc($userEmail); ?></span>
-                    </div>
-                </div>
-                <div class="app-user-menu-list">
-                    <a class="app-user-menu-link" href="<?php echo $esc($profileUrl); ?>"><span class="icon"><?php echo medis_nav_icon('profile'); ?></span><span data-i18n="view_profile">View Profile</span></a>
-                    <a class="app-user-menu-link" href="<?php echo $esc($accountSettingsUrl); ?>"><span class="icon"><?php echo medis_nav_icon('settings'); ?></span><span data-i18n="account_settings">Account Settings</span></a>
-                </div>
-                <div class="app-user-menu-footer">
-                    <a class="app-user-menu-link" href="<?php echo $esc($logoutUrl); ?>"><span class="icon"><?php echo medis_nav_icon('logout'); ?></span><span data-i18n="sign_out">Sign Out</span></a>
+                    <strong><?php echo $esc($userCardName); ?></strong>
+                    <span><?php echo $esc($userClinicLabel); ?></span>
                 </div>
             </div>
         </div>
@@ -795,8 +775,6 @@ function () {
     var sidebarBackdrop = document.getElementById('appSidebarBackdrop');
     var clinicPanel = document.getElementById('appClinicPanel');
     var clinicToggle = document.getElementById('appClinicToggle');
-    var userPanel = document.getElementById('appUserPanel');
-    var userToggle = document.getElementById('appUserToggle');
     var themeDarkBtn = document.getElementById('themeDarkBtn');
     var themeLightBtn = document.getElementById('themeLightBtn');
     var langBmBtn = document.getElementById('langBmBtn');
@@ -951,10 +929,6 @@ function () {
             clinicPanel.classList.remove('is-open');
             clinicToggle.setAttribute('aria-expanded', 'false');
         }
-        if (userPanel && userToggle) {
-            userPanel.classList.remove('is-open');
-            userToggle.setAttribute('aria-expanded', 'false');
-        }
     }
 
     syncSidebarMode();
@@ -1009,35 +983,15 @@ function () {
         });
     }
 
-    if (userPanel && userToggle) {
-        userToggle.addEventListener('click', function (event) {
-            event.stopPropagation();
-            if (clinicPanel && clinicToggle) {
-                clinicPanel.classList.remove('is-open');
-                clinicToggle.setAttribute('aria-expanded', 'false');
-            }
-            var isOpen = userPanel.classList.toggle('is-open');
-            userToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-        });
-    }
-
     if (clinicPanel && clinicToggle) {
         clinicToggle.addEventListener('click', function (event) {
             event.stopPropagation();
-            if (userPanel && userToggle) {
-                userPanel.classList.remove('is-open');
-                userToggle.setAttribute('aria-expanded', 'false');
-            }
             var isOpen = clinicPanel.classList.toggle('is-open');
             clinicToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
         });
     }
 
     document.addEventListener('click', function (event) {
-        if (userPanel && !userPanel.contains(event.target)) {
-            userPanel.classList.remove('is-open');
-            userToggle.setAttribute('aria-expanded', 'false');
-        }
         if (clinicPanel && !clinicPanel.contains(event.target)) {
             clinicPanel.classList.remove('is-open');
             clinicToggle.setAttribute('aria-expanded', 'false');
@@ -1063,10 +1017,6 @@ function () {
             if (clinicPanel && clinicToggle) {
                 clinicPanel.classList.remove('is-open');
                 clinicToggle.setAttribute('aria-expanded', 'false');
-            }
-            if (userPanel && userToggle) {
-                userPanel.classList.remove('is-open');
-                userToggle.setAttribute('aria-expanded', 'false');
             }
         }
     });
