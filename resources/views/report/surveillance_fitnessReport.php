@@ -47,6 +47,75 @@ $formatDate = static function (?string $value, string $format = 'd/m/Y'): string
     $timestamp = strtotime($value);
     return $timestamp ? date($format, $timestamp) : $value;
 };
+$resolveLocalImagePath = static function ($value): string {
+    $relativePath = trim((string) ($value ?? ''));
+    if ($relativePath === '') {
+        return '';
+    }
+
+    if (is_file($relativePath)) {
+        return $relativePath;
+    }
+
+    if (str_starts_with($relativePath, 'http://') || str_starts_with($relativePath, 'https://')) {
+        $urlPath = parse_url($relativePath, PHP_URL_PATH);
+        $relativePath = is_string($urlPath) ? $urlPath : $relativePath;
+    }
+
+    $relativePath = ltrim(str_replace('\\', '/', $relativePath), '/');
+    if (str_starts_with($relativePath, 'storage/')) {
+        $relativePath = substr($relativePath, strlen('storage/'));
+    }
+
+    $publicPath = public_path($relativePath);
+    if (is_file($publicPath)) {
+        return $publicPath;
+    }
+
+    try {
+        $privatePath = \Illuminate\Support\Facades\Storage::disk('private')->path($relativePath);
+        if (is_file($privatePath)) {
+            return $privatePath;
+        }
+    } catch (\Throwable $exception) {
+        // Keep the original value if private storage is unavailable.
+    }
+
+    return '';
+};
+$localImageDataUrl = static function (string $path): string {
+    if (! is_file($path)) {
+        return '';
+    }
+
+    $binary = file_get_contents($path);
+    if ($binary === false) {
+        return '';
+    }
+
+    $mimeType = function_exists('mime_content_type') ? mime_content_type($path) : null;
+    $mimeType = is_string($mimeType) && str_starts_with($mimeType, 'image/') ? $mimeType : 'image/png';
+
+    return 'data:' . $mimeType . ';base64,' . base64_encode($binary);
+};
+$toSignatureImageSource = static function ($value) use ($resolveLocalImagePath, $localImageDataUrl): string {
+    $value = trim((string) ($value ?? ''));
+    if ($value === '') {
+        return '';
+    }
+
+    if (str_starts_with($value, 'data:image')) {
+        return $value;
+    }
+
+    $localPath = $resolveLocalImagePath($value);
+    if ($localPath !== '' && is_file($localPath)) {
+        return $localImageDataUrl($localPath);
+    }
+
+    return $value;
+};
+$doctorSignature = $toSignatureImageSource($doctorSignature);
 ?>
 <!DOCTYPE html>
 <html lang="en">

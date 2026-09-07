@@ -14,7 +14,6 @@ $esc = static fn($v) => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
 $employee = $employeeData ?? (object) [];
 $medicalHistory = $medicalHistoryData ?? (object) [];
 $currentOccupational = $currentOccupationalData ?? (object) [];
-$pastOccupationalRows = isset($pastOccupationalHistoryRows) && is_iterable($pastOccupationalHistoryRows) ? $pastOccupationalHistoryRows : [];
 $personalSocialHistory = $personalSocialHistoryData ?? (object) [];
 $trainingHistory = $trainingHistoryData ?? (object) [];
 $workerName = trim((string) (($employee->employee_firstName ?? '') . ' ' . ($employee->employee_lastName ?? '')));
@@ -93,23 +92,76 @@ $looksLikeImageSource = static function ($value): bool {
         || preg_match('/\.(png|jpg|jpeg|gif|webp|svg)$/i', $value) === 1;
 };
 
-$toSignatureDataUrl = static function ($value) use ($pdfMode, $looksLikeImageSource): string {
+$resolveLocalImagePath = static function ($value): string {
+    $relativePath = trim((string) ($value ?? ''));
+    if ($relativePath === '') {
+        return '';
+    }
+
+    if (is_file($relativePath)) {
+        return $relativePath;
+    }
+
+    if (str_starts_with($relativePath, 'http://') || str_starts_with($relativePath, 'https://')) {
+        $urlPath = parse_url($relativePath, PHP_URL_PATH);
+        $relativePath = is_string($urlPath) ? $urlPath : $relativePath;
+    }
+
+    $relativePath = ltrim(str_replace('\\', '/', $relativePath), '/');
+    if (str_starts_with($relativePath, 'storage/')) {
+        $relativePath = substr($relativePath, strlen('storage/'));
+    }
+
+    $publicPath = public_path($relativePath);
+    if (is_file($publicPath)) {
+        return $publicPath;
+    }
+
+    try {
+        $privatePath = \Illuminate\Support\Facades\Storage::disk('private')->path($relativePath);
+        if (is_file($privatePath)) {
+            return $privatePath;
+        }
+    } catch (\Throwable $exception) {
+        // Fall back to the original value when the private disk is unavailable.
+    }
+
+    return '';
+};
+
+$localImageDataUrl = static function (string $path): string {
+    if (! is_file($path)) {
+        return '';
+    }
+
+    $binary = file_get_contents($path);
+    if ($binary === false) {
+        return '';
+    }
+
+    $mimeType = function_exists('mime_content_type') ? mime_content_type($path) : null;
+    $mimeType = is_string($mimeType) && str_starts_with($mimeType, 'image/') ? $mimeType : 'image/png';
+
+    return 'data:' . $mimeType . ';base64,' . base64_encode($binary);
+};
+
+$toSignatureDataUrl = static function ($value) use ($pdfMode, $looksLikeImageSource, $resolveLocalImagePath, $localImageDataUrl): string {
     $value = trim((string) ($value ?? ''));
     if ($value === '') {
         return '';
     }
 
     if ($pdfMode) {
-        $localPath = public_path(ltrim($value, '/\\'));
+        $localPath = $resolveLocalImagePath($value);
         if (is_file($localPath)) {
-            return $localPath;
+            return $localImageDataUrl($localPath);
         }
     }
 
     if ($looksLikeImageSource($value)) {
         if ($pdfMode && ! str_starts_with($value, 'data:image') && ! str_starts_with($value, 'http://') && ! str_starts_with($value, 'https://')) {
-            $localPath = public_path(ltrim($value, '/\\'));
-            return is_file($localPath) ? $localPath : $value;
+            $localPath = $resolveLocalImagePath($value);
+            return is_file($localPath) ? $localImageDataUrl($localPath) : $value;
         }
         return $value;
     }
@@ -123,12 +175,9 @@ $doctor = $doctorData ?? null;
 $doctorName = trim((string) (($doctor->doctor_firstName ?? '') . ' ' . ($doctor->doctor_lastName ?? '')));
 $doctorName = $doctorName !== '' ? $doctorName : trim((string) ($doctor->doctor_username ?? 'Doctor'));
 $employeeSignature = $toSignatureDataUrl($declaration->employee_signature ?? '');
-$doctorSignatureRaw = trim((string) ($doctorSignatureUrl ?? ''));
+$doctorSignatureRaw = trim((string) ($doctor->doctor_sign ?? ''));
 if ($doctorSignatureRaw === '') {
-    $doctorSignatureRaw = trim((string) ($doctor->doctor_sign ?? ''));
-}
-if ($doctorSignatureRaw === '' || (! $looksLikeImageSource($doctorSignatureRaw) && ! is_file(public_path(ltrim($doctorSignatureRaw, '/\\'))))) {
-    $doctorSignatureRaw = trim((string) ($declaration->doctor_signature ?? ''));
+    $doctorSignatureRaw = trim((string) ($doctorSignatureUrl ?? ''));
 }
 $doctorSignature = $toSignatureDataUrl($doctorSignatureRaw);
 
@@ -868,35 +917,8 @@ body {
                             <td><?php echo $esc($showValue($currentOccupational->chemical_exposure_duration ?? null)); ?></td>
                             <td><?php echo $esc($showValue($currentOccupational->chemical_exposure_incidents ?? null)); ?></td>
                         </tr>
-                        <?php foreach ($pastOccupationalRows as $index => $row): ?>
-                            <tr>
-                                <td><strong><?php echo $esc('Past Company ' . ($index + 1)); ?></strong></td>
-                                <td><?php echo $esc($showValue($row->job_title ?? null)); ?></td>
-                                <td><?php echo $esc($showValue($row->company_name ?? null)); ?></td>
-                                <td><?php echo $esc($showValue($row->employment_duration ?? null)); ?></td>
-                                <td><?php echo $esc($showValue($row->chemical_exposure_duration ?? null)); ?></td>
-                                <td><?php echo $esc($showValue($row->chemical_exposure_incidents ?? null)); ?></td>
-                            </tr>
-                        <?php endforeach; ?>
                     </tbody>
                 </table>
-            </div>
-        </div>
-    </section>
-</div>
-
-<div class="pdf-page page-break">
-    <section class="page-card">
-        <div class="page-pad">
-            <div class="pdf-header">
-                <?php require __DIR__ . '/partials/clinic_header.php'; ?>
-            </div>
-
-            <div class="pdf-title">
-                <div class="pdf-code">USECHH 1</div>
-                <div class="law">Occupational Safety and Health Act 1994 (Act 514)</div>
-                <div class="law">Use and Standard of Exposure of Chemicals Hazardous to Health Regulations 2000</div>
-                <div class="main">PATIENT DETAILS AND PATIENT INFORMATION</div>
             </div>
 
             <div class="section-block">
@@ -1298,22 +1320,6 @@ body {
                         <tr><td>Spirometry FEV/FVC</td><td><?php echo $esc($showValue($targetOrgan->spirometry_FEV_FVC ?? null)); ?></td><td>NA</td></tr>
                     </tbody>
                 </table>
-            </div>
-        </div>
-    </section>
-</div>
-
-<div class="pdf-page page-break">
-    <section class="page-card">
-        <div class="page-pad">
-            <div class="pdf-header">
-                <?php require __DIR__ . '/partials/clinic_header.php'; ?>
-            </div>
-            <div class="pdf-title">
-                <div class="pdf-code">USECHH 1</div>
-                <div class="law">Occupational Safety and Health Act 1994 (Act 514)</div>
-                <div class="law">Use and Standard of Exposure of Chemicals Hazardous to Health Regulations 2000</div>
-                <div class="main">EXAMINATION RESULTS</div>
             </div>
             <div class="section-block">
                 <h2 class="section-title">Biological Monitoring</h2>

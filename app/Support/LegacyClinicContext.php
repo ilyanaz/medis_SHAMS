@@ -1248,7 +1248,7 @@ class LegacyClinicContext
             'declarationData' => $declaration,
             'companyData' => $company,
             'doctorData' => $doctor,
-            'doctorSignatureUrl' => $this->assetUrl($doctor->doctor_sign ?? ($declaration->doctor_signature ?? null)),
+            'doctorSignatureUrl' => trim((string) ($doctor->doctor_sign ?? '')),
             'chemicalInfoData' => $fetchBySurveillance('chemical_information'),
             'historyOfHealthData' => $fetchBySurveillance('history_of_health'),
             'clinicalFindingsData' => $fetchBySurveillance('clinical_findings'),

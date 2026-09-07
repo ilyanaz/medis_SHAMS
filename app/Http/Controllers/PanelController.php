@@ -4931,7 +4931,7 @@ class PanelController extends Controller
         $doctorName = trim((string) (($doctor->doctor_firstName ?? '') . ' ' . ($doctor->doctor_lastName ?? '')));
         $doctorName = $doctorName !== '' ? $doctorName : trim((string) ($doctor->doctor_username ?? 'Doctor'));
         $doctorRegNo = trim((string) ($doctor->OHD_registrationNo ?? $doctor->MMC_no ?? ''));
-        $doctorSignature = trim((string) ($doctor->doctor_sign ?? $declaration->doctor_signature ?? ''));
+        $doctorSignature = trim((string) ($doctor->doctor_sign ?? ''));
         $activeClinic = $this->activeClinic($request);
         $formatMultilineAddress = static function (?string $line1, ?string $postcode, ?string $district, ?string $state): string {
             $line1 = trim((string) $line1);
