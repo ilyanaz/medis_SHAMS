@@ -58,6 +58,10 @@ $activeClinicId = (int) $request->session()->get('active_clinic_id', 0);
 $selectedCompanyId = $selectedCompany->company_id ?? $declaration->company_id ?? $request->query('company_id') ?? '';
 $selectedEmployeeId = $selectedEmployee->employee_id ?? $declaration->employee_id ?? $request->query('employee_id') ?? '';
 $declarationId = $declarationId ?? $declaration->declaration_id ?? request()->query('declaration_id') ?? '';
+$isNewRecord = empty($declarationId) && (!empty($isNewRecord) || request()->boolean('new_record') || request()->boolean('fresh') || request()->query('mode') === 'create');
+if ($isNewRecord) {
+    $declarationId = '';
+}
 
 if ((!isset($selectedCompany) || !$selectedCompany) && (int) $selectedCompanyId > 0 && \Illuminate\Support\Facades\Schema::hasTable('company')) {
     $selectedCompanyQuery = \Illuminate\Support\Facades\DB::table('company')
@@ -88,17 +92,18 @@ if ((!isset($selectedEmployee) || !$selectedEmployee) && (int) $selectedEmployee
     ]);
 }
 $stepHistory = function_exists('route') ? route('surveillance.list', ['company_id' => $selectedCompanyId, 'employee_id' => $selectedEmployeeId]) : '#';
-$stepExam = function_exists('route') ? route('surveillance.examination', ['company_id' => $selectedCompanyId, 'employee_id' => $selectedEmployeeId, 'declaration_id' => $declarationId]) : '#';
+$stepExam = function_exists('route') ? route('surveillance.examination', array_filter(['company_id' => $selectedCompanyId, 'employee_id' => $selectedEmployeeId, 'declaration_id' => $isNewRecord ? null : $declarationId])) : '#';
 $saveDeclarationUrl = function_exists('route') ? route('surveillance.declaration.save') : '#';
 $steps = [
     ['label' => 'Company', 'url' => function_exists('route') ? route('surveillance.company') : '#'],
     ['label' => 'Patient', 'url' => function_exists('route') ? route('surveillance.patient', ['company_id' => $selectedCompanyId]) : '#'],
     ['label' => 'Surveillance List', 'url' => function_exists('route') ? route('surveillance.list', ['company_id' => $selectedCompanyId, 'employee_id' => $selectedEmployeeId]) : '#'],
-    ['label' => 'Declaration', 'url' => function_exists('route') ? route('surveillance.declaration', ['company_id' => $selectedCompanyId, 'employee_id' => $selectedEmployeeId, 'declaration_id' => $declarationId]) : '#', 'active' => true],
-    ['label' => 'Examination', 'url' => function_exists('route') ? route('surveillance.examination', ['company_id' => $selectedCompanyId, 'employee_id' => $selectedEmployeeId, 'declaration_id' => $declarationId]) : '#'],
-    ['label' => 'Report', 'url' => function_exists('route') ? route('surveillance.report', ['company_id' => $selectedCompanyId, 'employee_id' => $selectedEmployeeId, 'declaration_id' => $declarationId]) : '#'],
+    ['label' => 'Declaration', 'url' => function_exists('route') ? route('surveillance.declaration', array_filter(['company_id' => $selectedCompanyId, 'employee_id' => $selectedEmployeeId, 'declaration_id' => $isNewRecord ? null : $declarationId, 'new_record' => $isNewRecord ? 1 : null])) : '#', 'active' => true],
+    ['label' => 'Examination', 'url' => function_exists('route') ? route('surveillance.examination', array_filter(['company_id' => $selectedCompanyId, 'employee_id' => $selectedEmployeeId, 'declaration_id' => $isNewRecord ? null : $declarationId])) : '#'],
+    ['label' => 'Report', 'url' => function_exists('route') ? route('surveillance.report', array_filter(['company_id' => $selectedCompanyId, 'employee_id' => $selectedEmployeeId, 'declaration_id' => $isNewRecord ? null : $declarationId])) : '#'],
 ];
-$employeeSignatureValue = old('employee_signature', $toSignatureDataUrl($declaration->employee_signature ?? ''));
+$employeeSignatureDefault = $isNewRecord ? '' : $toSignatureDataUrl($declaration->employee_signature ?? '');
+$employeeSignatureValue = old('employee_signature', $employeeSignatureDefault);
 $doctorSetupSignature = trim((string) ($doctor->doctor_sign ?? ''));
 $storedDoctorSignature = trim((string) ($declaration->doctor_signature ?? ''));
 $doctorSignaturePath = $doctorSetupSignature;
@@ -185,7 +190,7 @@ medis_render_navigation_start([
             <input type="hidden" name="_token" value="<?php echo $esc(csrf_token()); ?>">
             <input type="hidden" name="company_id" value="<?php echo $esc(old('company_id', $selectedCompanyId)); ?>">
             <input type="hidden" name="employee_id" value="<?php echo $esc(old('employee_id', $selectedEmployeeId)); ?>">
-            <input type="hidden" name="declaration_id" value="<?php echo $esc(old('declaration_id', $declarationId)); ?>">
+            <input type="hidden" name="declaration_id" value="<?php echo $esc(old('declaration_id', $isNewRecord ? '' : $declarationId)); ?>">
             <input type="hidden" name="employee_signature" id="employee_signature" value="<?php echo $esc($employeeSignatureValue); ?>">
             <input type="hidden" name="doctor_signature" id="doctor_signature" value="<?php echo $esc($doctorSignatureValue); ?>">
             <div class="statement">

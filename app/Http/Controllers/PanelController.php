@@ -1144,6 +1144,11 @@ class PanelController extends Controller
         $companyId = (int) $request->query('company_id', 0);
         $employeeId = (int) $request->query('employee_id', 0);
         $declarationId = (int) $request->query('declaration_id', 0);
+        $isNewRecord = $declarationId <= 0 && (
+            $request->boolean('new_record')
+            || $request->boolean('fresh')
+            || $request->query('mode') === 'create'
+        );
 
         $selectedCompany = $companyId > 0 ? $this->findCompany($request, $companyId) : null;
         if ($companyId > 0 && $selectedCompany === null) {
@@ -1171,7 +1176,7 @@ class PanelController extends Controller
                 ->where('declaration_id', $declarationId)
                 ->first();
         }
-        if (! $declaration && Schema::hasTable('declaration')) {
+        if (! $isNewRecord && ! $declaration && Schema::hasTable('declaration')) {
             $declarationQuery = DB::table('declaration');
             if ($employeeId > 0) {
                 $declarationQuery->where('employee_id', $employeeId);
@@ -1191,6 +1196,7 @@ class PanelController extends Controller
         $viewData['declaration'] = $declaration;
         $viewData['declarationId'] = $declarationId > 0 ? $declarationId : null;
         $viewData['doctor'] = $doctor;
+        $viewData['isNewRecord'] = $isNewRecord;
 
         return view('surveillance.surveillance_declaration', $viewData);
     }

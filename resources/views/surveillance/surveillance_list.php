@@ -8,13 +8,13 @@ $esc = static fn($v) => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
 $selectedCompanyId = $selectedCompany->company_id ?? request()->query('company_id') ?? '';
 $selectedEmployeeId = $selectedEmployee->employee_id ?? request()->query('employee_id') ?? '';
 $backUrl = function_exists('route') ? route('surveillance.patient', ['company_id' => $selectedCompanyId]) : '#';
-$addRecordUrl = function_exists('route') ? route('surveillance.declaration', ['company_id' => $selectedCompanyId, 'employee_id' => $selectedEmployeeId]) : '#';
-$nextUrl = function_exists('route') ? route('surveillance.declaration', ['company_id' => $selectedCompanyId, 'employee_id' => $selectedEmployeeId]) : '#';
+$addRecordUrl = function_exists('route') ? route('surveillance.declaration', ['company_id' => $selectedCompanyId, 'employee_id' => $selectedEmployeeId, 'new_record' => 1]) : '#';
+$nextUrl = $addRecordUrl;
 $steps = [
     ['label' => 'Company', 'url' => function_exists('route') ? route('surveillance.company') : '#'],
     ['label' => 'Patient', 'url' => function_exists('route') ? route('surveillance.patient', ['company_id' => $selectedCompanyId]) : '#'],
     ['label' => 'Surveillance List', 'url' => function_exists('route') ? route('surveillance.list', ['company_id' => $selectedCompanyId, 'employee_id' => $selectedEmployeeId]) : '#', 'active' => true],
-    ['label' => 'Declaration', 'url' => function_exists('route') ? route('surveillance.declaration', ['company_id' => $selectedCompanyId, 'employee_id' => $selectedEmployeeId]) : '#'],
+    ['label' => 'Declaration', 'url' => $addRecordUrl],
     ['label' => 'Examination', 'url' => function_exists('route') ? route('surveillance.examination', ['company_id' => $selectedCompanyId, 'employee_id' => $selectedEmployeeId]) : '#'],
     ['label' => 'Report', 'url' => function_exists('route') ? route('surveillance.report', ['company_id' => $selectedCompanyId, 'employee_id' => $selectedEmployeeId]) : '#'],
 ];
@@ -132,5 +132,3 @@ medis_render_navigation_start(['clinicName'=>$clinicName ?? 'Medis SHAMS','clini
 </script>
 <?php medis_render_navigation_end(); ?>
 </body></html>
-
-
