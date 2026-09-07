@@ -6,6 +6,7 @@ use App\Mail\SurveillanceReportMail;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\QueryException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -1240,6 +1241,10 @@ class PanelController extends Controller
                 ->first();
         }
 
+        $companyId = (int) ($declaration->company_id ?? $companyId);
+        $employeeId = (int) ($declaration->employee_id ?? $employeeId);
+        $selectedCompany = $selectedCompany ?? ($companyId > 0 ? $this->findCompany($request, $companyId) : null);
+        $selectedEmployee = $selectedEmployee ?? ($employeeId > 0 ? DB::table('employee')->where('employee_id', $employeeId)->first() : null);
         $surveillanceId = (int) ($declaration->surveillance_id ?? 0);
         $doctor = $this->resolvedSurveillanceDoctorRecord($request, $user, $declaration);
 
@@ -1257,6 +1262,7 @@ class PanelController extends Controller
             'msFindings' => $surveillanceId > 0 && Schema::hasTable('ms_findings') ? DB::table('ms_findings')->where('surveillance_id', $surveillanceId)->first() : null,
             'recommendationData' => $surveillanceId > 0 && Schema::hasTable('recommendation') ? DB::table('recommendation')->where('surveillance_id', $surveillanceId)->first() : null,
             'patientFormData' => $patientSupportingContext['patientFormData'],
+            'chemicalOptions' => $this->companyChemicalOptions($companyId),
         ];
 
         return view('surveillance.surveillance_examination', array_merge(
@@ -1357,6 +1363,72 @@ class PanelController extends Controller
                 'declaration_id' => $declarationId,
             ], static fn ($value) => $value !== null && $value !== ''))
             ->with('status', 'Declaration saved successfully. Please continue with the examination.');
+    }
+
+    public function storeCompanyChemicalOption(Request $request): JsonResponse|RedirectResponse
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
+        if ($this->isInAdminMode($request, $user) || $this->requiresClinicSelection($request, $user)) {
+            return response()->json(['message' => 'A clinic must be selected before adding chemicals.'], 403);
+        }
+
+        $validated = $request->validate([
+            'company_id' => ['required', 'integer', 'min:1'],
+            'chemical_name' => ['required', 'string', 'max:150'],
+        ]);
+
+        $company = $this->findCompany($request, (int) $validated['company_id']);
+        if ($company === null) {
+            return response()->json(['message' => 'The selected company could not be found.'], 404);
+        }
+
+        if (! Schema::hasTable('company_work_units') || ! Schema::hasTable('company_work_unit_chemicals')) {
+            return response()->json(['message' => 'Company work unit tables are not available.'], 422);
+        }
+
+        $chemicalName = trim((string) $validated['chemical_name']);
+        $workUnitId = (int) DB::table('company_work_units')
+            ->where('company_id', (int) $validated['company_id'])
+            ->orderBy('sort_order')
+            ->orderBy('work_unit_id')
+            ->value('work_unit_id');
+
+        if ($workUnitId <= 0) {
+            $workUnitId = (int) DB::table('company_work_units')->insertGetId([
+                'company_id' => (int) $validated['company_id'],
+                'work_unit_name' => 'General',
+                'sort_order' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $existingChemicalId = (int) DB::table('company_work_unit_chemicals')
+            ->where('work_unit_id', $workUnitId)
+            ->whereRaw('LOWER(chemical_name) = ?', [strtolower($chemicalName)])
+            ->value('work_unit_chemical_id');
+
+        if ($existingChemicalId <= 0) {
+            $nextSortOrder = (int) DB::table('company_work_unit_chemicals')
+                ->where('work_unit_id', $workUnitId)
+                ->max('sort_order') + 1;
+
+            DB::table('company_work_unit_chemicals')->insert([
+                'work_unit_id' => $workUnitId,
+                'chemical_name' => $chemicalName,
+                'chra_report_no' => null,
+                'total_workers' => null,
+                'sort_order' => $nextSortOrder,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        return response()->json(['chemical_name' => $chemicalName]);
     }
 
     public function companyShow(Request $request, int $company): View|RedirectResponse
@@ -6644,6 +6716,26 @@ class PanelController extends Controller
         }
     }
 
+    protected function companyChemicalOptions(int $companyId): array
+    {
+        if ($companyId <= 0 || ! Schema::hasTable('company_work_units') || ! Schema::hasTable('company_work_unit_chemicals')) {
+            return [];
+        }
+
+        return DB::table('company_work_unit_chemicals')
+            ->join('company_work_units', 'company_work_units.work_unit_id', '=', 'company_work_unit_chemicals.work_unit_id')
+            ->where('company_work_units.company_id', $companyId)
+            ->whereNotNull('company_work_unit_chemicals.chemical_name')
+            ->where('company_work_unit_chemicals.chemical_name', '!=', '')
+            ->orderBy('company_work_unit_chemicals.chemical_name')
+            ->pluck('company_work_unit_chemicals.chemical_name')
+            ->map(static fn ($chemicalName) => trim((string) $chemicalName))
+            ->filter(static fn (string $chemicalName) => $chemicalName !== '')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
     protected function doctorReferenceSummary(int $doctorId): array
     {
         $references = [];
@@ -6806,6 +6898,7 @@ class PanelController extends Controller
             'msFindings' => $surveillanceId > 0 && Schema::hasTable('ms_findings') ? DB::table('ms_findings')->where('surveillance_id', $surveillanceId)->first() : null,
             'recommendationData' => $surveillanceId > 0 && Schema::hasTable('recommendation') ? DB::table('recommendation')->where('surveillance_id', $surveillanceId)->first() : null,
             'patientFormData' => $patientSupportingContext['patientFormData'],
+            'chemicalOptions' => $this->companyChemicalOptions($companyId),
         ];
 
         return view($readOnly ? 'surveillance.survList_view' : 'surveillance.survList_edit', array_merge(

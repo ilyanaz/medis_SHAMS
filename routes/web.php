@@ -78,6 +78,7 @@ Route::get('/surveillance/records/{declaration}/edit', [PanelController::class, 
 Route::get('/surveillance/records/{declaration}/delete', [PanelController::class, 'surveillanceRecordDelete'])->name('surveillance.record.delete');
 Route::delete('/surveillance/records/{declaration}', [PanelController::class, 'destroySurveillanceRecord'])->name('surveillance.record.destroy');
 Route::post('/surveillance/examination', [PanelController::class, 'saveSurveillanceExamination'])->name('surveillance.examination.save');
+Route::post('/surveillance/chemical-option', [PanelController::class, 'storeCompanyChemicalOption'])->name('surveillance.chemical-option.store');
 Route::get('/files/private', [PanelController::class, 'downloadPrivateFile'])->name('private.file.show');
 Route::post('/surveillance/report/fitness', [PanelController::class, 'saveSurveillanceFitnessReport'])->name('surveillance.report.fitness.save');
 Route::get('/surveillance/report/fitness', [PanelController::class, 'surveillanceFitnessReport'])->name('surveillance.report.fitness');
@@ -205,7 +206,6 @@ $legacyPostRoutes = [
     'surveillance.employee.update',
     'surveillance.employee.destroy',
     'surveillance.record.update',
-    'surveillance.chemical-option.store',
     'audiometry.examination.save',
     'settings.header.upload',
     'settings.header.delete',
