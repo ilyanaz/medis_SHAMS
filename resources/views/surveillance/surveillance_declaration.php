@@ -13,7 +13,44 @@ $toSignatureDataUrl = static function ($value) {
     if (strpos($value, 'data:image') === 0) {
         return $value;
     }
+    if (strpos($value, 'http://') === 0 || strpos($value, 'https://') === 0) {
+        return $value;
+    }
+    if (preg_match('/\.(?:png|jpe?g|gif|webp|bmp|svg)(?:\?.*)?$/i', $value) === 1 || strpos($value, 'uploads/') === 0 || strpos($value, 'storage/uploads/') === 0) {
+        $storagePath = ltrim(str_replace('\\', '/', $value), '/');
+        if (strpos($storagePath, 'storage/') === 0) {
+            $storagePath = substr($storagePath, strlen('storage/'));
+        }
+        if (strpos($storagePath, '..') === false && \Illuminate\Support\Facades\Storage::disk('private')->exists($storagePath)) {
+            $absolutePath = \Illuminate\Support\Facades\Storage::disk('private')->path($storagePath);
+            $mimeType = mime_content_type($absolutePath) ?: 'image/png';
+            return 'data:' . $mimeType . ';base64,' . base64_encode((string) file_get_contents($absolutePath));
+        }
+
+        return $value;
+    }
     return 'data:image/png;base64,' . base64_encode($value);
+};
+$privateFileUrl = static function ($path) {
+    $path = ltrim(str_replace('\\', '/', trim((string) $path)), '/');
+    if (strpos($path, 'storage/') === 0) {
+        $path = substr($path, strlen('storage/'));
+    }
+    if ($path === '' || strpos($path, '..') !== false || strpos($path, 'uploads/') !== 0 || ! function_exists('route')) {
+        return '';
+    }
+
+    return route('private.file.show', [
+        'token' => rtrim(strtr(base64_encode($path), '+/', '-_'), '='),
+    ]);
+};
+$signatureFileExists = static function ($path): bool {
+    $path = ltrim(str_replace('\\', '/', trim((string) $path)), '/');
+    if (strpos($path, 'storage/') === 0) {
+        $path = substr($path, strlen('storage/'));
+    }
+
+    return $path !== '' && strpos($path, '..') === false && \Illuminate\Support\Facades\Storage::disk('private')->exists($path);
 };
 $statusMessage = session('status');
 $request = request();
@@ -62,11 +99,21 @@ $steps = [
     ['label' => 'Report', 'url' => function_exists('route') ? route('surveillance.report', ['company_id' => $selectedCompanyId, 'employee_id' => $selectedEmployeeId, 'declaration_id' => $declarationId]) : '#'],
 ];
 $employeeSignatureValue = old('employee_signature', $toSignatureDataUrl($declaration->employee_signature ?? ''));
-$storedDoctorSignature = trim((string) ($declaration->doctor_signature ?? ''));
 $doctorSetupSignature = trim((string) ($doctor->doctor_sign ?? ''));
-$doctorSignaturePath = trim((string) old('doctor_signature', $storedDoctorSignature !== '' ? $storedDoctorSignature : $doctorSetupSignature));
+$storedDoctorSignature = trim((string) ($declaration->doctor_signature ?? ''));
+$doctorSignaturePath = $doctorSetupSignature;
+if ($doctorSignaturePath === '' || (strpos($doctorSignaturePath, 'data:image') !== 0 && strpos($doctorSignaturePath, 'http://') !== 0 && strpos($doctorSignaturePath, 'https://') !== 0 && ! $signatureFileExists($doctorSignaturePath))) {
+    $doctorSignaturePath = $storedDoctorSignature;
+}
+if ($doctorSignaturePath !== '' && strpos($doctorSignaturePath, 'data:image') !== 0 && strpos($doctorSignaturePath, 'http://') !== 0 && strpos($doctorSignaturePath, 'https://') !== 0 && ! $signatureFileExists($doctorSignaturePath)) {
+    $doctorSignaturePath = '';
+}
 $doctorSignatureValue = $doctorSignaturePath;
-$doctorSignaturePreviewUrl = $doctorSignatureUrl ?? ($doctorSignaturePath !== '' && strpos($doctorSignaturePath, 'data:image') !== 0 ? asset($doctorSignaturePath) : $doctorSignaturePath);
+$doctorSignaturePreviewSource = $toSignatureDataUrl($doctorSignaturePath);
+$doctorSignaturePreviewUrl = $privateFileUrl($doctorSignaturePreviewSource);
+if ($doctorSignaturePreviewUrl === '') {
+    $doctorSignaturePreviewUrl = $doctorSignaturePreviewSource !== '' && strpos($doctorSignaturePreviewSource, 'data:image') !== 0 && strpos($doctorSignaturePreviewSource, 'http://') !== 0 && strpos($doctorSignaturePreviewSource, 'https://') !== 0 ? asset($doctorSignaturePreviewSource) : $doctorSignaturePreviewSource;
+}
 $showRecordTabs = !empty($declarationId) || (string) request()->query('record_mode', '') !== '';
 $recordExaminationUrl = !empty($declarationId) && function_exists('route')
     ? route('surveillance.record.edit', ['declaration' => $declarationId])

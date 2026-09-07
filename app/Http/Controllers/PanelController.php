@@ -1170,6 +1170,17 @@ class PanelController extends Controller
                 ->where('declaration_id', $declarationId)
                 ->first();
         }
+        if (! $declaration && Schema::hasTable('declaration')) {
+            $declarationQuery = DB::table('declaration');
+            if ($employeeId > 0) {
+                $declarationQuery->where('employee_id', $employeeId);
+            }
+            if ($companyId > 0) {
+                $declarationQuery->where('company_id', $companyId);
+            }
+            $declaration = $declarationQuery->orderByDesc('declaration_id')->first();
+            $declarationId = (int) ($declaration->declaration_id ?? $declarationId);
+        }
 
         $doctor = $this->resolvedSurveillanceDoctorRecord($request, $user, $declaration);
 
@@ -1283,7 +1294,7 @@ class PanelController extends Controller
             'employee_date' => ['required', 'date'],
             'doctor_date' => ['required', 'date'],
             'employee_signature' => ['required', 'string'],
-            'doctor_signature' => ['required', 'string'],
+            'doctor_signature' => ['nullable', 'string'],
         ]);
 
         if (! Schema::hasTable('declaration')) {
@@ -1309,6 +1320,10 @@ class PanelController extends Controller
             ? DB::table('declaration')->where('declaration_id', (int) $validated['declaration_id'])->first()
             : null;
         $doctor = $this->resolvedSurveillanceDoctorRecord($request, $user, $existingDeclaration);
+        $doctorSignature = trim((string) ($doctor->doctor_sign ?? ''));
+        if ($doctorSignature === '') {
+            return redirect()->back()->withErrors(['doctor_signature' => 'Doctor signature is not available yet. Please upload the doctor e-sign in Doctor Setup first.'])->withInput();
+        }
 
         $payload = [
             'surveillance_id' => $existingDeclaration->surveillance_id ?? null,
@@ -1320,7 +1335,7 @@ class PanelController extends Controller
             'employee_lastName' => trim((string) ($employee->employee_lastName ?? $request->input('employee_lastName', ''))),
             'employee_signature' => trim((string) $validated['employee_signature']),
             'employee_date' => $validated['employee_date'],
-            'doctor_signature' => trim((string) $validated['doctor_signature']),
+            'doctor_signature' => $doctorSignature,
             'doctor_date' => $validated['doctor_date'],
         ];
 
@@ -1335,20 +1350,13 @@ class PanelController extends Controller
             $surveillanceId = 0;
         }
 
-        $chemicalInfo = $surveillanceId > 0 && Schema::hasTable('chemical_information')
-            ? DB::table('chemical_information')->where('surveillance_id', $surveillanceId)->first()
-            : null;
-
-        $folderDate = trim((string) ($validated['employee_date'] ?? $validated['doctor_date'] ?? $request->input('folder_date', $chemicalInfo->examination_date ?? '')));
-
         return redirect()
-            ->route('general.report.folder', array_filter([
-                'module' => 'surveillance',
-                'company' => trim((string) ($company->company_name ?? '')),
-                'date' => $folderDate,
-                'tab' => 'usechh 4',
-            ], static fn ($value) => $value !== ''))
-            ->with('status', 'USECHH 4 details saved successfully.');
+            ->route('surveillance.examination', array_filter([
+                'company_id' => (int) $validated['company_id'],
+                'employee_id' => (int) $validated['employee_id'],
+                'declaration_id' => $declarationId,
+            ], static fn ($value) => $value !== null && $value !== ''))
+            ->with('status', 'Declaration saved successfully. Please continue with the examination.');
     }
 
     public function companyShow(Request $request, int $company): View|RedirectResponse
