@@ -32,12 +32,6 @@ if (! function_exists('medis_render_admin_navigation_start')) {
                 'label' => 'Manage',
                 'items' => [
                     [
-                        'key' => 'doctor',
-                        'label' => 'Doctor',
-                        'href' => medis_named_route(['admin.doctor_list', 'panel.doctor_list', 'admin.doctor_setup', 'panel.doctor_setup']),
-                        'icon' => 'profile',
-                    ],
-                    [
                         'key' => 'clinic',
                         'label' => 'Clinics',
                         'href' => medis_named_route(['admin.clinic_list', 'panel.clinic_list']),

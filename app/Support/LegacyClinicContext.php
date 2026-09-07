@@ -134,13 +134,12 @@ class LegacyClinicContext
 
     protected function linkedDoctor(?User $user): ?object
     {
-        if (! $user || ! Schema::hasTable('doctor')) {
+        if (! $user || ! $user->doctor_id || ! Schema::hasTable('doctor')) {
             return null;
         }
 
         return DB::table('doctor')
-            ->where('doctor_email', (string) ($user->email ?? ''))
-            ->orWhere('doctor_username', (string) ($user->username ?? ''))
+            ->where('doctor_id', $user->doctor_id)
             ->first();
     }
 

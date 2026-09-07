@@ -23,6 +23,10 @@ $accountUser = $accountUser ?? null;
 $doctorRecord = $doctorRecord ?? null;
 $currentUsername = old('username', (string) ($accountUser->username ?? ''));
 $doctorEmail = (string) ($doctorRecord->doctor_email ?? ($accountUser->email ?? ''));
+$activeTab = request()->query('tab') === 'password' ? 'password' : 'profile';
+if ($errorBag && ($errorBag->has('current_password') || $errorBag->has('new_password') || $errorBag->has('new_password_confirmation'))) {
+    $activeTab = 'password';
+}
 ?>
 <style>
 .settings-page{display:grid;gap:18px}
@@ -33,8 +37,13 @@ $doctorEmail = (string) ($doctorRecord->doctor_email ?? ($accountUser->email ?? 
 .settings-card{border:1px solid #e5e7eb;border-radius:22px;background:#fff;padding:18px}
 .settings-card h2{margin:0 0 12px;font-size:1.45rem;color:#0f172a}
 .settings-stack{display:grid;gap:14px}
+.settings-tabs{display:flex;gap:24px;border-bottom:1px solid #e5e7eb}
+.settings-tab{padding:12px 2px;color:#64748b;font-weight:600;text-decoration:none;border-bottom:3px solid transparent}
+.settings-tab.active{color:#166534;border-bottom-color:#389B5B}
+.settings-tab:focus-visible{outline:2px solid #389B5B;outline-offset:3px}
 .field{display:grid;gap:6px}
 .field span{font-size:.92rem;color:#475569}
+.field .required-note{margin-left:4px;color:#dc2626;font-weight:700}
 .field input{border:1px solid #d1d5db;border-radius:14px;padding:11px 14px;background:#fff;width:100%;font:inherit}
 .password-wrap{position:relative}
 .password-wrap input{padding-right:72px}
@@ -51,6 +60,11 @@ $doctorEmail = (string) ($doctorRecord->doctor_email ?? ($accountUser->email ?? 
         <h1>Settings</h1>
     </div>
 
+    <nav class="settings-tabs" aria-label="Settings sections">
+        <a class="settings-tab<?php echo $activeTab === 'profile' ? ' active' : ''; ?>" href="<?php echo $esc(route('admin.settings', ['tab' => 'profile'])); ?>"<?php echo $activeTab === 'profile' ? ' aria-current="page"' : ''; ?>>Profile</a>
+        <a class="settings-tab<?php echo $activeTab === 'password' ? ' active' : ''; ?>" href="<?php echo $esc(route('admin.settings', ['tab' => 'password'])); ?>"<?php echo $activeTab === 'password' ? ' aria-current="page"' : ''; ?>>Password</a>
+    </nav>
+
     <?php if (! empty($statusMessage)): ?>
         <div class="notice"><?php echo $esc($statusMessage); ?></div>
     <?php endif; ?>
@@ -59,44 +73,46 @@ $doctorEmail = (string) ($doctorRecord->doctor_email ?? ($accountUser->email ?? 
         <div class="error-box"><?php echo $esc($errorBag->first()); ?></div>
     <?php endif; ?>
 
-    <section class="settings-card">
-        <h2>Change Username</h2>
-        <form class="settings-stack" method="POST" action="<?php echo $esc(route('admin.username.update')); ?>">
-            <input type="hidden" name="_token" value="<?php echo $esc(csrf_token()); ?>">
-            <label class="field">
-                <span>Username</span>
-                <input type="text" name="username" value="<?php echo $esc($currentUsername); ?>" required>
-            </label>
-            <label class="field">
-                <span>Email</span>
-                <input type="text" value="<?php echo $esc($doctorEmail); ?>" readonly>
-            </label>
-            <div class="actions">
-                <button class="btn primary" type="submit">Update Username</button>
-            </div>
-        </form>
-    </section>
-
+    <?php if ($activeTab === 'profile'): ?>
+    <?php if (! $doctorRecord && count($availableDoctorProfiles ?? []) > 0): ?>
+        <section class="settings-card">
+            <h2>Use Existing Doctor Information</h2>
+            <form class="settings-stack" method="POST" action="<?php echo $esc(route('admin.profile.link')); ?>">
+                <input type="hidden" name="_token" value="<?php echo $esc(csrf_token()); ?>">
+                <label class="field"><span>Your doctor profile<span class="required-note">*</span></span>
+                    <select name="doctor_id" required>
+                        <option value="">Select your existing doctor record</option>
+                        <?php foreach ($availableDoctorProfiles as $profile): ?>
+                            <option value="<?php echo $esc($profile->doctor_id); ?>"><?php echo $esc(trim($profile->doctor_firstName . ' ' . $profile->doctor_lastName)); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
+                <div class="actions"><button class="btn primary" type="submit">Use This Profile</button></div>
+            </form>
+        </section>
+    <?php endif; ?>
+    <?php echo view('doctor.doctor_setup', ['embeddedProfile' => true, 'currentUsername' => $currentUsername, 'pageMode' => $doctorRecord ? 'edit' : 'create', 'canSaveDoctor' => true, 'doctorRecord' => $doctorRecord, 'doctorFormData' => $doctorFormData ?? [], 'privateFileUrl' => $privateFileUrl ?? null])->render(); ?>
+    <?php else: ?>
     <section class="settings-card">
         <h2>Change Password</h2>
         <form class="settings-stack" method="POST" action="<?php echo $esc(route('admin.password.update')); ?>">
             <input type="hidden" name="_token" value="<?php echo $esc(csrf_token()); ?>">
             <label class="field">
-                <span>Current Password</span>
+                <span>Current Password<span class="required-note">*</span></span>
                 <div class="password-wrap">
                     <input id="current_password" type="password" name="current_password" required>
                     <button type="button" class="toggle-password" data-target="current_password">Show</button>
                 </div>
             </label>
             <label class="field">
-                <span>New Password</span>
+                <span>New Password<span class="required-note">*</span></span>
                 <div class="password-wrap">
                     <input id="new_password" type="password" name="new_password" minlength="6" required>
                     <button type="button" class="toggle-password" data-target="new_password">Show</button>
                 </div>
             </label>
             <label class="field">
-                <span>Confirm New Password</span>
+                <span>Confirm New Password<span class="required-note">*</span></span>
                 <div class="password-wrap">
                     <input id="new_password_confirmation" type="password" name="new_password_confirmation" minlength="6" required>
                     <button type="button" class="toggle-password" data-target="new_password_confirmation">Show</button>
@@ -113,6 +129,7 @@ $doctorEmail = (string) ($doctorRecord->doctor_email ?? ($accountUser->email ?? 
             </ul>
         </div>
     </section>
+    <?php endif; ?>
 </div>
 <?php medis_render_navigation_end(); ?>
 <script>

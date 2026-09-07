@@ -1671,8 +1671,64 @@ class PanelController extends Controller
         $viewData = $this->buildViewData($request, $user);
         $viewData['accountUser'] = $user;
         $viewData['doctorRecord'] = $this->linkedDoctorRecord($user);
+        $viewData['doctorFormData'] = $this->doctorFormDefaults($viewData['doctorRecord']);
+        $viewData['availableDoctorProfiles'] = $viewData['doctorRecord'] ? collect() : DB::table('doctor')
+            ->whereNotIn('doctor_id', DB::table('users')->whereNotNull('doctor_id')->pluck('doctor_id'))
+            ->orderBy('doctor_firstName')->get();
 
         return view('admin.admin_setting', $viewData);
+    }
+
+    public function updateAdminProfile(Request $request): RedirectResponse
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+        if (! $this->canUseAdminMode($user)) {
+            return redirect()->route('panel.dashboard');
+        }
+        $request->merge(['username' => trim((string) $request->input('username', ''))]);
+        $validated = $request->validate([
+            'username' => ['required', 'string', 'max:100', \Illuminate\Validation\Rule::unique('users', 'username')->ignore($user->getKey(), $user->getKeyName())],
+        ]);
+        $response = DB::transaction(function () use ($request, $user, $validated) {
+            $user = User::query()->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
+            $user->username = $validated['username'];
+            $user->save();
+            $doctor = $this->linkedDoctorRecord($user);
+            if (! $doctor) {
+                $request->merge(['doctor_status' => 'active']);
+                return $this->storeDoctor($request);
+            }
+            $request->merge(['doctor_status' => $doctor->doctor_status ?? 'active']);
+
+            return $this->updateDoctor($request, (int) $doctor->doctor_id);
+        });
+        $request->session()->put('panel_user_username', $validated['username']);
+
+        return $response;
+    }
+
+    public function linkAdminDoctorProfile(Request $request): RedirectResponse
+    {
+        $user = $this->requirePanelUser($request);
+        if ($user instanceof RedirectResponse) return $user;
+        abort_unless($this->canUseAdminMode($user), 403);
+        $validated = $request->validate(['doctor_id' => ['required', 'integer', 'exists:doctor,doctor_id']]);
+        DB::transaction(function () use ($user, $validated) {
+            $account = User::query()->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
+            if ($account->doctor_id) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['doctor_id' => 'Your account already has a doctor profile.']);
+            }
+            DB::table('doctor')->where('doctor_id', $validated['doctor_id'])->lockForUpdate()->first();
+            if (User::query()->where('doctor_id', $validated['doctor_id'])->exists()) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['doctor_id' => 'This doctor profile is already linked to another account.']);
+            }
+            $account->doctor_id = $validated['doctor_id'];
+            $account->save();
+        });
+        return redirect()->route('admin.settings')->with('status', 'Existing doctor profile linked successfully.');
     }
 
     public function storeClinic(Request $request): RedirectResponse
@@ -2018,11 +2074,14 @@ class PanelController extends Controller
             'doctor_picture' => $picturePath,
         ];
 
-        DB::table('doctor')->insert($payload);
+        $payload['doctor_username'] = $user->username;
+        $payload['doctor_password'] = $user->password;
+        $doctorId = DB::table('doctor')->insertGetId($payload);
+        User::query()->whereKey($user->getKey())->update(['doctor_id' => $doctorId]);
         $request->session()->put('panel_mode', 'admin');
 
         return redirect()
-            ->route('admin.doctor_list')
+            ->route('admin.settings')
             ->with('status', 'Doctor saved successfully.');
     }
 
@@ -2036,6 +2095,8 @@ class PanelController extends Controller
         if (! $this->canUseAdminMode($user)) {
             return redirect()->route('panel.dashboard');
         }
+
+        abort_unless((int) $user->doctor_id === $doctor, 403);
 
         $record = $this->findDoctor($doctor);
         if ($record === null) {
@@ -2137,12 +2198,13 @@ class PanelController extends Controller
             'doctor_picture' => $picturePath !== '' ? $picturePath : null,
         ];
 
+        $payload['doctor_username'] = $user->username;
         DB::table('doctor')
             ->where('doctor_id', $record->doctor_id)
             ->update($payload);
 
         return redirect()
-            ->route('admin.doctor_list')
+            ->route('admin.settings')
             ->with('status', 'Doctor updated successfully.');
     }
 
@@ -2321,7 +2383,7 @@ class PanelController extends Controller
         }
 
         return redirect()
-            ->route('admin.settings')
+            ->route('admin.settings', ['tab' => 'password'])
             ->with('status', 'Password updated successfully.');
     }
 
@@ -5598,36 +5660,11 @@ class PanelController extends Controller
 
     protected function linkedDoctorRecord(User $user): ?object
     {
-        if (! Schema::hasTable('doctor')) {
+        if (! Schema::hasTable('doctor') || ! $user->doctor_id) {
             return null;
         }
 
-        $hasDoctorEmail = Schema::hasColumn('doctor', 'doctor_email');
-        $hasDoctorUsername = Schema::hasColumn('doctor', 'doctor_username');
-
-        if (! $hasDoctorEmail && ! $hasDoctorUsername) {
-            return null;
-        }
-
-        $query = DB::table('doctor');
-
-        if ($hasDoctorEmail) {
-            $query->where('doctor_email', (string) $user->email);
-        }
-
-        if ($hasDoctorUsername) {
-            if ($hasDoctorEmail) {
-                $query->orWhere('doctor_username', (string) $user->username);
-            } else {
-                $query->where('doctor_username', (string) $user->username);
-            }
-        }
-
-        if (Schema::hasColumn('doctor', 'doctor_status')) {
-            $query->where('doctor_status', 'active');
-        }
-
-        return $query->first();
+        return DB::table('doctor')->where('doctor_id', $user->doctor_id)->first();
     }
 
     protected function resolvedSurveillanceDoctorRecord(Request $request, ?User $user, ?object $declaration = null): ?object
@@ -5645,9 +5682,7 @@ class PanelController extends Controller
 
         if ($user) {
             $doctor = $this->linkedDoctorRecord($user);
-            if ($doctor) {
-                return $doctor;
-            }
+            return $doctor;
         }
 
         $activeClinicId = (int) $request->session()->get('active_clinic_id', 0);

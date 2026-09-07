@@ -1,7 +1,8 @@
 <?php
 declare(strict_types=1);
 
-require dirname(__DIR__) . '/admin/admin_navigation.php';
+$embeddedProfile = ! empty($embeddedProfile);
+require_once dirname(__DIR__) . '/admin/admin_navigation.php';
 
 $pageMode = isset($pageMode) ? (string) $pageMode : 'create';
 $doctorRecord = $doctorRecord ?? null;
@@ -36,7 +37,9 @@ $citizenshipOptions = ['Malaysian Citizen', 'Others'];
 $maritalStatusOptions = ['Single', 'Married'];
 $statusOptions = ['active' => 'Active', 'not active' => 'Not Active'];
 $fullName = trim($old('doctor_firstName') . ' ' . $old('doctor_lastName'));
-$profileInitial = strtoupper(substr($fullName, 0, 1));
+$profileDisplayName = $embeddedProfile ? trim((string) ($currentUsername ?? '')) : $fullName;
+$profileNamePlaceholder = $embeddedProfile ? 'Username' : 'Doctor Name';
+$profileInitial = strtoupper(substr($profileDisplayName, 0, 1));
 $profileInitial = $profileInitial !== '' ? $profileInitial : 'D';
 $profilePicture = trim($old('doctor_picture', ''));
 $signaturePath = trim($old('doctor_sign', ''));
@@ -48,7 +51,12 @@ $formAction = route(match ($pageMode) {
     default => \Illuminate\Support\Facades\Route::has('admin.doctor_setup.store') ? 'admin.doctor_setup.store' : 'panel.doctor_setup.store',
 }, $pageMode === 'edit' ? ['doctor' => $doctorRecord->doctor_id] : []);
 $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ? 'admin.doctor_list' : 'panel.doctor_list');
+if ($embeddedProfile) {
+    $formAction = route('admin.profile.update');
+    $submitLabel = 'Save Profile';
+}
 ?>
+<?php if (! $embeddedProfile): ?>
 <!DOCTYPE html>
 <html lang="en" class="h-full bg-white">
 <head>
@@ -57,6 +65,7 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
     <title><?php echo htmlspecialchars($pageTitle, ENT_QUOTES, 'UTF-8'); ?></title>
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700&display=swap" rel="stylesheet" />
+<?php endif; ?>
     <style>
         .page-head h1{margin:0;font-size:1.9rem}
         .notice-box,.error-box{margin-top:18px;padding:12px 14px;border-radius:14px}
@@ -65,7 +74,7 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
         .form-card{margin-top:18px}
         .field{display:grid;gap:8px}
         .field label{font-weight:600;color:#334155}
-        .required-note{margin-left:4px;font-size:1rem;font-weight:700;color:#dc2626}
+        .field .required-note{margin-left:4px;font-size:1rem;font-weight:700;color:#dc2626}
         .field input,.field textarea,.field select{border:1px solid #cbd5e1;border-radius:12px;padding:12px 14px;background:#fff;color:#0f172a;font-size:.98rem;outline:none}
         .field input[readonly],.field textarea[readonly],.field select:disabled{background:#f8fafc;color:#475569}
         .field textarea{min-height:120px;resize:vertical}
@@ -104,6 +113,7 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
         @media (max-width:980px){.grid-2,.grid-3,.media-grid,.top-grid{grid-template-columns:1fr}}
         @media (max-width:760px){.phone-row{grid-template-columns:1fr}}
     </style>
+<?php if (! $embeddedProfile): ?>
 </head>
 <body class="admin-shell">
 <?php medis_render_admin_navigation_start([
@@ -124,9 +134,10 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
 <?php if ($hasErrors): ?>
     <div class="error-box"><?php echo htmlspecialchars($firstError, ENT_QUOTES, 'UTF-8'); ?></div>
 <?php endif; ?>
+<?php endif; ?>
 
 <section class="form-card">
-    <form method="POST" action="<?php echo htmlspecialchars($formAction, ENT_QUOTES, 'UTF-8'); ?>" enctype="multipart/form-data">
+    <form id="doctorProfileForm" method="POST" action="<?php echo htmlspecialchars($formAction, ENT_QUOTES, 'UTF-8'); ?>" enctype="multipart/form-data">
         <input type="hidden" name="_token" value="<?php echo htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8'); ?>">
         <?php if ($pageMode === 'edit'): ?>
             <input type="hidden" name="_method" value="PUT">
@@ -149,7 +160,7 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
                             </span>
                         <?php endif; ?>
                     </label>
-                    <strong id="doctorPictureName"><?php echo htmlspecialchars($fullName !== '' ? $fullName : 'Doctor Name', ENT_QUOTES, 'UTF-8'); ?></strong>
+                    <strong id="doctorPictureName"><?php echo htmlspecialchars($profileDisplayName !== '' ? $profileDisplayName : $profileNamePlaceholder, ENT_QUOTES, 'UTF-8'); ?></strong>
                 </div>
                 <?php if (! $isReadOnly && $hasDoctorPicture): ?>
                     <input id="doctor_picture_upload" name="doctor_picture" type="file" accept="image/*">
@@ -157,6 +168,13 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
             </section>
 
             <div class="details-stack">
+                <?php if ($embeddedProfile): ?>
+                <div class="field">
+                    <label for="profile_username">Username<span class="required-note">*</span></label>
+                    <input id="profile_username" name="username" type="text" value="<?php echo htmlspecialchars((string) ($currentUsername ?? ''), ENT_QUOTES, 'UTF-8'); ?>" maxlength="100" autocomplete="username" required>
+                </div>
+                <?php endif; ?>
+                <div class="grid-2">
                 <div class="field">
                     <label for="doctor_firstName">First Name<span class="required-note">*</span></label>
                     <input id="doctor_firstName" name="doctor_firstName" type="text" value="<?php echo htmlspecialchars($old('doctor_firstName'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="Ali" <?php echo $isReadOnly ? 'readonly' : 'required'; ?>>
@@ -164,6 +182,7 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
                 <div class="field">
                     <label for="doctor_lastName">Last Name<span class="required-note">*</span></label>
                     <input id="doctor_lastName" name="doctor_lastName" type="text" value="<?php echo htmlspecialchars($old('doctor_lastName'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="Bin Abu" <?php echo $isReadOnly ? 'readonly' : 'required'; ?>>
+                </div>
                 </div>
                 <div class="field">
                     <label for="doctor_email">Email</label>
@@ -262,7 +281,7 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
                     <input id="doctor_fax_number" name="doctor_fax_number" type="tel" value="<?php echo htmlspecialchars($old('doctor_fax_number'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="Fax number" <?php echo $isReadOnly ? 'readonly' : ''; ?>>
                 </div>
             </div>
-            <?php if ($hasDoctorStatus): ?>
+            <?php if ($hasDoctorStatus && ! $embeddedProfile): ?>
                 <div class="field">
                     <label for="doctor_status">Status</label>
                     <select id="doctor_status" name="doctor_status" <?php echo $isReadOnly ? 'disabled' : ''; ?>>
@@ -327,7 +346,7 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
         </div>
 
         <div class="actions">
-            <a class="btn secondary" href="<?php echo htmlspecialchars($backRoute, ENT_QUOTES, 'UTF-8'); ?>">Back to Doctor List</a>
+            <?php if (! $embeddedProfile): ?><a class="btn secondary" href="<?php echo htmlspecialchars($backRoute, ENT_QUOTES, 'UTF-8'); ?>">Back to Doctor List</a><?php endif; ?>
             <?php if (! $isReadOnly && $canSaveDoctor): ?>
                 <button type="submit" class="btn primary"><?php echo htmlspecialchars($submitLabel, ENT_QUOTES, 'UTF-8'); ?></button>
             <?php endif; ?>
@@ -335,12 +354,12 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
     </form>
 </section>
 
-<?php medis_render_navigation_end(); ?>
+<?php if (! $embeddedProfile) { medis_render_navigation_end(); } ?>
 <?php if (! $isReadOnly): ?>
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
 <script>
 (() => {
-    const form = document.querySelector('form');
+    const form = document.getElementById('doctorProfileForm');
     const canvas = document.getElementById('signature-pad');
     const hiddenInput = document.getElementById('doctor_sign_data');
     const clearButton = document.getElementById('clear-signature');
@@ -354,14 +373,15 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
     const signatureText = document.getElementById('doctorSignatureText');
     const firstNameInput = document.getElementById('doctor_firstName');
     const lastNameInput = document.getElementById('doctor_lastName');
+    const usernameInput = document.getElementById('profile_username');
     const profileName = document.getElementById('doctorPictureName');
     const existingSignature = <?php echo json_encode($signaturePath !== ''); ?>;
 
     const syncProfileText = () => {
-        const fullName = [firstNameInput?.value || '', lastNameInput?.value || ''].join(' ').trim();
-        profileName.textContent = fullName !== '' ? fullName : 'Doctor Name';
+        const displayName = usernameInput ? usernameInput.value.trim() : [firstNameInput?.value || '', lastNameInput?.value || ''].join(' ').trim();
+        profileName.textContent = displayName !== '' ? displayName : (usernameInput ? 'Username' : 'Doctor Name');
         if (pictureInitial) {
-            pictureInitial.textContent = fullName !== '' ? fullName.charAt(0).toUpperCase() : 'D';
+            pictureInitial.textContent = displayName !== '' ? displayName.charAt(0).toUpperCase() : 'D';
         }
     };
 
@@ -406,11 +426,15 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
         });
     }
 
-    if (firstNameInput) {
+    if (usernameInput) {
+        usernameInput.addEventListener('input', syncProfileText);
+    }
+
+    if (!usernameInput && firstNameInput) {
         firstNameInput.addEventListener('input', syncProfileText);
     }
 
-    if (lastNameInput) {
+    if (!usernameInput && lastNameInput) {
         lastNameInput.addEventListener('input', syncProfileText);
     }
 
@@ -515,5 +539,7 @@ $backRoute = route(\Illuminate\Support\Facades\Route::has('admin.doctor_list') ?
 })();
 </script>
 <?php endif; ?>
+<?php if (! $embeddedProfile): ?>
 </body>
 </html>
+<?php endif; ?>

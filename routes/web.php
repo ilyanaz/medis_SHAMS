@@ -28,14 +28,12 @@ Route::get('/panel/logout', [PanelController::class, 'showLogout'])->name('panel
 Route::post('/logout', [PanelController::class, 'logout'])->name('logout');
 Route::get('/panel/dashboard', [PanelController::class, 'dashboard'])->name('panel.dashboard');
 Route::get('/panel/admin-dashboard', [PanelController::class, 'adminDashboard'])->name('panel.admin_dashboard');
-Route::get('/panel/doctors', [PanelController::class, 'doctorList'])->name('panel.doctor_list');
-Route::get('/panel/doctor-setup', [PanelController::class, 'doctorSetup'])->name('panel.doctor_setup');
-Route::post('/panel/doctor-setup', [PanelController::class, 'storeDoctor'])->name('panel.doctor_setup.store');
-Route::get('/panel/doctors/{doctor}', [PanelController::class, 'doctorShow'])->name('panel.doctor.show');
-Route::get('/panel/doctors/{doctor}/edit', [PanelController::class, 'doctorEdit'])->name('panel.doctor.edit');
+Route::redirect('/panel/doctors', '/admin/settings?tab=profile')->name('panel.doctor_list');
+Route::redirect('/panel/doctor-setup', '/admin/settings?tab=profile')->name('panel.doctor_setup');
+Route::post('/panel/doctor-setup', [PanelController::class, 'updateAdminProfile'])->name('panel.doctor_setup.store');
+Route::redirect('/panel/doctors/{doctor}', '/admin/settings?tab=profile')->name('panel.doctor.show');
+Route::redirect('/panel/doctors/{doctor}/edit', '/admin/settings?tab=profile')->name('panel.doctor.edit');
 Route::put('/panel/doctors/{doctor}', [PanelController::class, 'updateDoctor'])->name('panel.doctor.update');
-Route::patch('/panel/doctors/{doctor}/status', [PanelController::class, 'updateDoctorStatus'])->name('panel.doctor.status');
-Route::delete('/panel/doctors/{doctor}', [PanelController::class, 'destroyDoctor'])->name('panel.doctor.destroy');
 Route::get('/panel/clinics', [PanelController::class, 'clinicList'])->name('panel.clinic_list');
 Route::get('/panel/clinic-setup', [PanelController::class, 'clinicSetup'])->name('panel.clinic_setup');
 Route::post('/panel/clinic-setup', [PanelController::class, 'storeClinic'])->name('panel.clinic_setup.store');
@@ -104,14 +102,12 @@ Route::view('/report/pdf/examination', 'report.PDF_examination')->name('pdf.exam
 Route::post('/report/email/send', [PanelController::class, 'sendSurveillanceReportEmail'])->name('report.email.send');
 
 Route::get('/admin/dashboard', [PanelController::class, 'adminDashboard'])->name('admin.dashboard');
-Route::get('/admin/doctors', [PanelController::class, 'doctorList'])->name('admin.doctor_list');
-Route::get('/admin/doctor-setup', [PanelController::class, 'doctorSetup'])->name('admin.doctor_setup');
-Route::post('/admin/doctor-setup', [PanelController::class, 'storeDoctor'])->name('admin.doctor_setup.store');
-Route::get('/admin/doctors/{doctor}', [PanelController::class, 'doctorShow'])->name('admin.doctor.show');
-Route::get('/admin/doctors/{doctor}/edit', [PanelController::class, 'doctorEdit'])->name('admin.doctor.edit');
+Route::redirect('/admin/doctors', '/admin/settings?tab=profile')->name('admin.doctor_list');
+Route::redirect('/admin/doctor-setup', '/admin/settings?tab=profile')->name('admin.doctor_setup');
+Route::post('/admin/doctor-setup', [PanelController::class, 'updateAdminProfile'])->name('admin.doctor_setup.store');
+Route::redirect('/admin/doctors/{doctor}', '/admin/settings?tab=profile')->name('admin.doctor.show');
+Route::redirect('/admin/doctors/{doctor}/edit', '/admin/settings?tab=profile')->name('admin.doctor.edit');
 Route::put('/admin/doctors/{doctor}', [PanelController::class, 'updateDoctor'])->name('admin.doctor.update');
-Route::patch('/admin/doctors/{doctor}/status', [PanelController::class, 'updateDoctorStatus'])->name('admin.doctor.status');
-Route::delete('/admin/doctors/{doctor}', [PanelController::class, 'destroyDoctor'])->name('admin.doctor.destroy');
 Route::get('/admin/clinics', [PanelController::class, 'clinicList'])->name('admin.clinic_list');
 Route::get('/admin/clinic-setup', [PanelController::class, 'clinicSetup'])->name('admin.clinic_setup');
 Route::post('/admin/clinic-setup', [PanelController::class, 'storeClinic'])->name('admin.clinic_setup.store');
@@ -121,6 +117,8 @@ Route::put('/admin/clinics/{clinic}', [PanelController::class, 'updateClinic'])-
 Route::patch('/admin/clinics/{clinic}/status', [PanelController::class, 'updateClinicStatus'])->name('admin.clinic.status');
 Route::delete('/admin/clinics/{clinic}', [PanelController::class, 'destroyClinic'])->name('admin.clinic.destroy');
 Route::get('/admin/settings', [PanelController::class, 'adminSettings'])->name('admin.settings');
+Route::match(['post', 'put'], '/admin/settings/profile', [PanelController::class, 'updateAdminProfile'])->name('admin.profile.update');
+Route::post('/admin/settings/profile/link', [PanelController::class, 'linkAdminDoctorProfile'])->name('admin.profile.link');
 Route::post('/admin/settings/username', [PanelController::class, 'updateAdminUsername'])->name('admin.username.update');
 Route::post('/admin/settings/password', [PanelController::class, 'updateAdminPassword'])->name('admin.password.update');
 
