@@ -47,7 +47,7 @@ class LegacyClinicContext
             $payload['employees'] = $existing['employees'] ?? $employees;
             $payload['employeeTotal'] = $existing['employeeTotal'] ?? $employees->count();
             $payload['selectedEmployee'] = $existing['selectedEmployee'] ?? $selectedEmployee;
-            $payload['records'] = $existing['records'] ?? $this->surveillanceRecords($selectedCompany, $selectedEmployee);
+            $payload['records'] = $existing['records'] ?? $this->surveillanceRecords($activeClinicId, $selectedCompany, $selectedEmployee);
             $payload['totalRecords'] = $existing['totalRecords'] ?? count($payload['records']);
 
             if ($this->needsAudiometryRecordContext($viewName)) {
@@ -350,7 +350,7 @@ class LegacyClinicContext
         return $query->first();
     }
 
-    protected function surveillanceRecords(?object $selectedCompany, ?object $selectedEmployee): array
+    protected function surveillanceRecords(?int $clinicId, ?object $selectedCompany, ?object $selectedEmployee): array
     {
         if (! Schema::hasTable('declaration')) {
             return [];
@@ -376,6 +376,14 @@ class LegacyClinicContext
         foreach ($joins as [$table, $left, $right]) {
             if (Schema::hasTable($table)) {
                 $query->leftJoin($table, $left, '=', $right);
+            }
+        }
+
+        if ($clinicId !== null) {
+            if (Schema::hasTable('company') && Schema::hasColumn('company', 'clinic_id')) {
+                $query->where('company.clinic_id', $clinicId);
+            } elseif (Schema::hasTable('employee') && Schema::hasColumn('employee', 'clinic_id')) {
+                $query->where('employee.clinic_id', $clinicId);
             }
         }
 
