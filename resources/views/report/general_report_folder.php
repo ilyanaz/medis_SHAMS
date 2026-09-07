@@ -415,6 +415,20 @@ medis_render_navigation_start([
         });
     };
 
+    const clearReportSelections = function(){
+        rows.forEach(function(row){
+            const checkbox = row.querySelector('[data-row-select]');
+            if (checkbox) {
+                checkbox.checked = false;
+            }
+        });
+        if (selectAll) {
+            selectAll.checked = false;
+            selectAll.indeterminate = false;
+        }
+        syncToolbarActions();
+    };
+
     const syncToolbarActions = function(){
         const selectedRows = getSelectedRows();
         const hasSelectedRows = selectedRows.length > 0;
@@ -642,6 +656,7 @@ medis_render_navigation_start([
                     window.open(href, '_blank', 'noopener');
                 }
             });
+            clearReportSelections();
         });
     }
 
