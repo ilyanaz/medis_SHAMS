@@ -151,6 +151,7 @@ if (! function_exists('medis_render_navigation_start')) {
         $clinicSwitcherToken = function_exists('csrf_token') ? (string) csrf_token() : '';
         $clinicRecords = [];
         $activeClinic = null;
+        $panelUserId = (int) ($config['panelUser']->user_id ?? $config['panelUser']->id ?? $sessionStore?->get('panel_user_id', 0) ?? 0);
 
         if (class_exists('\\Illuminate\\Support\\Facades\\DB')) {
             try {
@@ -160,6 +161,12 @@ if (! function_exists('medis_render_navigation_start')) {
                 if (class_exists('\\Illuminate\\Support\\Facades\\Schema')
                     && \Illuminate\Support\Facades\Schema::hasColumn('clinic', 'clinic_status')) {
                     $clinicQuery->where('clinic_status', 'active');
+                }
+
+                if ($panelUserId > 0
+                    && class_exists('\\Illuminate\\Support\\Facades\\Schema')
+                    && \Illuminate\Support\Facades\Schema::hasColumn('clinic', 'user_id')) {
+                    $clinicQuery->where('user_id', $panelUserId);
                 }
 
                 $clinicRecords = $clinicQuery
@@ -488,7 +495,7 @@ if (! function_exists('medis_render_navigation_start')) {
                 <?php if ($canAccessAdminPanel): ?>
                     <div class="app-clinic-menu-section">
                         <div class="app-clinic-menu-title" data-i18n="clinic_navigation_mode">Navigation Mode</div>
-                        <?php if ($panelResolvedRole === 'admin' || $panelOriginalRole === 'admin'): ?>
+                        <?php if ($canAccessAdminPanel): ?>
                             <form class="app-clinic-option-form" method="POST" action="<?php echo $esc($clinicSwitcherAdminUrl); ?>">
                                 <input type="hidden" name="_token" value="<?php echo $esc($clinicSwitcherToken); ?>">
                                 <button class="app-clinic-option<?php echo $inAdminMode ? ' is-active' : ''; ?>" type="submit">

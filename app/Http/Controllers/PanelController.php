@@ -60,7 +60,7 @@ class PanelController extends Controller
         ]);
 
         if (! $this->canUseAdminMode($user)) {
-            $defaultClinicId = $this->firstClinicId();
+            $defaultClinicId = $this->firstClinicId($user);
             if ($defaultClinicId !== null) {
                 $request->session()->put('active_clinic_id', $defaultClinicId);
             }
@@ -85,7 +85,7 @@ class PanelController extends Controller
         }
 
         $viewData = $this->buildViewData($request, $user);
-        $clinicId = (int) $request->session()->get('active_clinic_id', 0);
+        $clinicId = (int) ($viewData['activeClinic']->clinic_id ?? 0);
 
         return view('panel.dashboard', array_merge($viewData, $this->dashboardContext($clinicId)));
     }
@@ -1505,7 +1505,7 @@ class PanelController extends Controller
             return redirect()->route('panel.dashboard');
         }
 
-        $record = $this->findClinic($clinic);
+        $record = $this->findClinic($clinic, $user);
         if ($record === null) {
             return redirect()->route('admin.clinic_list')->withErrors(['clinic' => 'The selected clinic could not be found.']);
         }
@@ -1531,7 +1531,7 @@ class PanelController extends Controller
             return redirect()->route('panel.dashboard');
         }
 
-        $record = $this->findClinic($clinic);
+        $record = $this->findClinic($clinic, $user);
         if ($record === null) {
             return redirect()->route('admin.clinic_list')->withErrors(['clinic' => 'The selected clinic could not be found.']);
         }
@@ -1641,7 +1641,7 @@ class PanelController extends Controller
 
         $request->session()->put('panel_mode', 'admin');
 
-        $clinicQuery = DB::table('clinic')->select($this->clinicListColumns());
+        $clinicQuery = $this->clinicsForUserQuery($user)->select($this->clinicListColumns());
         if (Schema::hasColumn('clinic', 'clinic_status')) {
             $clinicQuery->orderByDesc('clinic_status');
         }
@@ -1650,7 +1650,7 @@ class PanelController extends Controller
         $viewData['clinics'] = $clinicQuery
             ->orderBy('clinic_name')
             ->get();
-        $viewData['canAddClinic'] = $this->isAdmin($user);
+        $viewData['canAddClinic'] = $this->canManageClinics($user);
 
         return view('clinic.clinic_list', $viewData);
     }
@@ -1797,6 +1797,10 @@ class PanelController extends Controller
             'clinic_status' => $validated['clinic_status'],
         ];
 
+        if (Schema::hasColumn('clinic', 'user_id')) {
+            $payload['user_id'] = $user->getKey();
+        }
+
         $optionalFields = [
             'clinic_registration' => $validated['registration'] ?: null,
             'clinic_header_path' => $headerPath,
@@ -1827,7 +1831,7 @@ class PanelController extends Controller
             return redirect()->route('panel.dashboard');
         }
 
-        $record = $this->findClinic($clinic);
+        $record = $this->findClinic($clinic, $user);
         if ($record === null) {
             return redirect()->route('admin.clinic_list')->withErrors(['clinic' => 'The selected clinic could not be found.']);
         }
@@ -1907,7 +1911,7 @@ class PanelController extends Controller
             return redirect()->route('panel.dashboard');
         }
 
-        $record = $this->findClinic($clinic);
+        $record = $this->findClinic($clinic, $user);
         if ($record === null) {
             return redirect()->route('admin.clinic_list')->withErrors(['clinic' => 'The selected clinic could not be found.']);
         }
@@ -1936,7 +1940,7 @@ class PanelController extends Controller
             return redirect()->route('panel.dashboard');
         }
 
-        $record = $this->findClinic($clinic);
+        $record = $this->findClinic($clinic, $user);
         if ($record === null) {
             return redirect()->route('admin.clinic_list')->withErrors(['clinic' => 'The selected clinic could not be found.']);
         }
@@ -2289,7 +2293,7 @@ class PanelController extends Controller
             return $user;
         }
 
-        $exists = DB::table('clinic')
+        $exists = $this->clinicsForUserQuery($user)
             ->where('clinic_id', $clinic)
             ->exists();
 
@@ -4643,12 +4647,13 @@ class PanelController extends Controller
 
     protected function activeClinic(Request $request): ?object
     {
+        $user = $this->resolvePanelUser($request);
         $clinicId = (int) $request->session()->get('active_clinic_id', 0);
         if ($clinicId <= 0) {
             return null;
         }
 
-        return DB::table('clinic')
+        return $this->clinicsForUserQuery($user)
             ->select($this->clinicSelectColumns())
             ->where('clinic_id', $clinicId)
             ->first();
@@ -5428,9 +5433,9 @@ class PanelController extends Controller
         return $rows;
     }
 
-    protected function firstClinicId(): ?int
+    protected function firstClinicId(?User $user = null): ?int
     {
-        $clinicId = DB::table('clinic')
+        $clinicId = $this->clinicsForUserQuery($user)
             ->orderBy('clinic_name')
             ->value('clinic_id');
 
@@ -5441,6 +5446,7 @@ class PanelController extends Controller
     {
         return $this->existingColumns('clinic', [
             'clinic_id',
+            'user_id',
             'clinic_name',
             'clinic_email',
             'clinic_telephone',
@@ -5541,7 +5547,7 @@ class PanelController extends Controller
 
     protected function requiresClinicSelection(Request $request, ?User $user): bool
     {
-        return $this->isDoctor($user) && (int) $request->session()->get('active_clinic_id', 0) <= 0;
+        return $this->isDoctor($user) && $this->activeClinic($request) === null;
     }
 
     protected function canAccessAdminDashboard(Request $request, ?User $user): bool
@@ -5718,17 +5724,28 @@ class PanelController extends Controller
         return null;
     }
 
-    protected function findClinic(int $clinicId): ?object
+    protected function findClinic(int $clinicId, ?User $user = null): ?object
     {
         $columns = $this->clinicListColumns();
         if ($columns === []) {
             return null;
         }
 
-        return DB::table('clinic')
+        return $this->clinicsForUserQuery($user)
             ->select($columns)
             ->where('clinic_id', $clinicId)
             ->first();
+    }
+
+    protected function clinicsForUserQuery(?User $user): \Illuminate\Database\Query\Builder
+    {
+        $query = DB::table('clinic');
+
+        if ($user && Schema::hasColumn('clinic', 'user_id')) {
+            $query->where('user_id', $user->getKey());
+        }
+
+        return $query;
     }
 
     protected function findDoctor(int $doctorId): ?object

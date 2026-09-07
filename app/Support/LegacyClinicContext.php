@@ -116,6 +116,10 @@ class LegacyClinicContext
         }
 
         $query = DB::table('clinic')->where('clinic_id', $clinicId);
+        $user = $this->panelUser($request);
+        if ($user && Schema::hasColumn('clinic', 'user_id')) {
+            $query->where('user_id', $user->getKey());
+        }
 
         $columns = ['clinic_id', 'clinic_name'];
         if (Schema::hasColumn('clinic', 'clinic_header_path')) {
