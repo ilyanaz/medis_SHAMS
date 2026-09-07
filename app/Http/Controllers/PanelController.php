@@ -18,7 +18,7 @@ use Illuminate\Support\Str;
 use Illuminate\View\View;
 use DOMDocument;
 use DOMXPath;
-use setasign\Fpdi\Fpdi;
+use App\Support\PdfMerger;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PanelController extends Controller
@@ -7479,20 +7479,7 @@ class PanelController extends Controller
                 $pdfPaths[] = $absolutePath;
             }
 
-            $mergedPdf = new Fpdi();
-            foreach ($pdfPaths as $pdfPath) {
-                $pageCount = $mergedPdf->setSourceFile($pdfPath);
-                for ($pageNumber = 1; $pageNumber <= $pageCount; $pageNumber++) {
-                    $templateId = $mergedPdf->importPage($pageNumber);
-                    $pageSize = $mergedPdf->getTemplateSize($templateId);
-                    $orientation = $pageSize['width'] > $pageSize['height'] ? 'L' : 'P';
-
-                    $mergedPdf->AddPage($orientation, [$pageSize['width'], $pageSize['height']]);
-                    $mergedPdf->useTemplate($templateId);
-                }
-            }
-
-            return $mergedPdf->Output('S');
+            return app(PdfMerger::class)->merge($pdfPaths);
         } finally {
             foreach ($temporaryPdfPaths as $temporaryPdfPath) {
                 @unlink($temporaryPdfPath);

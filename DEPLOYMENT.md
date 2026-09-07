@@ -27,6 +27,30 @@ sudo mv composer.phar /usr/local/bin/composer
 
 ## App Deployment
 
+### PDF report merging
+
+Install QPDF before deploying the PDF merger:
+
+```bash
+sudo apt update
+sudo apt install -y qpdf
+qpdf --version
+```
+
+The app uses QPDF to append blood result PDFs from Biological Monitoring to
+generated reports. Processing stays on the application server. Set
+`QPDF_BINARY=/usr/bin/qpdf` in `.env` if QPDF is not on the PHP process PATH,
+then run `php artisan config:clear` (or rebuild the production config cache).
+
+For Windows development, extract the official QPDF 12.4.1 Windows ZIP into
+`storage/app/tools/qpdf`. The default executable path is
+`storage/app/tools/qpdf/qpdf-12.4.1-msvc64/bin/qpdf.exe`; use `QPDF_BINARY` to override it.
+The tools directory is ignored by Git. Verify the ZIP against the SHA256 file
+published with the release. PHP must allow launching child processes.
+
+Run the integration check with `php artisan test --filter=PdfMergerTest`.
+It checks merging a compressed blood result PDF and retaining page order and sizes.
+
 ```bash
 cd /var/www
 sudo git clone <your-repository-url> medisSHAMS
