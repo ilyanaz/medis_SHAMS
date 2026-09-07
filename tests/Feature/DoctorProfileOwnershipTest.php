@@ -47,21 +47,31 @@ class DoctorProfileOwnershipTest extends TestCase
         $this->assertNull($controller->doctorFor(User::find(2)));
     }
 
-    public function test_profile_can_link_existing_unassigned_doctor(): void
+    public function test_profile_cannot_link_existing_unassigned_doctor(): void
     {
-        $this->withSession(['panel_user_id' => 2])->post(route('admin.profile.link'), ['doctor_id' => 2])->assertRedirect(route('admin.settings'));
-        $this->assertSame(2, User::find(2)->doctor_id);
+        $this->withSession(['panel_user_id' => 2])
+            ->post(route('admin.profile.link'), ['doctor_id' => 2])
+            ->assertRedirect(route('admin.settings', ['tab' => 'profile']))
+            ->assertSessionHasErrors('doctor_id');
+
+        $this->assertNull(User::find(2)->doctor_id);
     }
 
     public function test_doctor_cannot_be_claimed_by_another_account(): void
     {
-        $this->withSession(['panel_user_id' => 2])->post(route('admin.profile.link'), ['doctor_id' => 1])->assertSessionHasErrors('doctor_id');
+        $this->withSession(['panel_user_id' => 2])
+            ->post(route('admin.profile.link'), ['doctor_id' => 1])
+            ->assertSessionHasErrors('doctor_id');
+
         $this->assertNull(User::find(2)->doctor_id);
     }
 
     public function test_linked_user_cannot_switch_to_a_second_doctor(): void
     {
-        $this->withSession(['panel_user_id' => 1])->post(route('admin.profile.link'), ['doctor_id' => 2])->assertSessionHasErrors('doctor_id');
+        $this->withSession(['panel_user_id' => 1])
+            ->post(route('admin.profile.link'), ['doctor_id' => 2])
+            ->assertSessionHasErrors('doctor_id');
+
         $this->assertSame(1, User::find(1)->doctor_id);
     }
 

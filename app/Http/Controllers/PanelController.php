@@ -1672,9 +1672,6 @@ class PanelController extends Controller
         $viewData['accountUser'] = $user;
         $viewData['doctorRecord'] = $this->linkedDoctorRecord($user);
         $viewData['doctorFormData'] = $this->doctorFormDefaults($viewData['doctorRecord']);
-        $viewData['availableDoctorProfiles'] = $viewData['doctorRecord'] ? collect() : DB::table('doctor')
-            ->whereNotIn('doctor_id', DB::table('users')->whereNotNull('doctor_id')->pluck('doctor_id'))
-            ->orderBy('doctor_firstName')->get();
 
         return view('admin.admin_setting', $viewData);
     }
@@ -1713,22 +1710,15 @@ class PanelController extends Controller
     public function linkAdminDoctorProfile(Request $request): RedirectResponse
     {
         $user = $this->requirePanelUser($request);
-        if ($user instanceof RedirectResponse) return $user;
+        if ($user instanceof RedirectResponse) {
+            return $user;
+        }
+
         abort_unless($this->canUseAdminMode($user), 403);
-        $validated = $request->validate(['doctor_id' => ['required', 'integer', 'exists:doctor,doctor_id']]);
-        DB::transaction(function () use ($user, $validated) {
-            $account = User::query()->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
-            if ($account->doctor_id) {
-                throw \Illuminate\Validation\ValidationException::withMessages(['doctor_id' => 'Your account already has a doctor profile.']);
-            }
-            DB::table('doctor')->where('doctor_id', $validated['doctor_id'])->lockForUpdate()->first();
-            if (User::query()->where('doctor_id', $validated['doctor_id'])->exists()) {
-                throw \Illuminate\Validation\ValidationException::withMessages(['doctor_id' => 'This doctor profile is already linked to another account.']);
-            }
-            $account->doctor_id = $validated['doctor_id'];
-            $account->save();
-        });
-        return redirect()->route('admin.settings')->with('status', 'Existing doctor profile linked successfully.');
+
+        return redirect()
+            ->route('admin.settings', ['tab' => 'profile'])
+            ->withErrors(['doctor_id' => 'Please create your own doctor profile for this account.']);
     }
 
     public function storeClinic(Request $request): RedirectResponse

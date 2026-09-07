@@ -74,23 +74,6 @@ if ($errorBag && ($errorBag->has('current_password') || $errorBag->has('new_pass
     <?php endif; ?>
 
     <?php if ($activeTab === 'profile'): ?>
-    <?php if (! $doctorRecord && count($availableDoctorProfiles ?? []) > 0): ?>
-        <section class="settings-card">
-            <h2>Use Existing Doctor Information</h2>
-            <form class="settings-stack" method="POST" action="<?php echo $esc(route('admin.profile.link')); ?>">
-                <input type="hidden" name="_token" value="<?php echo $esc(csrf_token()); ?>">
-                <label class="field"><span>Your doctor profile<span class="required-note">*</span></span>
-                    <select name="doctor_id" required>
-                        <option value="">Select your existing doctor record</option>
-                        <?php foreach ($availableDoctorProfiles as $profile): ?>
-                            <option value="<?php echo $esc($profile->doctor_id); ?>"><?php echo $esc(trim($profile->doctor_firstName . ' ' . $profile->doctor_lastName)); ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </label>
-                <div class="actions"><button class="btn primary" type="submit">Use This Profile</button></div>
-            </form>
-        </section>
-    <?php endif; ?>
     <?php echo view('doctor.doctor_setup', ['embeddedProfile' => true, 'currentUsername' => $currentUsername, 'pageMode' => $doctorRecord ? 'edit' : 'create', 'canSaveDoctor' => true, 'doctorRecord' => $doctorRecord, 'doctorFormData' => $doctorFormData ?? [], 'privateFileUrl' => $privateFileUrl ?? null])->render(); ?>
     <?php else: ?>
     <section class="settings-card">

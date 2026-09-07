@@ -32,6 +32,8 @@ class AdminSettingsTabsTest extends TestCase
         $this->assertStringContainsString('name="doctor_firstName"', $html);
         $this->assertStringContainsString('name="doctor_sign_upload"', $html);
         $this->assertStringContainsString(route('admin.profile.update'), $html);
+        $this->assertStringNotContainsString('Use Existing Doctor Information', $html);
+        $this->assertStringNotContainsString('Use This Profile', $html);
         $this->assertStringNotContainsString('name="current_password"', $html);
         $this->assertSame(1, substr_count(strtolower($html), '<!doctype html>'));
     }
