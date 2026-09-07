@@ -2427,6 +2427,12 @@ class PanelController extends Controller
             'work_unit_chemical_total_workers.*' => ['array'],
             'work_unit_chemical_total_workers.*.*' => ['nullable', 'integer', 'min:0'],
         ]);
+        $workUnitInput = $request->only([
+            'work_unit_name',
+            'work_unit_chemical_name',
+            'work_unit_chemical_chra_report_no',
+            'work_unit_chemical_total_workers',
+        ]);
 
         $payload = [
             'company_name' => trim((string) $validated['company_name']),
@@ -2450,7 +2456,7 @@ class PanelController extends Controller
         }
 
         $companyId = (int) DB::table('company')->insertGetId($payload);
-        $this->syncCompanyWorkUnits($companyId, $validated);
+        $this->syncCompanyWorkUnits($companyId, array_merge($validated, $workUnitInput));
 
         return redirect()
             ->route($validated['company_module'] === 'audiometry' ? 'audiometry.company' : 'surveillance.company')
@@ -2501,6 +2507,12 @@ class PanelController extends Controller
             'work_unit_chemical_total_workers.*' => ['array'],
             'work_unit_chemical_total_workers.*.*' => ['nullable', 'integer', 'min:0'],
         ]);
+        $workUnitInput = $request->only([
+            'work_unit_name',
+            'work_unit_chemical_name',
+            'work_unit_chemical_chra_report_no',
+            'work_unit_chemical_total_workers',
+        ]);
 
         $payload = [
             'company_name' => trim((string) $validated['company_name']),
@@ -2522,7 +2534,7 @@ class PanelController extends Controller
         DB::table('company')
             ->where('company_id', $record->company_id)
             ->update($payload);
-        $this->syncCompanyWorkUnits((int) $record->company_id, $validated);
+        $this->syncCompanyWorkUnits((int) $record->company_id, array_merge($validated, $workUnitInput));
 
         return redirect()
             ->route('panel.company_list')

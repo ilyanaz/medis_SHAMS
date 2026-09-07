@@ -73,11 +73,11 @@ if ($phoneRaw !== '' && preg_match('/^(\+\d{1,3})\s*(.*)$/', $phoneRaw, $matches
 }
 $phoneCode = $old('company_phone_code', $phoneCode ?: '+60');
 $selectedModule = strtolower($old('company_module', (string) ($companyRecord->company_module ?? 'surveillance')));
-$workUnits = old('work_unit_name', ['']);
+$workUnits = old('work_unit_name', $companyFormData['work_unit_name'] ?? ['']);
 $workUnits = is_array($workUnits) && $workUnits !== [] ? array_values($workUnits) : [''];
-$workUnitChemicals = old('work_unit_chemical_name', []);
-$workUnitChraReports = old('work_unit_chemical_chra_report_no', []);
-$workUnitWorkers = old('work_unit_chemical_total_workers', []);
+$workUnitChemicals = old('work_unit_chemical_name', $companyFormData['work_unit_chemical_name'] ?? []);
+$workUnitChraReports = old('work_unit_chemical_chra_report_no', $companyFormData['work_unit_chemical_chra_report_no'] ?? []);
+$workUnitWorkers = old('work_unit_chemical_total_workers', $companyFormData['work_unit_chemical_total_workers'] ?? []);
 ?>
 <div class="overlay">
     <form class="modal" method="post" action="<?php echo $esc($formAction); ?>" id="editCompanyForm" novalidate>
