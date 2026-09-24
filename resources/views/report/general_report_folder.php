@@ -88,6 +88,9 @@ foreach ($folderRows as $row) {
         'company_id' => $row['company_id'] ?? null,
         'surveillance_id' => $row['surveillance_id'] ?? null,
     ], static fn ($value) => (int) $value > 0);
+    if (trim((string) ($row['date_examined'] ?? '')) !== '') {
+        $routeParams['date_examined'] = trim((string) $row['date_examined']);
+    }
     $row['tab_key'] = 'all';
     $row['combined_pdf_href'] = function_exists('route') ? route('pdf.usechh-all', array_merge($routeParams, ['download' => 1])) : '#';
     $allRows[] = $row;

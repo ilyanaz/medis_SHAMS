@@ -14,6 +14,7 @@ $companyId = (int) ($usechh2CompanyId ?? 0);
 $declarationId = (int) ($usechh2DeclarationId ?? 0);
 $employeeId = (int) ($usechh2EmployeeId ?? 0);
 $surveillanceId = (int) ($usechh2SurveillanceId ?? 0);
+$selectedExaminedDate = trim((string) ($usechh2LatestDateRaw ?? ''));
 $workerName = trim((string) (($employee->employee_firstName ?? '') . ' ' . ($employee->employee_lastName ?? '')));
 $workerName = $workerName !== '' ? $workerName : 'Not recorded';
 
@@ -379,7 +380,7 @@ body {
                 <a class="head-btn" href="<?php echo $esc(function_exists('route') ? route('general.report.folder', array_filter([
                     'module' => 'surveillance',
                     'company' => trim((string) ($company->company_name ?? '')),
-                    'date' => trim((string) ($usechh2LatestDateRaw ?? '')),
+                    'date' => $selectedExaminedDate,
                     'tab' => 'usechh 2',
                 ], static fn ($value) => $value !== '')) : '#'); ?>">Back</a>
                 <a class="head-btn" href="<?php echo $esc(function_exists('route') ? route('pdf.usechh2', array_filter([
@@ -388,6 +389,7 @@ body {
                     'company_id' => $companyId,
                     'surveillance_id' => $surveillanceId,
                     'group_chemical' => $chemicalName,
+                    'date_examined' => $selectedExaminedDate,
                 ], static fn ($value) => $value !== '' && $value !== 0)) : '#'); ?>">Download PDF</a>
             </div>
         </section>

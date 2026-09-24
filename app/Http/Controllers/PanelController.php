@@ -108,6 +108,8 @@ class PanelController extends Controller
 
         $viewData = $this->buildViewData($request, $user);
         $viewData['companies'] = $this->reportCompanies($request);
+        $viewData['surveillanceReportRows'] = $this->folderSurveillanceReportRows($request, '', '');
+        $viewData['audiometryReportRows'] = $this->folderAudiometryReportRows($request, '', '');
 
         return view('report.general_report', $viewData);
     }
@@ -175,10 +177,17 @@ class PanelController extends Controller
         $employeeId = (int) $request->query('employee_id', 0);
         $companyId = (int) $request->query('company_id', 0);
         $surveillanceId = (int) $request->query('surveillance_id', 0);
+        $dateExamined = trim((string) $request->query('date_examined', ''));
 
         $declaration = null;
         if ($declarationId > 0 && Schema::hasTable('declaration')) {
-            $declaration = DB::table('declaration')->where('declaration_id', $declarationId)->first();
+            $declaration = DB::table('declaration')
+                ->where('declaration_id', $declarationId)
+                ->when(
+                    $dateExamined !== '',
+                    static fn ($query) => $query->whereRaw('DATE(COALESCE(employee_date, doctor_date)) = ?', [$dateExamined])
+                )
+                ->first();
         }
         if (! $declaration && Schema::hasTable('declaration')) {
             $declarationQuery = DB::table('declaration');
@@ -190,6 +199,9 @@ class PanelController extends Controller
             }
             if ($surveillanceId > 0) {
                 $declarationQuery->where('surveillance_id', $surveillanceId);
+            }
+            if ($dateExamined !== '') {
+                $declarationQuery->whereRaw('DATE(COALESCE(employee_date, doctor_date)) = ?', [$dateExamined]);
             }
             $declaration = $declarationQuery->orderByDesc('declaration_id')->first();
         }
@@ -212,14 +224,18 @@ class PanelController extends Controller
         if ($request->boolean('download')) {
             $workerName = trim((string) (($selectedEmployee->employee_firstName ?? '') . ' ' . ($selectedEmployee->employee_lastName ?? '')));
             $safeWorkerName = trim(preg_replace('/[\\\\\\/:*?"<>|]+/', '', $workerName)) ?: 'Worker';
-            $filename = 'Medical Surveillance Report_' . preg_replace('/\s+/', ' ', $safeWorkerName) . '.pdf';
+            $safeDate = $dateExamined !== '' && strtotime($dateExamined) ? date('Y-m-d', strtotime($dateExamined)) : '';
+            $filename = 'Medical Surveillance Report_' . preg_replace('/\s+/', ' ', $safeWorkerName)
+                . ($safeDate !== '' ? ' - ' . $safeDate : '')
+                . '.pdf';
             $pdfDocuments = $this->withReportQueryContext($request, [
                 'declaration_id' => $declarationId,
                 'employee_id' => $employeeId,
                 'company_id' => $companyId,
                 'surveillance_id' => $surveillanceId,
+                'date_examined' => $dateExamined,
             ], fn (): array => $this->buildAllTabPdfDocuments($baseViewData, $legacyContext, $request, $user));
-            $pdfContent = $this->mergeReportPdfsWithBloodTestPdfs($pdfDocuments, $surveillanceId);
+            $pdfContent = $this->mergeReportPdfsWithBloodTestPdfs($pdfDocuments, $surveillanceId, $dateExamined);
 
             return response()->streamDownload(static function () use ($pdfContent): void {
                 echo $pdfContent;
@@ -262,19 +278,58 @@ class PanelController extends Controller
             return redirect()->route('admin.dashboard');
         }
 
+        $declarationId = (int) $request->query('declaration_id', 0);
+        $employeeId = (int) $request->query('employee_id', 0);
+        $companyId = (int) $request->query('company_id', 0);
+        $surveillanceId = (int) $request->query('surveillance_id', 0);
+        $dateExamined = trim((string) $request->query('date_examined', ''));
+        $resolvedDeclaration = null;
+
+        if ($dateExamined !== '' && Schema::hasTable('declaration')) {
+            if ($declarationId > 0) {
+                $resolvedDeclaration = DB::table('declaration')
+                    ->where('declaration_id', $declarationId)
+                    ->whereRaw('DATE(COALESCE(employee_date, doctor_date)) = ?', [$dateExamined])
+                    ->first();
+            }
+
+            if (! $resolvedDeclaration) {
+                $resolvedDeclaration = DB::table('declaration')
+                    ->when($employeeId > 0, static fn ($query) => $query->where('employee_id', $employeeId))
+                    ->when($companyId > 0, static fn ($query) => $query->where('company_id', $companyId))
+                    ->whereRaw('DATE(COALESCE(employee_date, doctor_date)) = ?', [$dateExamined])
+                    ->orderByDesc('declaration_id')
+                    ->first();
+            }
+
+            $declarationId = (int) ($resolvedDeclaration->declaration_id ?? $declarationId);
+            $employeeId = (int) ($resolvedDeclaration->employee_id ?? $employeeId);
+            $companyId = (int) ($resolvedDeclaration->company_id ?? $companyId);
+            $surveillanceId = (int) ($resolvedDeclaration->surveillance_id ?? $surveillanceId);
+        }
+
         $baseViewData = $this->buildViewData($request, $user);
         $legacyContext = app(\App\Support\LegacyClinicContext::class);
-        $viewData = array_merge(
+        $viewData = $this->withReportQueryContext($request, [
+            'declaration_id' => $declarationId,
+            'employee_id' => $employeeId,
+            'company_id' => $companyId,
+            'surveillance_id' => $surveillanceId,
+            'date_examined' => $dateExamined,
+        ], fn (): array => array_merge(
             $baseViewData,
             $legacyContext->compose('report.surveillance_usechh1Report', [], $request),
             ['pdfMode' => true]
-        );
+        ));
 
         $employee = $viewData['employeeData'] ?? (object) [];
         $workerName = trim((string) (($employee->employee_firstName ?? '') . ' ' . ($employee->employee_lastName ?? '')));
         $safeWorkerName = trim(preg_replace('/[\\\\\\/:*?"<>|]+/', '', $workerName)) ?: 'Worker';
         $safeWorkerName = preg_replace('/\s+/', ' ', $safeWorkerName ?? '');
-        $filename = 'USECHH1 - ' . trim((string) $safeWorkerName) . '.pdf';
+        $safeDate = $dateExamined !== '' && strtotime($dateExamined) ? date('Y-m-d', strtotime($dateExamined)) : '';
+        $filename = 'USECHH1 - ' . trim((string) $safeWorkerName)
+            . ($safeDate !== '' ? ' - ' . $safeDate : '')
+            . '.pdf';
 
         $clinicHeaderPath = trim((string) ($viewData['activeClinic']->clinic_header_path ?? ''));
         if ($clinicHeaderPath !== '') {
@@ -289,8 +344,8 @@ class PanelController extends Controller
             ->setOption(['isRemoteEnabled' => true, 'isHtml5ParserEnabled' => true])
             ->setPaper('a4', 'portrait')
             ->output();
-        $surveillanceId = (int) ($viewData['surveillanceReportId'] ?? $request->query('surveillance_id', 0));
-        $pdfContent = $this->mergeReportPdfsWithBloodTestPdfs([$pdfContent], $surveillanceId);
+        $resolvedSurveillanceId = (int) ($viewData['surveillanceReportId'] ?? $surveillanceId);
+        $pdfContent = $this->mergeReportPdfsWithBloodTestPdfs([$pdfContent], $resolvedSurveillanceId, $dateExamined);
 
         return response()->streamDownload(static function () use ($pdfContent): void {
             echo $pdfContent;
@@ -789,7 +844,7 @@ class PanelController extends Controller
         );
         $usechh2Context = array_merge(
             $baseViewData,
-            $this->buildUsechh2ReportContext($request, $this->resolvePanelUser($request), true),
+            $this->buildUsechh2ReportContext($request, $this->resolvePanelUser($request), true, true),
             ['pdfDownloadMode' => true]
         );
         $usechh3Context = array_merge(
@@ -3053,7 +3108,13 @@ class PanelController extends Controller
             'chemical_information',
             'surveillance_id',
             $surveillanceId,
-            ['employee_id' => $employeeId, 'doctor_id' => $doctorId, 'company_id' => $companyId],
+            [
+                'employee_id' => $employeeId,
+                'doctor_id' => $doctorId,
+                'company_id' => $companyId,
+                'chemicals' => $chemicalSelection,
+                'examination_date' => $examinationDate !== '' ? $examinationDate : null,
+            ],
             $chemicalPayload
         );
         $this->syncSurveillancePatientSupportingData($employeeId, $patientSupportingData, $company, $surveillanceId);
@@ -4386,9 +4447,7 @@ class PanelController extends Controller
     protected function folderSurveillanceReportRows(Request $request, string $company, string $date): array
     {
         if (
-            $company === ''
-            || $date === ''
-            || ! Schema::hasTable('declaration')
+            ! Schema::hasTable('declaration')
             || ! Schema::hasTable('company')
         ) {
             return [];
@@ -4414,6 +4473,7 @@ class PanelController extends Controller
                 'declaration.surveillance_id',
                 'declaration.employee_date',
                 'declaration.doctor_date',
+                'chemical_information.examination_date',
                 'employee.employee_firstName',
                 'employee.employee_lastName',
                 'employee.employee_NRIC',
@@ -4436,9 +4496,15 @@ class PanelController extends Controller
                 'ms_findings.pregnancy_breastFeding',
                 DB::raw('removal_report.removalReport_id as removal_report_id'),
             ])
-            ->where('company.company_name', $company)
-            ->whereRaw($examDateExpression . ' = ?', [$date])
             ->orderByDesc('declaration.declaration_id');
+
+        if ($company !== '') {
+            $query->where('company.company_name', $company);
+        }
+
+        if ($date !== '') {
+            $query->whereRaw($examDateExpression . ' = ?', [$date]);
+        }
 
         if ($clinicId > 0 && ($hasCompanyClinicId || $hasEmployeeClinicId)) {
             $query->where(function ($scoped) use ($clinicId, $hasCompanyClinicId, $hasEmployeeClinicId): void {
@@ -4469,11 +4535,17 @@ class PanelController extends Controller
                 || in_array((string) ($row->BM_work_related ?? ''), ['Yes', 'Abnormal'], true)
                 || in_array((string) ($row->pregnancy_breastFeding ?? ''), ['Yes', 'Abnormal'], true);
 
+            $examinedDate = trim((string) ($row->employee_date ?: $row->doctor_date ?: ''));
+            $examinedDate = $examinedDate !== '' && strtotime($examinedDate)
+                ? date('Y-m-d', strtotime($examinedDate))
+                : $examinedDate;
+
             $routeParams = array_filter([
                 'declaration_id' => $row->declaration_id,
                 'employee_id' => $row->employee_id,
                 'company_id' => $row->company_id,
                 'surveillance_id' => $row->surveillance_id,
+                'date_examined' => $examinedDate,
             ]);
 
             $base = [
@@ -4492,7 +4564,7 @@ class PanelController extends Controller
                 'has_saved_summary' => ! empty($row->summaryReport_id),
                 'status' => $isCompleted ? 'Completed' : 'Incomplete',
                 'status_key' => $isCompleted ? 'completed' : 'incomplete',
-                'date_examined' => (string) ($row->employee_date ?: $row->doctor_date ?: ''),
+                'date_examined' => $examinedDate,
             ];
 
             $reports = [
@@ -4545,9 +4617,7 @@ class PanelController extends Controller
     protected function folderAudiometryReportRows(Request $request, string $company, string $date): array
     {
         if (
-            $company === ''
-            || $date === ''
-            || ! Schema::hasTable('audiometry_test')
+            ! Schema::hasTable('audiometry_test')
             || ! Schema::hasTable('company')
         ) {
             return [];
@@ -4570,9 +4640,17 @@ class PanelController extends Controller
                 'audio_comments.audio_recommendation',
                 $audioCommentStatusSelect,
             ])
-            ->where('company.company_name', $company)
-            ->whereDate('audiometry_test.audioTest_date', $date)
+            ->whereNotNull('audio_comments.audio_recommendation')
+            ->where('audio_comments.audio_recommendation', '!=', '')
             ->orderByDesc('audiometry_test.audiometry_id');
+
+        if ($company !== '') {
+            $query->where('company.company_name', $company);
+        }
+
+        if ($date !== '') {
+            $query->whereDate('audiometry_test.audioTest_date', $date);
+        }
 
         if ($clinicId > 0 && Schema::hasColumn('company', 'clinic_id')) {
             $query->where('company.clinic_id', $clinicId);
@@ -4581,6 +4659,10 @@ class PanelController extends Controller
         return $query->get()->map(function ($row): array {
             $employeeName = trim((string) (($row->employee_firstName ?? '') . ' ' . ($row->employee_lastName ?? '')));
             $statusKey = ($row->status ?? '') === 'completed' ? 'completed' : 'pending';
+            $examinedDate = trim((string) ($row->audioTest_date ?? ''));
+            $examinedDate = $examinedDate !== '' && strtotime($examinedDate)
+                ? date('Y-m-d', strtotime($examinedDate))
+                : $examinedDate;
 
             return [
                 'module' => 'audiometry',
@@ -4590,7 +4672,7 @@ class PanelController extends Controller
                 'chemical_name' => 'Noise exposure',
                 'status' => $statusKey === 'completed' ? 'Completed' : 'Pending',
                 'status_key' => $statusKey,
-                'date_examined' => (string) ($row->audioTest_date ?? ''),
+                'date_examined' => $examinedDate,
                 'href' => route('audiometry.report', array_filter([
                     'audiometry_id' => $row->audiometry_id,
                     'employee_id' => $row->employee_id,
@@ -4807,24 +4889,35 @@ class PanelController extends Controller
         return redirect()->route('panel.dashboard');
     }
 
-    protected function buildUsechh2ReportContext(Request $request, ?User $user, bool $persistReport): array
+    protected function buildUsechh2ReportContext(Request $request, ?User $user, bool $persistReport, bool $exactDateOnly = false): array
     {
         $declarationId = (int) $request->query('declaration_id', $request->input('declaration_id', 0));
         $employeeId = (int) $request->query('employee_id', $request->input('employee_id', 0));
         $companyId = (int) $request->query('company_id', $request->input('company_id', 0));
         $surveillanceId = (int) $request->query('surveillance_id', $request->input('surveillance_id', 0));
         $groupChemical = trim((string) $request->query('group_chemical', $request->input('group_chemical', '')));
+        $dateExamined = trim((string) $request->query('date_examined', $request->input('date_examined', '')));
         $viewMode = (bool) $request->query('view', false);
 
         $declaration = null;
         if ($declarationId > 0 && Schema::hasTable('declaration')) {
-            $declaration = DB::table('declaration')->where('declaration_id', $declarationId)->first();
+            $declaration = DB::table('declaration')
+                ->where('declaration_id', $declarationId)
+                ->when(
+                    $dateExamined !== '',
+                    static fn ($builder) => $builder->whereRaw('DATE(COALESCE(employee_date, doctor_date)) = ?', [$dateExamined])
+                )
+                ->first();
         }
         if (! $declaration && Schema::hasTable('declaration')) {
             $declaration = DB::table('declaration')
                 ->when($employeeId > 0, fn ($builder) => $builder->where('employee_id', $employeeId))
                 ->when($companyId > 0, fn ($builder) => $builder->where('company_id', $companyId))
-                ->when($surveillanceId > 0, fn ($builder) => $builder->where('surveillance_id', $surveillanceId))
+                ->when($surveillanceId > 0 && $dateExamined === '', fn ($builder) => $builder->where('surveillance_id', $surveillanceId))
+                ->when(
+                    $dateExamined !== '',
+                    static fn ($builder) => $builder->whereRaw('DATE(COALESCE(employee_date, doctor_date)) = ?', [$dateExamined])
+                )
                 ->orderByDesc('declaration_id')
                 ->first();
         }
@@ -4849,6 +4942,9 @@ class PanelController extends Controller
         }
 
         $doctor = $this->resolvedSurveillanceDoctorRecord($request, $user, $declaration);
+        if ($dateExamined !== '') {
+            $persistReport = false;
+        }
         $report = null;
         if (
             $persistReport
@@ -4877,7 +4973,7 @@ class PanelController extends Controller
             }
         }
 
-        $candidateRows = $this->buildUsechh2CandidateRows($employeeId, $companyId, $groupChemical, $doctor);
+        $candidateRows = $this->buildUsechh2CandidateRows($employeeId, $companyId, $groupChemical, $doctor, $dateExamined, $exactDateOnly);
         $reportItems = [];
 
         if ($report && Schema::hasTable('summary_employee_report_items')) {
@@ -4987,6 +5083,7 @@ class PanelController extends Controller
         $employeeId = (int) $request->query('employee_id', $request->input('employee_id', 0));
         $companyId = (int) $request->query('company_id', $request->input('company_id', 0));
         $surveillanceId = (int) $request->query('surveillance_id', $request->input('surveillance_id', 0));
+        $dateExamined = trim((string) $request->query('date_examined', $request->input('date_examined', '')));
         $viewMode = (bool) $request->query('view', false);
 
         $declaration = null;
@@ -4998,6 +5095,10 @@ class PanelController extends Controller
                 ->when($employeeId > 0, fn ($builder) => $builder->where('employee_id', $employeeId))
                 ->when($companyId > 0, fn ($builder) => $builder->where('company_id', $companyId))
                 ->when($surveillanceId > 0, fn ($builder) => $builder->where('surveillance_id', $surveillanceId))
+                ->when(
+                    $dateExamined !== '',
+                    static fn ($builder) => $builder->whereRaw('DATE(COALESCE(employee_date, doctor_date)) = ?', [$dateExamined])
+                )
                 ->orderByDesc('declaration_id')
                 ->first();
         }
@@ -5069,6 +5170,9 @@ class PanelController extends Controller
         $doctorTelephone = $doctorTelephone !== '' ? $doctorTelephone : $defaultDoctorTelephone;
         $doctorEmail = trim((string) ($fitnessReport->doctor_email_address ?? ''));
         $doctorEmail = $doctorEmail !== '' ? $doctorEmail : $defaultDoctorEmail;
+        $examinedDate = $dateExamined !== ''
+            ? $dateExamined
+            : trim((string) ($declaration->employee_date ?? $declaration->doctor_date ?? ''));
 
         return [
             'usechh3Declaration' => $declaration,
@@ -5086,6 +5190,7 @@ class PanelController extends Controller
             'usechh3DoctorPracticeAddress' => $practiceAddress,
             'usechh3DoctorTelephone' => $doctorTelephone,
             'usechh3DoctorEmail' => $doctorEmail,
+            'usechh3ExaminedDate' => $examinedDate,
             'usechh3ViewMode' => $viewMode,
             'usechh3DownloadMode' => (bool) $request->query('download', false),
             'usechh3DeclarationId' => $declarationId,
@@ -5095,7 +5200,7 @@ class PanelController extends Controller
         ];
     }
 
-    protected function buildUsechh2CandidateRows(int $employeeId, int $companyId, string $groupChemical, ?object $doctor): array
+    protected function buildUsechh2CandidateRows(int $employeeId, int $companyId, string $groupChemical, ?object $doctor, string $dateExamined = '', bool $exactDateOnly = false): array
     {
         if (
             $employeeId <= 0
@@ -5114,10 +5219,16 @@ class PanelController extends Controller
             ->where('declaration.company_id', $companyId)
             ->where('chemical_information.chemicals', $groupChemical)
             ->when(
+                $dateExamined !== '',
+                static fn ($builder) => $exactDateOnly
+                    ? $builder->whereRaw('DATE(COALESCE(declaration.employee_date, declaration.doctor_date)) = ?', [$dateExamined])
+                    : $builder->whereRaw('DATE(COALESCE(declaration.employee_date, declaration.doctor_date)) <= ?', [$dateExamined])
+            )
+            ->when(
                 Schema::hasColumn('recommendation', 'is_final'),
                 static fn ($builder) => $builder->where('recommendation.is_final', 1)
             )
-            ->orderByRaw('COALESCE(chemical_information.examination_date, declaration.doctor_date, declaration.employee_date) desc')
+            ->orderByRaw('COALESCE(declaration.employee_date, declaration.doctor_date) desc')
             ->orderByDesc('declaration.declaration_id')
             ->get([
                 'declaration.declaration_id',
@@ -5194,7 +5305,7 @@ class PanelController extends Controller
                     : implode(' / ', $workRelatedValues);
             }
 
-            $msDateRaw = trim((string) ($declaration->examination_date ?? $declaration->doctor_date ?? $declaration->employee_date ?? ''));
+            $msDateRaw = trim((string) ($declaration->employee_date ?? $declaration->doctor_date ?? ''));
             $rows[] = [
                 'declaration_id' => (int) $declaration->declaration_id,
                 'employee_id' => (int) $declaration->employee_id,
@@ -7560,7 +7671,7 @@ class PanelController extends Controller
         ));
         $usechh2ViewData = $withLocalClinicHeader(array_merge(
             $baseViewData,
-            $this->buildUsechh2ReportContext($request, $user, true),
+            $this->buildUsechh2ReportContext($request, $user, true, true),
             ['pdfDownloadMode' => true]
         ));
         $usechh3ViewData = $withLocalClinicHeader(array_merge(
@@ -7585,7 +7696,7 @@ class PanelController extends Controller
         ];
     }
 
-    protected function mergeReportPdfsWithBloodTestPdfs(array $reportPdfs, int $surveillanceId): string
+    protected function mergeReportPdfsWithBloodTestPdfs(array $reportPdfs, int $surveillanceId, string $dateExamined = ''): string
     {
         $temporaryPdfPaths = [];
         try {
@@ -7611,13 +7722,26 @@ class PanelController extends Controller
 
             $pdfPaths = $temporaryPdfPaths;
             $bloodResultPaths = [];
+
             if (
                 $surveillanceId > 0
                 && Schema::hasTable('biological_monitoring')
+                && Schema::hasTable('declaration')
                 && Schema::hasColumn('biological_monitoring', 'blood_result_files')
             ) {
-                $biologicalMonitoring = DB::table('biological_monitoring')
-                    ->where('surveillance_id', $surveillanceId)
+                $biologicalMonitoringQuery = DB::table('biological_monitoring')
+                    ->join('declaration', 'declaration.surveillance_id', '=', 'biological_monitoring.surveillance_id')
+                    ->where('biological_monitoring.surveillance_id', $surveillanceId);
+
+                if (trim($dateExamined) !== '') {
+                    $biologicalMonitoringQuery->whereRaw(
+                        'DATE(COALESCE(declaration.employee_date, declaration.doctor_date)) = ?',
+                        [trim($dateExamined)]
+                    );
+                }
+
+                $biologicalMonitoring = $biologicalMonitoringQuery
+                    ->select('biological_monitoring.blood_result_files')
                     ->first();
                 $storedPaths = json_decode((string) ($biologicalMonitoring->blood_result_files ?? ''), true);
                 $bloodResultPaths = is_array($storedPaths) ? $storedPaths : [];
@@ -7661,7 +7785,13 @@ class PanelController extends Controller
     {
         $queryBag = $request->query;
         $original = $queryBag->all();
-        $queryBag->add(array_filter($queryParams, static fn ($value) => (int) $value > 0));
+        $queryBag->add(array_filter($queryParams, static function ($value): bool {
+            if (is_int($value) || is_float($value)) {
+                return $value > 0;
+            }
+
+            return trim((string) $value) !== '';
+        }));
 
         try {
             return $callback();

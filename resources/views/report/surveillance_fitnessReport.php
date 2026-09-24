@@ -24,6 +24,7 @@ $declarationId = (int) ($usechh3DeclarationId ?? 0);
 $employeeId = (int) ($usechh3EmployeeId ?? 0);
 $companyId = (int) ($usechh3CompanyId ?? 0);
 $surveillanceId = (int) ($usechh3SurveillanceId ?? 0);
+$examinedDate = trim((string) ($usechh3ExaminedDate ?? ($declaration->employee_date ?? $declaration->doctor_date ?? '')));
 $msFindings = $surveillanceId > 0 && DB::getSchemaBuilder()->hasTable('ms_findings')
     ? DB::table('ms_findings')->where('surveillance_id', $surveillanceId)->first()
     : null;
@@ -480,7 +481,7 @@ body {
                 <a class="head-btn" href="<?php echo $esc(function_exists('route') ? route('general.report.folder', array_filter([
                     'module' => 'surveillance',
                     'company' => trim((string) ($company->company_name ?? '')),
-                    'date' => trim((string) ($chemical->examination_date ?? $declaration->doctor_date ?? $declaration->employee_date ?? '')),
+                    'date' => $examinedDate,
                     'tab' => 'usechh 3',
                 ], static fn ($value) => $value !== '')) : '#'); ?>">Back</a>
                 <a class="head-btn" href="<?php echo $esc(function_exists('route') ? route('pdf.usechh3', array_filter([
@@ -488,6 +489,7 @@ body {
                     'employee_id' => $employeeId,
                     'company_id' => $companyId,
                     'surveillance_id' => $surveillanceId,
+                    'date_examined' => $examinedDate,
                 ], static fn ($value) => $value !== 0)) : '#'); ?>">Download PDF</a>
             </div>
         </section>
@@ -545,7 +547,7 @@ body {
 
                     <div class="narrative-card">
                         I hereby certify that I have examined the above-named person on
-                        <span class="narrative-strong"><?php echo $esc($formatDate((string) ($chemical->examination_date ?? $declaration->doctor_date ?? '-'))); ?></span>
+                        <span class="narrative-strong"><?php echo $esc($formatDate($examinedDate)); ?></span>
                         and that he is <span class="narrative-strong"><?php echo $esc($fitnessResult); ?></span>
                         for work which may expose him to <span class="narrative-strong"><?php echo $esc((string) ($chemical->chemicals ?? 'the stated chemical hazard')); ?></span>.
                     </div>
@@ -636,7 +638,7 @@ body {
         </table>
     </div>
 
-    <div class="pdf-copy narrative-copy">I hereby certify that I have examined the above-named person on <strong><?php echo $esc($formatDate((string) ($chemical->examination_date ?? $declaration->doctor_date ?? '-'))); ?></strong> and that he is <strong><?php echo $esc($fitnessResult); ?></strong> for work which may expose him to <strong><?php echo $esc((string) ($chemical->chemicals ?? 'the stated chemical hazard')); ?></strong>.
+    <div class="pdf-copy narrative-copy">I hereby certify that I have examined the above-named person on <strong><?php echo $esc($formatDate($examinedDate)); ?></strong> and that he is <strong><?php echo $esc($fitnessResult); ?></strong> for work which may expose him to <strong><?php echo $esc((string) ($chemical->chemicals ?? 'the stated chemical hazard')); ?></strong>.
     </div>
 
     <div class="pdf-copy remarks-copy">
